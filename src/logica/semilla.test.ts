@@ -1,6 +1,6 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { crearGenerador, DIA_1, fechaDeDia, fechaUTC, numeroDia, semillaPractica } from "./semilla";
+import { crearGenerador, DIA_1, fechaDeDia, fechaUTC, numeroDia, semillaPractica } from "./semilla.ts";
 
 function extraer(semilla: string, n: number): number[] {
   const azar = crearGenerador(semilla);
