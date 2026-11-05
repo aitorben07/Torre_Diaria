@@ -85,6 +85,11 @@ body {
   -webkit-user-select: text;
 }
 
+/* La tarjeta de fin va arriba y deja ver la cima de la torre debajo. */
+#fin {
+  margin-top: 0;
+}
+
 .panel h2 {
   margin: 0;
   font-size: 1.3rem;

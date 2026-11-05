@@ -64,3 +64,18 @@ test("al acabar, data-toques es una lista de enteros crecientes", async ({ page 
     if (i > 0) expect(toque).toBeGreaterThan(toques[i - 1]!);
   }
 });
+
+test("en 390×844 la tarjeta de fin va arriba y deja libre la parte baja para la cima", async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await preparar(page);
+  await page.goto("/");
+  await empezarHoy(page);
+  await jugarHastaElFin(page, conTactil(testInfo));
+  await expect(juego(page)).toHaveAttribute("data-estado", "fin");
+  const { zona, fin } = await page.evaluate(() => ({
+    zona: document.getElementById("zona")!.getBoundingClientRect().toJSON() as DOMRect,
+    fin: document.getElementById("fin")!.getBoundingClientRect().toJSON() as DOMRect,
+  }));
+  expect(fin.top - zona.top).toBeLessThan(24);
+  expect(fin.bottom - zona.top).toBeLessThan(zona.height * 0.6);
+});

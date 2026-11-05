@@ -36,6 +36,7 @@ function mostrarInicio(): void {
   pintarInicio({ hoy, puntosHoy: resultadoHoy()?.puntos ?? null, reto });
   pintarContador("");
   cambiarEstado("inicio");
+  lienzo.reservarArriba(0);
 }
 
 function empezar(nuevoModo: Modo, nuevoDia: number): void {
@@ -86,6 +87,13 @@ function mostrarFin(datos: ResultadoDia, modoPartida: Modo): void {
   juego.dataset.puntos = String(datos.puntos);
   juego.dataset.altura = String(datos.altura);
   cambiarEstado("fin");
+  reservarTarjeta();
+}
+
+/** Lo que tapa la tarjeta de fin por arriba, para que la cámara deje la cima debajo. */
+function reservarTarjeta(): void {
+  const zona = ui.zona().getBoundingClientRect();
+  lienzo.reservarArriba(ui.fin().getBoundingClientRect().bottom - zona.top);
 }
 
 function terminar(actual: Partida): void {
@@ -172,7 +180,10 @@ ui.botonCompartir().addEventListener("click", async () => {
   ui.mensaje().textContent = resultado === "error" ? "No se ha podido compartir." : "";
 });
 
-window.addEventListener("resize", () => lienzo.ajustar());
+window.addEventListener("resize", () => {
+  lienzo.ajustar();
+  if (ui.juego().dataset.estado === "fin") reservarTarjeta();
+});
 lienzo.ajustar();
 mostrarInicio();
 bucle.iniciar();

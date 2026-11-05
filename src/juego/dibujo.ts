@@ -1,18 +1,43 @@
 // Dibujo procedural en <canvas>: cielo en degradado que cambia con la altura,
 // suelo, plataforma y piezas con un sombreado simple. Sin imágenes ni fuentes.
-import { PALETA, verticesPieza } from "../logica/piezas.ts";
-import { PLATAFORMA_ALTO, PLATAFORMA_MEDIO_ANCHO, type CuerpoVisible, type EstadoPartida } from "../logica/simulacion.ts";
+import { ALTO_MAX, PALETA, verticesPieza } from "../logica/piezas.ts";
+import {
+  HUECO_COLGADA,
+  PLATAFORMA_ALTO,
+  PLATAFORMA_MEDIO_ANCHO,
+  type CuerpoVisible,
+  type EstadoPartida,
+} from "../logica/simulacion.ts";
 
 /** Metros visibles a lo ancho y a lo alto: el ancho cubre todo el vaivén. */
 export const ANCHO_VISTA = 9.2;
 export const ALTO_VISTA = 13;
 /** Metros de suelo visibles por debajo de la cara de la plataforma. */
-const MARGEN_SUELO = 1.5;
-/** La cámara deja la cima de la torre a esta distancia del borde inferior. */
-const CIMA_SOBRE_SUELO = 5;
+export const MARGEN_SUELO = 1.5;
+/** Metros sobre la cima de la torre que deben verse: el hueco, la pieza que cuelga y un margen. */
+export const ESPACIO_SOBRE_CIMA = HUECO_COLGADA + ALTO_MAX + 0.8;
+/** Con la tarjeta de fin, la cima queda a estos metros por debajo de su borde inferior. */
+export const MARGEN_BAJO_TARJETA = 0.6;
+/** Si bajo la tarjeta quedan menos metros que estos, se ignora la tarjeta. */
+const LIBRE_MINIMO = 2;
 /** Altura a la que el cielo ya es noche. */
 const ALTURA_CIELO = 60;
 export const RATIO_MAXIMO = 2;
+
+/**
+ * Altura de la cámara en metros: con 0, la cara de la plataforma queda
+ * `MARGEN_SUELO` por encima del borde inferior. La cámara sigue a la torre:
+ * sube en cuanto la cima y la pieza que cuelga dejan de caber, así que la torre
+ * llena la vista en vez de quedarse abajo. Con `reservaArriba` (metros tapados
+ * por la tarjeta de fin), si la cima quedaría debajo de la tarjeta, la cámara
+ * sube lo justo para dejarla bajo su borde.
+ */
+export function objetivoCamara(altura: number, altoVisible: number, reservaArriba: number = 0): number {
+  const enJuego = Math.max(0, altura + MARGEN_SUELO + ESPACIO_SOBRE_CIMA - altoVisible);
+  const libre = altoVisible - reservaArriba;
+  if (reservaArriba <= 0 || libre < LIBRE_MINIMO) return enJuego;
+  return Math.max(enJuego, altura + MARGEN_SUELO - (libre - MARGEN_BAJO_TARJETA));
+}
 
 export function ratioPixeles(dispositivo: number): number {
   return Math.min(dispositivo > 0 ? dispositivo : 1, RATIO_MAXIMO);
@@ -22,6 +47,8 @@ export class Lienzo {
   private readonly ctx: CanvasRenderingContext2D;
   private escala = 1;
   private camaraY = 0;
+  /** Píxeles reales tapados arriba por la tarjeta de fin. */
+  private reserva = 0;
   private cielo: CanvasGradient | null = null;
   private suelo: CanvasGradient | null = null;
 
@@ -52,11 +79,17 @@ export class Lienzo {
   /** Coloca la cámara al empezar una partida. */
   reiniciarCamara(): void {
     this.camaraY = 0;
+    this.reserva = 0;
+  }
+
+  /** Píxeles CSS que tapa arriba la tarjeta de fin (0 si no hay tarjeta). */
+  reservarArriba(pixelesCss: number): void {
+    this.reserva = Math.max(0, pixelesCss) * ratioPixeles(window.devicePixelRatio);
   }
 
   dibujar(estado: EstadoPartida | null): void {
     const { ctx, canvas, escala } = this;
-    const objetivo = Math.max(0, (estado?.altura ?? 0) - CIMA_SOBRE_SUELO);
+    const objetivo = objetivoCamara(estado?.altura ?? 0, canvas.height / escala, this.reserva / escala);
     this.camaraY += (objetivo - this.camaraY) * 0.08;
     const sueloY = canvas.height - (MARGEN_SUELO - this.camaraY) * escala;
 
