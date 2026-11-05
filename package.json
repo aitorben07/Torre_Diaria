@@ -1,0 +1,28 @@
+{
+  "name": "torre-diaria",
+  "type": "module",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "check": "astro check",
+    "test": "vitest run",
+    "e2e": "playwright test --project=escritorio --project=movil",
+    "e2e:motores": "playwright test --project=firefox --project=webkit",
+    "medir": "node scripts/medir-jugar.ts",
+    "medir:duracion": "node scripts/medir-duracion.ts"
+  },
+  "dependencies": {
+    "astro": "7.4.5",
+    "planck": "1.5.1"
+  },
+  "devDependencies": {
+    "@astrojs/check": "0.9.12",
+    "@playwright/test": "1.64.1",
+    "@types/node": "24.19.2",
+    "typescript": "6.0.3",
+    "vitest": "5.1.0"
+  }
+}
