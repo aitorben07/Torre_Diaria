@@ -5,8 +5,10 @@ import {
   ANCHO_MAX,
   ANCHO_MIN,
   FORMAS,
+  FORMAS_INICIALES,
   generarSecuencia,
   PALETA,
+  PIEZAS_INICIALES,
   VEL_MAX,
   VEL_MIN,
 } from "./piezas.ts";
@@ -56,13 +58,21 @@ describe("generarSecuencia", () => {
     }
   });
 
+  it("las primeras piezas solo son bloque, tablón o cuadrado en 50 semillas", () => {
+    for (const semilla of semillas(50)) {
+      for (const pieza of generarSecuencia(semilla, PIEZAS_INICIALES)) expect(FORMAS_INICIALES).toContain(pieza.forma);
+    }
+  });
+
   it("prueba dorada: las 5 primeras piezas de 2026-11-05 no cambian", () => {
+    // Actualizada a propósito al suavizar el inicio (D6, F1 de pruebas.md):
+    // velocidad desde 1,2 m/s y primeras piezas solo de formas estables.
     expect(generarSecuencia("2026-11-05", 5)).toEqual([
-      { forma: "bloque", ancho: 0.91, alto: 0.77, color: 5, velocidad: 2 },
-      { forma: "columna", ancho: 0.43, alto: 1.33, color: 2, velocidad: 2.08 },
-      { forma: "triangulo", ancho: 1.23, alto: 0.9, color: 5, velocidad: 2.16 },
-      { forma: "bloque", ancho: 1.22, alto: 0.68, color: 1, velocidad: 2.24 },
-      { forma: "bloque", ancho: 1.09, alto: 0.69, color: 0, velocidad: 2.32 },
+      { forma: "bloque", ancho: 0.91, alto: 0.77, color: 5, velocidad: 1.2 },
+      { forma: "cuadrado", ancho: 0.74, alto: 0.74, color: 5, velocidad: 1.25 },
+      { forma: "tablon", ancho: 1.97, alto: 0.32, color: 6, velocidad: 1.3 },
+      { forma: "cuadrado", ancho: 0.76, alto: 0.76, color: 5, velocidad: 1.35 },
+      { forma: "bloque", ancho: 0.96, alto: 0.61, color: 3, velocidad: 1.4 },
     ]);
   });
 });

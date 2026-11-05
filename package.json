@@ -11,7 +11,8 @@
     "test": "vitest run",
     "e2e": "playwright test --project=escritorio --project=movil",
     "e2e:motores": "playwright test --project=firefox --project=webkit",
-    "medir": "node scripts/medir-jugar.ts"
+    "medir": "node scripts/medir-jugar.ts",
+    "medir:duracion": "node scripts/medir-duracion.ts"
   },
   "dependencies": {
     "astro": "7.4.5",

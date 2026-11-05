@@ -19,6 +19,7 @@ npm run check                           # comprobación de tipos (astro check)
 npm run build                           # compila a dist/
 npm run preview                         # sirve dist/
 npm run medir                           # mide el tiempo de jugar() en Node
+npm run medir:duracion                  # mide la duración de las partidas con jugadores simulados
 ```
 
 `npm run e2e` compila y sirve `dist/` en el puerto 4329 antes de probar. Para las pruebas, el contenedor `#juego` expone su estado en atributos `data-*` (`estado`, `fase`, `x`, `toques`, `puntos`, `altura`, `semilla`). La partida que se compara con `jugar` en Node toca con un `pointerdown` lanzado dentro de la página cuando la pieza pasa por el centro, porque un toque desde Playwright llega cientos de milisegundos tarde con varios navegadores en paralelo; las demás pruebas usan toques y teclas reales. `npm run e2e:motores` necesita `npx playwright install firefox webkit`.
@@ -37,7 +38,7 @@ Requiere iniciar sesión en Cloudflare con la cuenta del propietario. `public/_h
 - `src/logica/`: lógica pura, sin navegador. `semilla.ts` (fecha UTC, número de día y generador), `piezas.ts` (secuencia y paleta), `simulacion.ts` (física con planck y `jugar(semilla, toques)`), `tarjeta.ts`, `reto.ts`, `registro.ts`.
 - `src/juego/`: pantalla. `bucle.ts` (paso fijo), `dibujo.ts` (canvas), `pantallas.ts` (inicio, fin, copiar y compartir), `principal.ts` (entrada).
 - `src/pages/index.astro` y `src/estilos.css`: la única página.
-- `e2e/`: pruebas de Playwright. `scripts/medir-jugar.ts`: medición de tiempo.
+- `e2e/`: pruebas de Playwright. `scripts/medir-jugar.ts`: medición de tiempo. `scripts/duracion.ts` y `scripts/medir-duracion.ts`: jugadores simulados para medir la duración (D6).
 
 ## Por qué estas herramientas
 
@@ -56,7 +57,11 @@ Requiere iniciar sesión en Cloudflare con la cuenta del propietario. `public/_h
 
 - **Tamaño de la compilación:** el JavaScript de `dist/` ocupa 220,4 KB sin comprimir y **50,1 KB con gzip** (50.110 bytes, nivel 9), por debajo del presupuesto de 150 KB. El CSS, 1,8 KB (0,9 KB con gzip). `dist/` entero, 225,6 KB en 4 archivos (`index.html`, `_headers`, un JS y un CSS). No hay imágenes, audio ni fuentes.
 - **Código en línea:** con `build.inlineStylesheets: 'never'`, Astro no deja ningún `<style>` ni `<script>` en línea en `dist/index.html` (el script se sirve como módulo externo). La CSP no necesita `'unsafe-inline'` ni hashes, así que no se usa la CSP integrada de Astro.
-- **Tiempo de `jugar` en Node:** partida de 44 piezas soltadas (43 en pie, 4.266 pasos, semilla `2026-11-21`): **mediana de 1.002 ms** en 5 ejecuciones (960 a 1.155 ms), Node 24.18.0 en este equipo Windows. Unos 0,23 ms por paso. Queda muy por encima de los 10 ms de CPU por petición de un Worker gratuito: volver a simular partidas en el servidor (D3) no cabe tal cual. Se repite con `npm run medir`.
+- **Tiempo de `jugar` en Node:** partida de 43 piezas soltadas (42 en pie, 5.309 pasos, semilla `2026-11-06`): **mediana de 1.033 ms** en 5 ejecuciones (953 a 1.057 ms), Node 24.18.0 en este equipo Windows. Unos 0,19 ms por paso. (Antes de suavizar el inicio, con la semilla `2026-11-21`: 44 piezas, 4.266 pasos, mediana de 1.002 ms; con el inicio nuevo esa semilla solo aguanta 37 piezas, por eso se cambió.) Queda muy por encima de los 10 ms de CPU por petición de un Worker gratuito: volver a simular partidas en el servidor (D3) no cabe tal cual. Se repite con `npm run medir`.
+- **Duración de las partidas (D6, 2026-11-05, `npm run medir:duracion`):** dos jugadores simulados en Node sueltan cada pieza la primera vez que pasa por el centro, con un error de tiempo uniforme fijado por semilla: el **cuidadoso** de ±60 ms y el **descuidado** de ±150 ms. Se juegan los días 1 a 10; la duración es pasos/60.
+  - **Antes** (vaivén de 2 a 5 m/s con +0,08 por pieza, triángulo con cima del 30 % y cualquier forma desde la primera pieza): cuidadoso, **mediana de 23,0 s** (9,3 a 39,5 s, de 3 a 16 piezas); descuidado, **mediana de 12,4 s** (9,2 a 19,1 s, de 3 a 7 piezas). Coincide con lo que midió el probador jugando en el navegador (9 a 43 s).
+  - **Ahora** (vaivén desde 1,2 m/s con +0,05 por pieza hasta 5 m/s en la pieza 77, cima del triángulo del 50 % y las 5 primeras piezas solo bloque, tablón o cuadrado): cuidadoso, **mediana de 54,6 s** (49,9 a 66,8 s, de 15 a 20 piezas); descuidado, **mediana de 36,7 s** (25,0 a 59,7 s, de 6 a 18 piezas). Cumple el objetivo (descuidado ≥ 30 s, cuidadoso ≤ 90 s) y ninguna partida llega al tope de 10 minutos. Con los días 11-20, 41-50 y 101-110 las medianas quedan entre 50 y 54 s (cuidadoso) y entre 34 y 46 s (descuidado).
+  - Es orientativo: los jugadores simulados sueltan siempre en la primera pasada; una persona que espera a otra pasada alarga la partida. `scripts/duracion.test.ts` comprueba el objetivo en cada `npm test`.
 - **Prueba de motores (`npm run e2e:motores`), comparando con `jugar` en Node 24.18.0:**
   - **WebKit 27.2 de Playwright:** mismos puntos en 5 de 5 partidas, pero puntos y altura idénticos al bit solo en 1 de 5; en las otras 4 la altura difiere en el último decimal (por ejemplo, 2,3434351896686842 frente a 2,3434351896686847). Con dos ejecuciones de 5 partidas, el resultado fue el mismo: 1 de 5 exactas y 5 de 5 con los mismos puntos. WebKit de Playwright no es Safari de iPhone: es orientativo.
   - **Firefox 157 de Playwright: sin comprobar.** Se instaló, pero Windows no deja ejecutar `firefox.exe` en este equipo (`spawn UNKNOWN`, «Permission denied»). `npm run e2e:motores` falla por eso en el proyecto `firefox`.

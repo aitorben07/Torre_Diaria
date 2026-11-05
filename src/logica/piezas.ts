@@ -21,12 +21,15 @@ export const ALTO_MIN = 0.25;
 export const ALTO_MAX = 1.4;
 
 /** El «triángulo» tiene la cima plana para que se pueda apilar encima. */
-export const CIMA_TRIANGULO = 0.3;
+export const CIMA_TRIANGULO = 0.5;
 
-/** Velocidad de vaivén en m/s: crece con cada pieza hasta el tope. */
-export const VEL_MIN = 2;
+/**
+ * Velocidad de vaivén en m/s: empieza lenta y crece con cada pieza hasta el tope
+ * (pieza 77). Medido con `npm run medir:duracion` para partidas de 30 a 90 s (D6).
+ */
+export const VEL_MIN = 1.2;
 export const VEL_MAX = 5;
-export const VEL_INCREMENTO = 0.08;
+export const VEL_INCREMENTO = 0.05;
 
 /** Paleta fija: cada color va ligado al emoji de la tarjeta (como mucho 9). */
 export const PALETA = [
@@ -50,6 +53,10 @@ export type Pieza = {
 
 export const PIEZAS_POR_PARTIDA = 300;
 
+/** Las primeras piezas solo salen de las formas más estables, sin triángulo ni columna (D6). */
+export const FORMAS_INICIALES: readonly Forma[] = ["bloque", "tablon", "cuadrado"];
+export const PIEZAS_INICIALES = 5;
+
 function centesimas(valor: number): number {
   return Math.round(valor * 100) / 100;
 }
@@ -66,7 +73,8 @@ export function generarSecuencia(semilla: string, n: number = PIEZAS_POR_PARTIDA
   const azar = crearGenerador(semilla);
   const piezas: Pieza[] = [];
   for (let i = 0; i < n; i++) {
-    const forma = FORMAS[Math.floor(azar() * FORMAS.length)]!;
+    const formas = i < PIEZAS_INICIALES ? FORMAS_INICIALES : FORMAS;
+    const forma = formas[Math.floor(azar() * formas.length)]!;
     const medidas = CATALOGO[forma];
     const ancho = entre(azar, medidas.ancho);
     const alto = forma === "cuadrado" ? ancho : entre(azar, medidas.alto);

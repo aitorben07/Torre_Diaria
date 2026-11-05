@@ -68,10 +68,11 @@ describe("jugar", () => {
   });
 
   it("prueba dorada: una partida fija da siempre los mismos valores", () => {
-    // Seis piezas centradas, un toque en espera (800) que se ignora y una
+    // Seis piezas centradas, un toque en espera (1180) que se ignora y una
     // séptima soltada en el extremo, que cae fuera y acaba la partida. Si se
     // actualiza planck o se cambia la física, esta prueba falla a propósito.
-    const resultado = jugar(SEMILLA, [102, 242, 379, 517, 654, 783, 800, 834]);
+    // Actualizada a propósito al suavizar el inicio (D6, F1 de pruebas.md).
+    const resultado = jugar(SEMILLA, [170, 375, 575, 772, 966, 1156, 1180, 1205]);
     const r6 = (valor: number) => Math.round(valor * 1e6) / 1e6;
     expect({
       puntos: resultado.puntos,
@@ -81,17 +82,17 @@ describe("jugar", () => {
       posiciones: resultado.posiciones.map((p) => ({ x: r6(p.x), y: r6(p.y), angulo: r6(p.angulo) })),
     }).toEqual({
       puntos: 6,
-      altura: 5.132297,
-      pasos: 911,
+      altura: 3.547025,
+      pasos: 1272,
       terminada: true,
       posiciones: [
-        { x: 0.000095, y: 0.399974, angulo: -0.000008 },
-        { x: 0.00233, y: 1.464956, angulo: -0.000046 },
-        { x: -0.017375, y: 2.597551, angulo: -0.000611 },
-        { x: 0.00373, y: 3.402506, angulo: -0.000446 },
-        { x: 0.004821, y: 4.102315, angulo: -0.00038 },
-        { x: 0.000132, y: 4.792115, angulo: -0.000325 },
-        { x: -3.4, y: -0.149423, angulo: 0 },
+        { x: 0.000001, y: 0.3996, angulo: 0.000032 },
+        { x: 0.004046, y: 1.168798, angulo: 0.000125 },
+        { x: 0.001764, y: 1.713106, angulo: 0.00019 },
+        { x: 0.002673, y: 2.267608, angulo: 0.000193 },
+        { x: 0.006782, y: 2.967146, angulo: 0.000172 },
+        { x: -0.008157, y: 3.411891, angulo: 0.000161 },
+        { x: -3.4, y: -0.079678, angulo: 0 },
       ],
     });
   });

@@ -4,8 +4,8 @@
 // Uso: npm run medir
 import { jugar, Partida } from "../src/logica/simulacion.ts";
 
-const SEMILLA = "2026-11-21";
-// Alternar dos columnas a ±1,2 m aguanta 44 piezas con esta semilla.
+const SEMILLA = "2026-11-06";
+// Alternar dos columnas a ±1,2 m aguanta 43 piezas con esta semilla.
 const OBJETIVOS = [-1.2, 1.2];
 
 function toquesAlternos(semilla: string): number[] {

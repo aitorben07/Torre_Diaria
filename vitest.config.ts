@@ -1,9 +1,10 @@
 import { defineConfig } from "vitest/config";
 
-// Solo las pruebas de la lógica y del bucle; las de navegador van con Playwright.
+// Las pruebas de la lógica, del bucle y de los jugadores simulados de scripts/;
+// las de navegador van con Playwright.
 export default defineConfig({
   test: {
-    include: ["src/**/*.test.ts"],
+    include: ["src/**/*.test.ts", "scripts/**/*.test.ts"],
     environment: "node",
   },
 });
