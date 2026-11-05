@@ -11,7 +11,8 @@ import { cambiarEstado, compartir, copiar, pintarFin, pintarInicio, ui } from ".
 
 type Modo = "oficial" | "reto" | "practica";
 
-const hoy = numeroDia(fechaUTC(new Date()));
+/** Día de hoy en UTC. Se recalcula al empezar la oficial y al volver a la pestaña. */
+let hoy = numeroDia(fechaUTC(new Date()));
 const almacen = almacenDelNavegador();
 const reto = leerReto(location.search, hoy);
 
@@ -25,6 +26,14 @@ let pendiente = false;
 let toques: number[] = [];
 let textoTarjeta = "";
 let contadorPintado = "";
+
+/** Recalcula `hoy`, por si ha pasado la medianoche UTC. Devuelve si ha cambiado. */
+function actualizarHoy(): boolean {
+  const ahora = numeroDia(fechaUTC(new Date()));
+  if (ahora === hoy) return false;
+  hoy = ahora;
+  return true;
+}
 
 function resultadoHoy(): ResultadoDia | null {
   return leerResultado(almacen, hoy);
@@ -99,7 +108,8 @@ function reservarTarjeta(): void {
 function terminar(actual: Partida): void {
   const { puntos, altura, formas } = actual.resultado();
   const datos: ResultadoDia = { dia, puntos, altura, formas };
-  if (modo === "oficial") guardarResultado(almacen, datos);
+  // Con dos pestañas a la vez vale la primera oficial que acaba (D4).
+  if (modo === "oficial" && leerResultado(almacen, dia) === null) guardarResultado(almacen, datos);
   ui.juego().dataset.toques = JSON.stringify(toques);
   pintarContador(`${formatearPiezas(puntos)} · ${formatearAltura(altura)}`);
   partida = null;
@@ -162,6 +172,7 @@ document.addEventListener("keydown", (evento) => {
 });
 
 ui.botonHoy().addEventListener("click", () => {
+  actualizarHoy();
   const guardado = resultadoHoy();
   if (guardado) mostrarFin(guardado, "oficial");
   else empezar("oficial", hoy);
@@ -180,6 +191,10 @@ ui.botonCompartir().addEventListener("click", async () => {
   ui.mensaje().textContent = resultado === "error" ? "No se ha podido compartir." : "";
 });
 
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState !== "visible") return;
+  if (actualizarHoy() && ui.juego().dataset.estado === "inicio") mostrarInicio();
+});
 window.addEventListener("resize", () => {
   lienzo.ajustar();
   if (ui.juego().dataset.estado === "fin") reservarTarjeta();

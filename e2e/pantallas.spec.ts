@@ -141,3 +141,39 @@ test("tras jugar la oficial, el reto de hoy muestra los dos resultados sin otra 
   await expect(page.getByRole("button", { name: "Ver mi resultado de hoy" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Práctica" })).toBeVisible();
 });
+
+test("pasada la medianoche UTC, «Jugar el reto de hoy» juega y guarda el día nuevo", async ({ page }, testInfo) => {
+  await preparar(page, "2026-11-20T23:59:50Z");
+  await page.goto("/");
+  await expect(page.getByRole("button", { name: `Jugar el reto de hoy #${DIA}` })).toBeVisible();
+
+  await page.clock.setFixedTime(new Date("2026-11-21T00:00:10Z"));
+  await empezarHoy(page);
+  await expect(juego(page)).toHaveAttribute("data-semilla", "2026-11-21");
+  await jugarHastaElFin(page, conTactil(testInfo));
+  expect(JSON.parse((await leerGuardado(page))!).dia).toBe(DIA + 1);
+});
+
+test("al volver a la pestaña pasada la medianoche UTC, el inicio muestra el día nuevo", async ({ page }) => {
+  await preparar(page, "2026-11-20T23:59:50Z");
+  await page.goto("/");
+  await expect(page.getByRole("button", { name: `Jugar el reto de hoy #${DIA}` })).toBeVisible();
+
+  await page.clock.setFixedTime(new Date("2026-11-21T00:00:10Z"));
+  await page.evaluate(() => {
+    Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "visible" });
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+  await expect(page.getByRole("button", { name: `Jugar el reto de hoy #${DIA + 1}` })).toBeVisible();
+});
+
+test("con dos pestañas, la oficial que acaba después no pisa la guardada", async ({ page }, testInfo) => {
+  await preparar(page);
+  await page.goto("/");
+  await empezarHoy(page);
+  // Mientras se juega, otra pestaña acaba la oficial de hoy y la guarda.
+  const otra = JSON.stringify({ dia: DIA, puntos: 99, altura: 1.5, formas: [] });
+  await page.evaluate(([clave, valor]) => localStorage.setItem(clave, valor), [CLAVE, otra]);
+  await jugarHastaElFin(page, conTactil(testInfo));
+  expect(await leerGuardado(page)).toBe(otra);
+});

@@ -15,7 +15,7 @@ export default defineConfig({
   webServer: {
     command: `npm run build && npx astro preview --port ${PUERTO}`,
     url: `http://localhost:${PUERTO}`,
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
     timeout: 120_000,
   },
   projects: [
