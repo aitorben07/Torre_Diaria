@@ -1,6 +1,6 @@
 ﻿Estado: terminado
-Actualizado: 2026-11-05T18:34:46+01:00
+Actualizado: 2026-11-05T18:39:59+01:00
 Rama: version-inicial (fusionada en main)
 Paso actual: fusionado en main local con la aprobación del usuario; mejorador-agentes hecho
-Siguiente paso: ninguno en este cambio. Pendiente del usuario: crear el repositorio en GitHub (público o privado) y desplegar en Cloudflare Pages (requiere su inicio de sesión)
+Siguiente paso: ninguno en este cambio. Repositorio público creado: https://github.com/aitorben07/Torre_Diaria (main subido). Pendiente del usuario: desplegar en Cloudflare Pages (requiere su inicio de sesión)
 Decisiones tomadas: nombre provisional Torre_Diaria; repo solo local hasta la revisión final; plan D1-D13 con cambios [impacto]; altura a 9 decimales; Firefox sin comprobar; F1: vaivén inicial 1,2 m/s y primeras 5 piezas estables (medianas 36,7 s descuidado / 54,6 s cuidadoso, simulado); jugadores simulados fallan por tiempo; procesos sobrantes del probador cerrados por PID; puntuación = piezas colocadas (en pie al soltar la última pieza), el derrumbe posterior no resta (decisión de diseño, T4 cambiado); timeout de una prueba de piezas subido a 20 s; revisor APROBADO; aplicadas sugerencias 2-5 y 7 (día recalculado, una sola oficial por día, .gitignore, reuseExistingServer false); probador vuelta 4 APROBADO; documentador: README al día (JS 50,5 KB gzip); el límite de 500 compilaciones de Pages probablemente no cuenta subidas directas, sin confirmación expresa
