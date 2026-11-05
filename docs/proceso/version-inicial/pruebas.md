@@ -181,3 +181,26 @@ Ninguno.
 
 ### Limpieza
 El archivo e2e temporal se borró; Playwright cierra sus servidores al terminar y no se lanzó nada en segundo plano.
+
+## Vuelta 4 (commit 2721067, sugerencias del revisor)
+
+**Veredicto:** APROBADO
+
+| Comprobación | Resultado |
+|---|---|
+| `git show 2721067` leído: `hoy` recalculado al pulsar «Jugar el reto de hoy» y en `visibilitychange` (solo repinta si está en inicio); oficial solo se guarda si no hay otra de ese día; `.gitignore` con `.env*` y `.wrangler/`; `reuseExistingServer: false`; cifras del README sin punto de millar | Correcto |
+| `npm test` | 10 archivos, 79 pruebas, todas pasan |
+| `npm run check` | 0 errores, 0 avisos, 1 sugerencia (`execCommand` obsoleto, ya conocida) |
+| `npm run e2e`, ejecución 1 | 54 pasan, 8 omitidas (propias de escritorio/ratio), 0 fallos (2,7 min) |
+| `npm run e2e`, ejecución 2 | 54 pasan, 8 omitidas, 0 fallos (4,5 min) |
+| Pruebas nuevas (medianoche UTC al jugar, al volver a la pestaña, dos pestañas) | Pasan en las dos ejecuciones |
+
+### Fallo intermitente de tiempo en móvil
+«con localStorage bloqueado se juega entera» pasó en las dos ejecuciones; no se repitió. Causa probable: la prueba usa `retrasoMs: 1600` por pieza y el tiempo de la partida depende de la carga de la máquina (la segunda ejecución fue casi el doble de lenta, hasta 27 s en pruebas cortas, con 2 workers compitiendo con el servidor y la compilación). Es sensibilidad al tiempo bajo carga, no un fallo del producto.
+
+### Sin comprobar
+- Firefox/WebKit, Safari y Android reales.
+- Solo 2 ejecuciones: la intermitencia no se puede descartar del todo.
+
+### Limpieza
+No quedó ningún proceso escuchando en el puerto 4329.
