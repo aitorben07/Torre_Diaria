@@ -109,6 +109,14 @@ describe("aislamiento de la física", () => {
     expect(conPlanck).toEqual(["logica/simulacion.ts"]);
   });
 
+  it("ningún archivo de src/juego/, ni sus pruebas, menciona planck (T8)", () => {
+    const deJuego = (readdirSync(raiz, { recursive: true }) as string[])
+      .map((ruta) => ruta.replaceAll("\\", "/"))
+      .filter((ruta) => ruta.startsWith("juego/") && /\.(ts|astro)$/.test(ruta));
+    expect(deJuego.length).toBeGreaterThan(0);
+    expect(deJuego.filter((ruta) => readFileSync(new URL(ruta, raiz), "utf8").includes("planck"))).toEqual([]);
+  });
+
   it("simulacion.ts no usa reloj, azar ni trigonometría propia", () => {
     const codigo = readFileSync(new URL("logica/simulacion.ts", raiz), "utf8");
     for (const prohibido of ["Math.random", "Date.now", "performance.now", "Math.sin", "Math.cos"]) {

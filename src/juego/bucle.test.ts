@@ -1,4 +1,3 @@
-import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { consumirTiempo, MAX_PASOS_POR_FOTOGRAMA, PASO_MS } from "./bucle.ts";
 
@@ -28,15 +27,5 @@ describe("consumirTiempo", () => {
 
   it("ignora tiempos negativos", () => {
     expect(consumirTiempo(0, -50)).toEqual({ pasos: 0, acumulado: 0 });
-  });
-});
-
-describe("src/juego", () => {
-  it("ningún archivo importa planck", () => {
-    const carpeta = new URL("./", import.meta.url);
-    const conPlanck = readdirSync(carpeta).filter((archivo) =>
-      /from\s+["']planck["']/.test(readFileSync(new URL(archivo, carpeta), "utf8")),
-    );
-    expect(conPlanck).toEqual([]);
   });
 });
