@@ -1,6 +1,6 @@
 Estado: en curso
-Actualizado: 2026-11-05T11:12:30+01:00
+Actualizado: 2026-11-05T11:18:51+01:00
 Rama: version-inicial
-Paso actual: analista-impacto
-Siguiente paso: analista-impacto revisa docs/proceso/version-inicial/tareas.md y escribe impacto.md; sus cambios se incorporan a tareas.md; después desarrollador implementa las 11 tareas
-Decisiones tomadas: nombre provisional Torre_Diaria; repo solo local hasta la revisión final; plan en tareas.md (D1-D13): Astro sin React, física planck, ranking compartido en segunda fase, un intento oficial al día, sin CI
+Paso actual: desarrollador
+Siguiente paso: desarrollador implementa T1-T11 de docs/proceso/version-inicial/tareas.md (incluye los cambios marcados [impacto]); después probador
+Decisiones tomadas: nombre provisional Torre_Diaria; repo solo local hasta la revisión final; plan D1-D13 (Astro sin React, planck, ranking en segunda fase, sin CI); impacto incorporado: física sin trigonometría propia, toques por paso, paleta de 9 emojis, CSP sin inline, densidad de píxeles máx. 2
