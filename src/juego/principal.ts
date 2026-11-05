@@ -126,7 +126,11 @@ function avanzar(pasos: number): void {
       return;
     }
   }
-  ui.juego().dataset.fase = actual.fase;
+  const juego = ui.juego();
+  juego.dataset.fase = actual.fase;
+  // Posición de la pieza que cuelga, para que las pruebas toquen sobre la torre.
+  const colgada = actual.estado().colgada;
+  juego.dataset.x = colgada ? colgada.x.toFixed(2) : "";
   actualizarContador();
 }
 

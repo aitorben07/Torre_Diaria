@@ -33,8 +33,9 @@ export function conTactil(testInfo: TestInfo): boolean {
 /** Un toque sobre el lienzo (pantalla táctil) o un clic (escritorio). */
 export async function tocar(page: Page, tactil: boolean): Promise<void> {
   const lienzo = page.locator("#lienzo");
-  if (tactil) await lienzo.tap();
-  else await lienzo.click();
+  // Sin esperar a que sea «estable»: la partida puede acabar justo antes del toque.
+  if (tactil) await lienzo.tap({ force: true });
+  else await lienzo.click({ force: true });
 }
 
 export const juego = (page: Page) => page.locator("#juego");
@@ -45,13 +46,14 @@ export async function empezarHoy(page: Page): Promise<void> {
 }
 
 /**
- * Toca cada pieza hasta que acaba la partida. Las `conRetraso` primeras se
- * tocan `retrasoMs` después de aparecer; las demás, en cuanto aparecen.
+ * Toca cada pieza hasta que acaba la partida. Las `centradas` primeras se
+ * tocan cuando pasan cerca del centro (`data-x`); las `conRetraso` siguientes,
+ * `retrasoMs` después de aparecer; las demás, en cuanto aparecen.
  */
 export async function jugarHastaElFin(
   page: Page,
   tactil: boolean,
-  { conRetraso = 0, retrasoMs = 0 }: { conRetraso?: number; retrasoMs?: number } = {},
+  { centradas = 0, conRetraso = 0, retrasoMs = 0 }: { centradas?: number; conRetraso?: number; retrasoMs?: number } = {},
 ): Promise<void> {
   const contenedor = juego(page);
   for (let pieza = 0; pieza < 200; pieza++) {
@@ -60,8 +62,28 @@ export async function jugarHastaElFin(
       return el.dataset.estado === "fin" || el.dataset.fase === "apuntando";
     });
     if ((await contenedor.getAttribute("data-estado")) === "fin") return;
-    if (pieza < conRetraso) await page.waitForTimeout(retrasoMs);
-    await tocar(page, tactil);
+    if (pieza < centradas) {
+      // Dentro de la página, en el mismo fotograma en que la pieza pasa por el
+      // centro: un toque desde Playwright llega cientos de ms tarde con carga.
+      await page.evaluate(
+        () =>
+          new Promise<void>((listo) => {
+            const mirar = () => {
+              const el = document.getElementById("juego")!;
+              if (el.dataset.estado === "fin") return listo();
+              if (Math.abs(Number(el.dataset.x || "9")) <= 0.15) {
+                document.getElementById("zona")!.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true }));
+                return listo();
+              }
+              requestAnimationFrame(mirar);
+            };
+            mirar();
+          }),
+      );
+    } else {
+      if (pieza < centradas + conRetraso) await page.waitForTimeout(retrasoMs);
+      await tocar(page, tactil);
+    }
     await page.waitForFunction(() => {
       const el = document.getElementById("juego")!;
       return el.dataset.estado === "fin" || el.dataset.fase !== "apuntando";
