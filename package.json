@@ -10,7 +10,8 @@
     "check": "astro check",
     "test": "vitest run",
     "e2e": "playwright test --project=escritorio --project=movil",
-    "e2e:motores": "playwright test --project=firefox --project=webkit"
+    "e2e:motores": "playwright test --project=firefox --project=webkit",
+    "medir": "node scripts/medir-jugar.ts"
   },
   "dependencies": {
     "astro": "7.4.5",
