@@ -102,3 +102,48 @@ Legibilidad (capturas en `docs/proceso/version-inicial/capturas/`):
 - Firefox, Safari real y Android reales.
 - Commit de este informe y las capturas: no se pudo hacer porque el shell dejó de responder; las capturas están creadas en `docs/proceso/version-inicial/capturas/` y `pruebas.md` guardado, pendientes de `git add` y commit.
 - Servidores `astro preview` en los puertos 4400 y 4401 y procesos de Playwright quedaron abiertos por mí y deberían cerrarse.
+
+## Vuelta 2
+
+**Veredicto de la vuelta 2: FALLA (un fallo menor, F3, de puntuación; F1 y F2 quedan resueltos con una reserva sobre la duración).**
+
+### Comprobaciones repetidas
+- `npm test`: 10 archivos, 77 pruebas, todas pasan.
+- `npm run check`: 0 errores, 0 avisos, 1 aviso informativo (`document.execCommand` obsoleto, es la alternativa prevista para Copiar).
+- `npm run e2e` (escritorio y móvil): 48 pasan, 8 omitidas (las de motores, que no entran en este comando).
+- `npm run medir:duracion`: mediana 54,6 s cuidadoso (49,9-66,8) y 36,7 s descuidado (25,0-59,7). Reproduce lo que dijo el desarrollador.
+
+### Requisitos
+| Requisito | Cómo se comprobó | Resultado |
+|---|---|---|
+| F2: planck fuera de `src/juego` | `npm test` y `npm run check` | cumplido |
+| Casos límite (localStorage bloqueado, pestaña oculta, retos inválidos) | `e2e/limites.spec.ts` dentro de `npm run e2e` y capturas `movil-localstorage-bloqueado.png`, `movil-reto-html.png`, `movil-reto-valido.png`, `movil-reto-hoy-ya-jugado.png` | cumplido |
+| Cámara sigue la torre en móvil y la tarjeta no tapa la cima | captura `movil-fin-camara-12piezas.png` (torre de 8,5 m visible bajo la tarjeta) | cumplido |
+| D6: duración 30-90 s | script de medición (ver abajo) y 4 partidas reales con Playwright | cumplido en simulación; con reserva en partidas reales |
+
+### Valoración del script de duración
+`scripts/duracion.ts` usa la clase `Partida` real (no una versión trucada). Cada jugador simulado suelta la pieza la primera vez que pasa por el centro, con un error de tiempo aleatorio (±60 ms o ±150 ms) fijado por semilla. Es un jugador razonable, aunque optimista: no duda ni espera, y siempre apunta al centro.
+
+### Partidas reales con Playwright (móvil, toques reales, lectura de `data-x`)
+Con un bot que toca cuando |x| < umbral, el tiempo real fue:
+- umbral 0,15: 32,5 s, 6 puntos
+- umbral 0,4: 20,8 s y 23,3 s, 4 y 5 puntos
+- umbral 0,8: 13,1 s, 2 puntos
+
+Un jugador tosco acaba en 13-23 s, por debajo de los 30 s de D6. El bot es más impreciso que el jugador «descuidado» simulado (que da 10 piezas de mediana), por lo que no contradice la medición, pero indica que el suelo de 30 s solo se cumple si el jugador apunta con cuidado. Es una observación, no un fallo reproducible contra un criterio exacto: D6 no define el nivel de torpeza. Recomendación: revisar con jugadores humanos.
+
+### Fallos
+**F3 (menor). La puntuación cuenta piezas que se están cayendo.**
+- Código: `src/logica/simulacion.ts`, `sigueEnPie` = `y >= 0 && |x| <= LIMITE_X`. `puntos` es el número de piezas que cumplen eso en el instante en que otra pieza cruza `y = 0` y termina la partida.
+- Plan (T4): «número de piezas soltadas que **siguen sobre la plataforma** al acabar».
+- Esperado: una torre derrumbada solo cuenta las piezas que de verdad quedan sobre la plataforma.
+- Obtenido: las piezas aún en el aire o resbalando fuera de la plataforma, pero con `y >= 0`, cuentan (una torre derrumbada marcó 17).
+- Valoración: incumple la letra del plan, aunque la regla de fin de partida sí coincide con lo implementado. El plan es ambiguo en cómo se decide «sobre la plataforma», y el código usa el criterio más laxo. Altera `puntos`, la tarjeta y la prueba dorada; si se corrige, hay que regenerar los valores fijos y documentarlo.
+- Arreglo posible: contar solo las piezas con el centro dentro del ancho de la plataforma, o esperar a que todo esté quieto antes de contar al acabar.
+
+### Sin comprobar
+- Duración con jugadores humanos reales: no hay forma de probarlo aquí; solo bots.
+- Motores Firefox y WebKit (`npm run e2e:motores`): no se ejecutaron en esta vuelta.
+
+### Limpieza
+Los servidores de Playwright se cierran solos al terminar; se borró el archivo de prueba temporal. Se comprobó que no queda ningún proceso vivo.
