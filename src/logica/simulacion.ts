@@ -41,13 +41,19 @@ export const UMBRAL_QUIETA = 0.05;
 /** Fuera de estos límites la pieza se da por caída. */
 export const LIMITE_X = 12;
 
+/**
+ * Al caer una pieza, la partida sigue simulando hasta que todas las piezas que
+ * siguen en el mundo están quietas, o como mucho estos pasos, antes de contar.
+ */
+export const MAX_PASOS_ASENTAR = 180;
+
 /** Pasos que `jugar` sigue simulando tras el último toque si nadie pone límite. */
 export const MARGEN_PASOS = 600;
 
 export const DENSIDAD = 1;
 export const FRICCION = 0.8;
 
-export type Fase = "apuntando" | "esperando" | "fin";
+export type Fase = "apuntando" | "esperando" | "asentando" | "fin";
 
 export type CuerpoVisible = { pieza: Pieza; x: number; y: number; angulo: number };
 
@@ -92,6 +98,7 @@ export class Partida {
   private indice = 0;
   private pasoAparicion = 0;
   private pasoSoltada = 0;
+  private pasoCaida = 0;
   private colgadaY = 0;
 
   constructor(semilla: string) {
@@ -134,22 +141,28 @@ export class Partida {
     return true;
   }
 
-  /** Avanza un paso fijo de la simulación. Al acabar la partida ya no hace nada. */
+  /**
+   * Avanza un paso fijo de la simulación. Cuando cae una pieza pasa a
+   * «asentando»: sigue simulando sin piezas nuevas hasta que todo está quieto o
+   * pasan `MAX_PASOS_ASENTAR` pasos, y entonces acaba. Al acabar ya no hace nada.
+   */
   paso(): void {
     if (this.faseActual === "fin") return;
     this.mundo.step(PASO, ITERACIONES_VELOCIDAD, ITERACIONES_POSICION);
     this.pasosHechos++;
+    if (this.faseActual === "asentando") {
+      const todasQuietas = this.soltadas.filter((s) => this.sigueEnPie(s)).every((s) => this.quieta(s));
+      if (todasQuietas || this.pasosHechos - this.pasoCaida >= MAX_PASOS_ASENTAR) this.faseActual = "fin";
+      return;
+    }
     if (this.soltadas.some((s) => !this.sigueEnPie(s))) {
-      this.faseActual = "fin";
+      this.faseActual = "asentando";
+      this.pasoCaida = this.pasosHechos;
       return;
     }
     if (this.faseActual === "esperando") {
       const espera = this.pasosHechos - this.pasoSoltada;
-      const ultima = this.soltadas.at(-1)!.cuerpo;
-      const quieta =
-        Vec2.lengthOf(ultima.getLinearVelocity()) < UMBRAL_QUIETA &&
-        Math.abs(ultima.getAngularVelocity()) < UMBRAL_QUIETA;
-      if ((espera >= ESPERA_MIN && quieta) || espera >= ESPERA_MAX) {
+      if ((espera >= ESPERA_MIN && this.quieta(this.soltadas.at(-1)!)) || espera >= ESPERA_MAX) {
         this.indice++;
         this.colgarPieza();
       }
@@ -161,8 +174,8 @@ export class Partida {
     return {
       fase: this.faseActual,
       pasos: this.pasosHechos,
-      puntos: this.enPie().length,
-      altura: this.alturaTorre(),
+      puntos: this.sobrePlataforma().length,
+      altura: this.alturaTorre(this.sobrePlataforma()),
       colgada: this.faseActual === "apuntando" ? { pieza, x: this.xColgada(), y: this.colgadaY, angulo: 0 } : null,
       cuerpos: this.soltadas.map(({ pieza, cuerpo }) => {
         const p = cuerpo.getPosition();
@@ -172,11 +185,11 @@ export class Partida {
   }
 
   resultado(): Resultado {
-    const enPie = this.enPie();
+    const contadas = this.sobrePlataforma();
     return {
-      puntos: enPie.length,
-      altura: this.alturaTorre(),
-      formas: enPie.map(({ pieza }) => ({ forma: pieza.forma, color: pieza.color })),
+      puntos: contadas.length,
+      altura: this.alturaTorre(contadas),
+      formas: contadas.map(({ pieza }) => ({ forma: pieza.forma, color: pieza.color })),
       terminada: this.terminada,
       pasos: this.pasosHechos,
       posiciones: this.soltadas.map(({ cuerpo }) => {
@@ -195,7 +208,7 @@ export class Partida {
   }
 
   private colgarPieza(): void {
-    this.colgadaY = this.alturaTorre() + HUECO_COLGADA + this.piezaActual().alto / 2;
+    this.colgadaY = this.alturaTorre(this.enPie()) + HUECO_COLGADA + this.piezaActual().alto / 2;
     this.pasoAparicion = this.pasosHechos;
     this.faseActual = "apuntando";
   }
@@ -205,14 +218,34 @@ export class Partida {
     return p.y >= 0 && Math.abs(p.x) <= LIMITE_X;
   }
 
+  private quieta({ cuerpo }: Soltada): boolean {
+    return (
+      Vec2.lengthOf(cuerpo.getLinearVelocity()) < UMBRAL_QUIETA && Math.abs(cuerpo.getAngularVelocity()) < UMBRAL_QUIETA
+    );
+  }
+
   private enPie(): Soltada[] {
     return this.soltadas.filter((s) => this.sigueEnPie(s));
   }
 
-  /** Altura en metros de la parte más alta de las piezas que siguen en pie. */
-  private alturaTorre(): number {
+  /**
+   * Piezas que puntúan (T4, F3 de pruebas.md): con el centro por encima de la
+   * cara superior de la plataforma y dentro de su ancho.
+   */
+  private sobrePlataforma(): Soltada[] {
+    return this.soltadas.filter(({ cuerpo }) => {
+      const p = cuerpo.getPosition();
+      return p.y > 0 && Math.abs(p.x) <= PLATAFORMA_MEDIO_ANCHO;
+    });
+  }
+
+  /**
+   * Altura en metros de la parte más alta de las piezas dadas. La pieza nueva
+   * cuelga sobre todas las que siguen en pie, para no nacer dentro de ninguna.
+   */
+  private alturaTorre(piezas: Soltada[]): number {
     let altura = 0;
-    for (const s of this.enPie()) altura = Math.max(altura, s.fixture.getAABB(0).upperBound.y);
+    for (const s of piezas) altura = Math.max(altura, s.fixture.getAABB(0).upperBound.y);
     return altura;
   }
 }
@@ -220,13 +253,14 @@ export class Partida {
 /**
  * Reproduce una partida: en cada paso cuyo número esté en `toques`, suelta la
  * pieza (si cuelga alguna) antes de avanzar. Sigue hasta que la partida acaba o
- * se llega a `maxPasos` (por defecto, el último toque más `MARGEN_PASOS`).
+ * se llega a `maxPasos` (por defecto, el último toque más `MARGEN_PASOS`). Si
+ * una pieza ya ha caído, termina de asentar aunque pase el límite, como la pantalla.
  */
 export function jugar(semilla: string, toques: number[], maxPasos?: number): Resultado {
   const partida = new Partida(semilla);
   const pendientes = new Set(toques);
   const limite = maxPasos ?? Math.max(-1, ...toques) + 1 + MARGEN_PASOS;
-  while (!partida.terminada && partida.pasos < limite) {
+  while (!partida.terminada && (partida.pasos < limite || partida.fase === "asentando")) {
     if (pendientes.has(partida.pasos)) partida.soltar();
     partida.paso();
   }

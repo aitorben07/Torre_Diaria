@@ -1,6 +1,6 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { AMPLITUD, jugar, Partida, posicionVaiven } from "./simulacion.ts";
+import { AMPLITUD, jugar, MAX_PASOS_ASENTAR, Partida, PLATAFORMA_MEDIO_ANCHO, posicionVaiven } from "./simulacion.ts";
 
 const SEMILLA = "2026-11-05";
 
@@ -71,7 +71,9 @@ describe("jugar", () => {
     // Seis piezas centradas, un toque en espera (1180) que se ignora y una
     // séptima soltada en el extremo, que cae fuera y acaba la partida. Si se
     // actualiza planck o se cambia la física, esta prueba falla a propósito.
-    // Actualizada a propósito al suavizar el inicio (D6, F1 de pruebas.md).
+    // Actualizada a propósito al suavizar el inicio (D6, F1 de pruebas.md) y
+    // al asentar las piezas antes de contar (F3): un paso más y la séptima
+    // pieza algo más abajo; los puntos no cambian.
     const resultado = jugar(SEMILLA, [170, 375, 575, 772, 966, 1156, 1180, 1205]);
     const r6 = (valor: number) => Math.round(valor * 1e6) / 1e6;
     expect({
@@ -83,7 +85,7 @@ describe("jugar", () => {
     }).toEqual({
       puntos: 6,
       altura: 3.547025,
-      pasos: 1272,
+      pasos: 1273,
       terminada: true,
       posiciones: [
         { x: 0.000001, y: 0.3996, angulo: 0.000032 },
@@ -92,9 +94,47 @@ describe("jugar", () => {
         { x: 0.002673, y: 2.267608, angulo: 0.000193 },
         { x: 0.006782, y: 2.967146, angulo: 0.000172 },
         { x: -0.008157, y: 3.411891, angulo: 0.000161 },
-        { x: -3.4, y: -0.079678, angulo: 0 },
+        { x: -3.4, y: -0.268567, angulo: 0 },
       ],
     });
+  });
+});
+
+describe("puntuación al acabar (F3 de pruebas.md)", () => {
+  // Partida del día 2026-11-09 con 18 piezas: la última cae y la torre se
+  // derrumba. Antes se contaban las piezas que seguían por encima de y = 0 en el
+  // instante de la caída, aunque estuvieran cayendo, y marcaba 17.
+  const SEMILLA_DERRUMBE = "2026-11-09";
+  const TOQUES_DERRUMBE = [
+    170, 378, 576, 773, 969, 1175, 1371, 1560, 1734, 1908, 2095, 2269, 2460, 2690, 2851, 3016, 3164, 3357,
+  ];
+
+  it("una torre derrumbada solo cuenta las piezas que quedan sobre la plataforma", () => {
+    const resultado = jugar(SEMILLA_DERRUMBE, TOQUES_DERRUMBE);
+    expect(resultado.terminada).toBe(true);
+    expect(resultado.posiciones).toHaveLength(18);
+    const sobre = resultado.posiciones.filter((p) => p.y > 0 && Math.abs(p.x) <= PLATAFORMA_MEDIO_ANCHO);
+    expect(resultado.puntos).toBe(sobre.length);
+    expect(resultado.formas).toHaveLength(resultado.puntos);
+    expect(resultado.puntos).toBe(3);
+  });
+
+  it("tras la caída sigue simulando como mucho MAX_PASOS_ASENTAR pasos, sin piezas nuevas", () => {
+    const partida = new Partida(SEMILLA_DERRUMBE);
+    const pendientes = new Set(TOQUES_DERRUMBE);
+    while (partida.fase !== "asentando" && partida.pasos < 10_000) {
+      if (pendientes.has(partida.pasos)) partida.soltar();
+      partida.paso();
+    }
+    const pasoCaida = partida.pasos;
+    expect(partida.terminada).toBe(false);
+    while (!partida.terminada) {
+      expect(partida.soltar()).toBe(false);
+      expect(partida.estado().colgada).toBeNull();
+      partida.paso();
+    }
+    expect(partida.pasos - pasoCaida).toBeLessThanOrEqual(MAX_PASOS_ASENTAR);
+    expect(partida.resultado()).toEqual(jugar(SEMILLA_DERRUMBE, TOQUES_DERRUMBE));
   });
 });
 
