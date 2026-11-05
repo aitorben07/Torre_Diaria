@@ -147,3 +147,37 @@ Un jugador tosco acaba en 13-23 s, por debajo de los 30 s de D6. El bot es más 
 
 ### Limpieza
 Los servidores de Playwright se cierran solos al terminar; se borró el archivo de prueba temporal. Se comprobó que no queda ningún proceso vivo.
+
+## Vuelta 3
+
+**Veredicto de la vuelta 3: APROBADO (F3 resuelto).**
+
+### Comprobaciones repetidas
+- `npm test`: 10 archivos, 79 pruebas, todas pasan.
+- `npm run check`: 0 errores, 0 avisos, 1 aviso informativo (`document.execCommand`).
+- `npm run e2e` (una vez, escritorio y móvil): 48 pasan, 8 omitidas (motores).
+- `npm run medir:duracion`: cuidadoso mediana 57,6 s (49,9-68,7); descuidado 38,0 s (25,4-62,7). D6 sigue cumplido en simulación.
+
+### Requisitos
+| Requisito | Cómo se comprobó | Resultado |
+|---|---|---|
+| Puntos = piezas en pie (centro y>0 y abs(x)<=2) al soltar la última; el derrumbe posterior no resta; la última no cuenta | Lectura de `simulacion.ts` (`soltar` guarda `colocadas`; `contadas` la devuelve en asentando/fin); prueba del derrumbe (17 de 18); 60 partidas aleatorias en Node | cumplido |
+| Pantalla y Node dan la misma puntuación | Mismo código (`Partida`); 60 partidas: `resultado()` paso a paso idéntico a `jugar()` con los mismos toques; e2e de equivalencia pasa; 2 partidas reales | cumplido |
+| Tarjeta refleja los puntos | 2 partidas reales en móvil: tarjeta, `#fin-puntos` y `data-puntos` coinciden (3 y 7); nº de cuadros = puntos; captura `capturas/v3-partida-7.png` muestra 7 piezas en pie y la 8ª (caída) sin contar | cumplido |
+| Casos raros: primera pieza cae, pieza que provoca el fin no es la primera | Prueba existente "0 puntos"; fuzz: 40 de 60 partidas con 0 puntos, nunca puntos >= piezas soltadas, formas.length == puntos siempre; 1 partida donde puntos < soltadas-1 | cumplido |
+| Asentado acotado (180 pasos), sin piezas nuevas | Prueba de Vitest y partidas reales terminan | cumplido |
+
+### Observaciones (no son fallos)
+- El contador durante la partida cuenta la pieza recién soltada mientras está en el aire sobre la plataforma; si luego cae, el contador baja 1 al pasar a "asentando" (17 de 60 partidas del fuzz, siempre -1). El resultado final es coherente con la regla de diseño.
+- Si una pieza anterior se cae después de que la última soltada se asiente bien, esa última no puntúa (consecuencia de la regla "sin contar la última"). Ocurrió en 1 de 60 partidas.
+
+### Fallos
+Ninguno.
+
+### Sin comprobar
+- Firefox/WebKit (`e2e:motores`), Safari y Android reales.
+- Duración con jugadores humanos (solo bots).
+- Una sola ejecución de `npm run e2e`.
+
+### Limpieza
+El archivo e2e temporal se borró; Playwright cierra sus servidores al terminar y no se lanzó nada en segundo plano.
