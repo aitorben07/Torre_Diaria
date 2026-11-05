@@ -96,7 +96,7 @@ export class Partida {
 
   constructor(semilla: string) {
     this.piezas = generarSecuencia(semilla);
-    const plataforma = this.mundo.createBody({ type: "static", position: Vec2(0, -PLATAFORMA_ALTO / 2) });
+    const plataforma = this.mundo.createBody({ type: "static", position: new Vec2(0, -PLATAFORMA_ALTO / 2) });
     plataforma.createFixture({ shape: new Box(PLATAFORMA_MEDIO_ANCHO, PLATAFORMA_ALTO / 2), friction: FRICCION });
     this.colgarPieza();
   }
@@ -119,11 +119,11 @@ export class Partida {
     const pieza = this.piezaActual();
     const cuerpo = this.mundo.createBody({
       type: "dynamic",
-      position: Vec2(this.xColgada(), this.colgadaY),
+      position: new Vec2(this.xColgada(), this.colgadaY),
       angle: 0,
     });
     const fixture = cuerpo.createFixture({
-      shape: new Polygon(verticesPieza(pieza).map((v) => Vec2(v.x, v.y))),
+      shape: new Polygon(verticesPieza(pieza).map((v) => new Vec2(v.x, v.y))),
       density: DENSIDAD,
       friction: FRICCION,
       restitution: 0,

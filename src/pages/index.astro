@@ -1,14 +1,72 @@
 ---
+import "../estilos.css";
+
+const titulo = "Torre Diaria";
+const descripcion = "Apila piezas con un solo toque. Un reto nuevo cada día, igual para todos. Gratis y sin registrarse.";
+// Favicon en SVG en línea: sin archivos de imagen en dist/.
+const favicon =
+  "data:image/svg+xml," +
+  encodeURIComponent(
+    "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'>" +
+      "<rect x='2' y='13' width='12' height='3' fill='#5b6470'/>" +
+      "<rect x='4' y='9' width='8' height='4' fill='#e74c3c'/>" +
+      "<rect x='5' y='5' width='6' height='4' fill='#2e86de'/>" +
+      "<rect x='6' y='1' width='4' height='4' fill='#f4d03f'/>" +
+      "</svg>",
+  );
 ---
 
 <!doctype html>
 <html lang="es">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Torre Diaria</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>{titulo}</title>
+    <meta name="description" content={descripcion} />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={titulo} />
+    <meta property="og:description" content={descripcion} />
+    <meta name="theme-color" content="#28508f" />
+    <link rel="icon" type="image/svg+xml" href={favicon} />
   </head>
   <body>
-    <h1>Torre Diaria</h1>
+    <main id="juego" data-estado="inicio">
+      <header class="barra">
+        <h1>Torre Diaria</h1>
+        <p id="contador" aria-live="polite"></p>
+      </header>
+      <div id="zona" class="zona">
+        <canvas id="lienzo" aria-label="Zona de juego: toca o pulsa Espacio para soltar la pieza"></canvas>
+
+        <section id="inicio" class="panel" aria-labelledby="inicio-titulo">
+          <h2 id="inicio-titulo">Apila piezas con un toque</h2>
+          <p class="ayuda">La pieza va de lado a lado. Toca la pantalla, o pulsa Espacio, para soltarla. Si algo cae de la plataforma, se acaba.</p>
+          <p id="aviso-reto" class="destacado" hidden></p>
+          <p id="comparacion" class="destacado" hidden></p>
+          <button id="boton-hoy" type="button" class="principal">Jugar el reto de hoy</button>
+          <button id="boton-reto" type="button" hidden>Jugar el reto del amigo</button>
+          <button id="boton-practica-inicio" type="button">Práctica</button>
+        </section>
+
+        <section id="fin" class="panel" aria-labelledby="fin-titulo" hidden>
+          <h2 id="fin-titulo"></h2>
+          <p class="marcador"><span id="fin-puntos"></span> · <span id="fin-altura"></span></p>
+          <p id="fin-reto" class="destacado" hidden></p>
+          <pre id="tarjeta" aria-label="Vista previa de la tarjeta"></pre>
+          <div class="acciones">
+            <button id="boton-copiar" type="button" class="principal">Copiar</button>
+            <button id="boton-compartir" type="button" class="principal" hidden>Compartir</button>
+          </div>
+          <p id="mensaje" role="status"></p>
+          <div class="acciones">
+            <button id="boton-practica-fin" type="button">Jugar práctica</button>
+            <button id="boton-volver" type="button">Inicio</button>
+          </div>
+        </section>
+      </div>
+    </main>
+    <script>
+      import "../juego/principal.ts";
+    </script>
   </body>
 </html>

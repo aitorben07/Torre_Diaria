@@ -1,0 +1,162 @@
+/* Una columna centrada en vertical; en el móvil ocupa toda la pantalla. */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+  background: #0b1030;
+  color: #10131a;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+#juego {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 480px;
+  height: 100dvh;
+  margin: 0 auto;
+  background: #bfe3ff;
+}
+
+.barra {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: #10131a;
+  color: #fff;
+}
+
+.barra h1 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+#contador {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.zona {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#lienzo {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.panel {
+  position: absolute;
+  inset: 1rem;
+  margin: auto;
+  max-height: calc(100% - 2rem);
+  height: fit-content;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 1.25rem;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  touch-action: manipulation;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.panel h2 {
+  margin: 0;
+  font-size: 1.3rem;
+}
+
+.panel p {
+  margin: 0;
+}
+
+.ayuda {
+  color: #3b4250;
+}
+
+.destacado {
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  background: #fff3c4;
+}
+
+.marcador {
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+#tarjeta {
+  margin: 0;
+  padding: 0.75rem;
+  border-radius: 8px;
+  background: #eef1f5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-family: inherit;
+}
+
+.acciones {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.acciones button {
+  flex: 1;
+}
+
+button {
+  min-height: 44px;
+  padding: 0.6rem 1rem;
+  border: 2px solid #28508f;
+  border-radius: 8px;
+  background: #fff;
+  color: #28508f;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button.principal {
+  background: #28508f;
+  color: #fff;
+}
+
+button:focus-visible {
+  outline: 3px solid #f39c12;
+  outline-offset: 2px;
+}
+
+#mensaje:empty {
+  display: none;
+}
+
+.fuera-de-vista {
+  position: fixed;
+  top: 0;
+  left: -9999px;
+  opacity: 0;
+}
