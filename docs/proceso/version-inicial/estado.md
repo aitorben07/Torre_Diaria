@@ -1,6 +1,6 @@
 Estado: en curso
-Actualizado: 2026-11-05T11:18:51+01:00
+Actualizado: 2026-11-05T13:32:10+01:00
 Rama: version-inicial
-Paso actual: desarrollador
-Siguiente paso: desarrollador implementa T1-T11 de docs/proceso/version-inicial/tareas.md (incluye los cambios marcados [impacto]); después probador
-Decisiones tomadas: nombre provisional Torre_Diaria; repo solo local hasta la revisión final; plan D1-D13 (Astro sin React, planck, ranking en segunda fase, sin CI); impacto incorporado: física sin trigonometría propia, toques por paso, paleta de 9 emojis, CSP sin inline, densidad de píxeles máx. 2
+Paso actual: probador
+Siguiente paso: probador comprueba T1-T11 de tareas.md de forma independiente y escribe pruebas.md; si falla, vuelve a desarrollador; después revisor
+Decisiones tomadas: nombre provisional Torre_Diaria; repo solo local hasta la revisión final; plan D1-D13 con cambios [impacto]; desarrollo: altura comparada con 9 decimales entre Chrome y Node (trig distinta), toque de la prueba Node lanzado dentro de la página, triángulo con cima plana, TypeScript 6.0.3 (astro check no admite la 7); Firefox sin comprobar (Windows bloquea firefox.exe); validar partidas en servidor no cabe en 10 ms de CPU (1 s por partida)
