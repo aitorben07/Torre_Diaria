@@ -89,6 +89,9 @@ export function posicionVaiven(pasoLocal: number, velocidad: number, desdeDerech
 
 type Soltada = { pieza: Pieza; cuerpo: Body; fixture: Fixture };
 
+/** Piezas en pie justo antes de soltar una pieza, y la altura de esa torre. */
+type Colocadas = { piezas: Soltada[]; altura: number };
+
 export class Partida {
   private readonly mundo = new World(OPCIONES_MUNDO);
   private readonly piezas: Pieza[];
@@ -99,6 +102,7 @@ export class Partida {
   private pasoAparicion = 0;
   private pasoSoltada = 0;
   private pasoCaida = 0;
+  private colocadas: Colocadas = { piezas: [], altura: 0 };
   private colgadaY = 0;
 
   constructor(semilla: string) {
@@ -123,6 +127,8 @@ export class Partida {
   /** Suelta la pieza que cuelga. Devuelve `false` (y no hace nada) si no hay ninguna. */
   soltar(): boolean {
     if (this.faseActual !== "apuntando") return false;
+    const enPie = this.sobrePlataforma();
+    this.colocadas = { piezas: enPie, altura: this.alturaTorre(enPie) };
     const pieza = this.piezaActual();
     const cuerpo = this.mundo.createBody({
       type: "dynamic",
@@ -144,7 +150,8 @@ export class Partida {
   /**
    * Avanza un paso fijo de la simulación. Cuando cae una pieza pasa a
    * «asentando»: sigue simulando sin piezas nuevas hasta que todo está quieto o
-   * pasan `MAX_PASOS_ASENTAR` pasos, y entonces acaba. Al acabar ya no hace nada.
+   * pasan `MAX_PASOS_ASENTAR` pasos, y entonces acaba. Es solo animación: los
+   * puntos ya no cambian (ver `contadas`). Al acabar ya no hace nada.
    */
   paso(): void {
     if (this.faseActual === "fin") return;
@@ -171,11 +178,12 @@ export class Partida {
 
   estado(): EstadoPartida {
     const pieza = this.piezaActual();
+    const { piezas, altura } = this.contadas();
     return {
       fase: this.faseActual,
       pasos: this.pasosHechos,
-      puntos: this.sobrePlataforma().length,
-      altura: this.alturaTorre(this.sobrePlataforma()),
+      puntos: piezas.length,
+      altura,
       colgada: this.faseActual === "apuntando" ? { pieza, x: this.xColgada(), y: this.colgadaY, angulo: 0 } : null,
       cuerpos: this.soltadas.map(({ pieza, cuerpo }) => {
         const p = cuerpo.getPosition();
@@ -185,11 +193,11 @@ export class Partida {
   }
 
   resultado(): Resultado {
-    const contadas = this.sobrePlataforma();
+    const { piezas, altura } = this.contadas();
     return {
-      puntos: contadas.length,
-      altura: this.alturaTorre(contadas),
-      formas: contadas.map(({ pieza }) => ({ forma: pieza.forma, color: pieza.color })),
+      puntos: piezas.length,
+      altura,
+      formas: piezas.map(({ pieza }) => ({ forma: pieza.forma, color: pieza.color })),
       terminada: this.terminada,
       pasos: this.pasosHechos,
       posiciones: this.soltadas.map(({ cuerpo }) => {
@@ -229,9 +237,18 @@ export class Partida {
   }
 
   /**
-   * Piezas que puntúan (T4, F3 de pruebas.md): con el centro por encima de la
-   * cara superior de la plataforma y dentro de su ancho.
+   * Piezas que puntúan (T4, cambiado en desarrollo). Durante la partida, las que
+   * están ahora sobre la plataforma. Desde que cae una pieza, las «piezas
+   * colocadas»: las que estaban sobre la plataforma al soltar la última pieza,
+   * sin contar esa ni lo que se derrumbe después.
    */
+  private contadas(): Colocadas {
+    if (this.faseActual === "asentando" || this.faseActual === "fin") return this.colocadas;
+    const piezas = this.sobrePlataforma();
+    return { piezas, altura: this.alturaTorre(piezas) };
+  }
+
+  /** Piezas con el centro por encima de la cara superior de la plataforma y dentro de su ancho. */
   private sobrePlataforma(): Soltada[] {
     return this.soltadas.filter(({ cuerpo }) => {
       const p = cuerpo.getPosition();

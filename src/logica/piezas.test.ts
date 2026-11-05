@@ -41,7 +41,8 @@ describe("generarSecuencia", () => {
         expect(pieza.color).toBeLessThan(PALETA.length);
       }
     }
-  });
+    // 135.000 comprobaciones: con varios archivos en paralelo pasa de los 5 s por defecto.
+  }, 20_000);
 
   it("la velocidad nunca baja y no supera el tope", () => {
     const piezas = generarSecuencia("2026-11-05", 300);

@@ -72,8 +72,9 @@ describe("jugar", () => {
     // séptima soltada en el extremo, que cae fuera y acaba la partida. Si se
     // actualiza planck o se cambia la física, esta prueba falla a propósito.
     // Actualizada a propósito al suavizar el inicio (D6, F1 de pruebas.md) y
-    // al asentar las piezas antes de contar (F3): un paso más y la séptima
-    // pieza algo más abajo; los puntos no cambian.
+    // al asentar las piezas antes de acabar y puntuar las piezas colocadas
+    // (F3, T4 cambiado en desarrollo): un paso más, la séptima pieza algo más
+    // abajo y la altura medida al soltar la séptima; los puntos no cambian.
     const resultado = jugar(SEMILLA, [170, 375, 575, 772, 966, 1156, 1180, 1205]);
     const r6 = (valor: number) => Math.round(valor * 1e6) / 1e6;
     expect({
@@ -84,7 +85,7 @@ describe("jugar", () => {
       posiciones: resultado.posiciones.map((p) => ({ x: r6(p.x), y: r6(p.y), angulo: r6(p.angulo) })),
     }).toEqual({
       puntos: 6,
-      altura: 3.547025,
+      altura: 3.548099,
       pasos: 1273,
       terminada: true,
       posiciones: [
@@ -100,26 +101,37 @@ describe("jugar", () => {
   });
 });
 
-describe("puntuación al acabar (F3 de pruebas.md)", () => {
+describe("puntuación al acabar: piezas colocadas (T4, cambiado en desarrollo)", () => {
   // Partida del día 2026-11-09 con 18 piezas: la última cae y la torre se
-  // derrumba. Antes se contaban las piezas que seguían por encima de y = 0 en el
-  // instante de la caída, aunque estuvieran cayendo, y marcaba 17.
+  // derrumba después. Puntúan las piezas que estaban en pie al soltar la
+  // última (17), aunque luego se caigan; esa última no cuenta.
   const SEMILLA_DERRUMBE = "2026-11-09";
   const TOQUES_DERRUMBE = [
     170, 378, 576, 773, 969, 1175, 1371, 1560, 1734, 1908, 2095, 2269, 2460, 2690, 2851, 3016, 3164, 3357,
   ];
+  const ULTIMO = TOQUES_DERRUMBE.at(-1)!;
 
-  it("una torre derrumbada solo cuenta las piezas que quedan sobre la plataforma", () => {
+  it("una torre derrumbada puntúa las piezas que estaban en pie antes del último toque", () => {
+    const partida = new Partida(SEMILLA_DERRUMBE);
+    const pendientes = new Set(TOQUES_DERRUMBE);
+    while (partida.pasos < ULTIMO) {
+      if (pendientes.has(partida.pasos)) partida.soltar();
+      partida.paso();
+    }
+    const antesDelUltimo = partida.estado();
     const resultado = jugar(SEMILLA_DERRUMBE, TOQUES_DERRUMBE);
     expect(resultado.terminada).toBe(true);
     expect(resultado.posiciones).toHaveLength(18);
+    expect(resultado.puntos).toBe(antesDelUltimo.puntos);
+    expect(resultado.puntos).toBe(17);
+    expect(resultado.altura).toBe(antesDelUltimo.altura);
+    expect(resultado.formas).toHaveLength(17);
+    // Tras el derrumbe quedan muchas menos sobre la plataforma: no se penaliza.
     const sobre = resultado.posiciones.filter((p) => p.y > 0 && Math.abs(p.x) <= PLATAFORMA_MEDIO_ANCHO);
-    expect(resultado.puntos).toBe(sobre.length);
-    expect(resultado.formas).toHaveLength(resultado.puntos);
-    expect(resultado.puntos).toBe(3);
+    expect(sobre.length).toBeLessThan(resultado.puntos);
   });
 
-  it("tras la caída sigue simulando como mucho MAX_PASOS_ASENTAR pasos, sin piezas nuevas", () => {
+  it("tras la caída asienta como mucho MAX_PASOS_ASENTAR pasos, sin piezas nuevas ni cambio de puntos", () => {
     const partida = new Partida(SEMILLA_DERRUMBE);
     const pendientes = new Set(TOQUES_DERRUMBE);
     while (partida.fase !== "asentando" && partida.pasos < 10_000) {
@@ -127,10 +139,11 @@ describe("puntuación al acabar (F3 de pruebas.md)", () => {
       partida.paso();
     }
     const pasoCaida = partida.pasos;
+    const { puntos, altura } = partida.estado();
     expect(partida.terminada).toBe(false);
     while (!partida.terminada) {
       expect(partida.soltar()).toBe(false);
-      expect(partida.estado().colgada).toBeNull();
+      expect(partida.estado()).toMatchObject({ colgada: null, puntos, altura });
       partida.paso();
     }
     expect(partida.pasos - pasoCaida).toBeLessThanOrEqual(MAX_PASOS_ASENTAR);
