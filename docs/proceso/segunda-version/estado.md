@@ -1,6 +1,6 @@
 ﻿Estado: en curso
-Actualizado: 2026-11-06T12:00:09+01:00
+Actualizado: 2026-11-06T12:13:36+01:00
 Rama: segunda-version
-Paso actual: planificador
-Siguiente paso: planificador escribe docs/proceso/segunda-version/tareas.md y docs/diseno/ (valoración de monedas/niveles/otras mecánicas y plan de anuncios sin implementarlos) a partir de los comentarios del usuario: aspecto poco atractivo, partida corta, modo libre por defecto y repetible, retos diarios con rachas y desbloqueos, compartir con imagen atractiva sin emojis básicos
-Decisiones tomadas: ninguna todavía
+Paso actual: analista-impacto
+Siguiente paso: analista-impacto revisa tareas.md (28 tareas, bloques 0,B,A,C,D,E,F,G,H) y escribe impacto.md, incorporando cambios; después desarrollador por bloques
+Decisiones tomadas: plan S1-S27 en tareas.md: 3 vidas, perfecto con imán y combos, partida libre al abrir; estilo risografía con Bricolage Grotesque empaquetada; una sola moneda sin gemas; 30 niveles en 3 mundos; imagen PNG 1080x1350 para compartir; anuncios solo como interfaz vacía; reglas v2 cambian resultados de todos los días (no desplegado); CI en Actions al ser repo público
