@@ -15,6 +15,7 @@
     "medir:duracion": "node scripts/medir-duracion.ts"
   },
   "dependencies": {
+    "@fontsource-variable/bricolage-grotesque": "5.3.0",
     "astro": "7.4.5",
     "planck": "1.5.1"
   },

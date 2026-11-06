@@ -1,3 +1,40 @@
+/* Bricolage Grotesque (OFL-1.1, public/fuentes/OFL.txt), empaquetada: solo los
+   subconjuntos latino y latino extendido del eje de peso (A1). El navegador
+   descarga cada archivo solo si la página usa caracteres de su `unicode-range`. */
+@font-face {
+  font-family: "Bricolage Grotesque Variable";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 200 800;
+  src: url("@fontsource-variable/bricolage-grotesque/files/bricolage-grotesque-latin-ext-wght-normal.woff2") format("woff2-variations");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+  font-family: "Bricolage Grotesque Variable";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 200 800;
+  src: url("@fontsource-variable/bricolage-grotesque/files/bricolage-grotesque-latin-wght-normal.woff2") format("woff2-variations");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* Paleta «Riso» (Anexo 1, 1.2). Los mismos valores están en src/juego/temas.ts. */
+:root {
+  --papel: #F3EAD7;
+  --papel-oscuro: #E2D3B5;
+  --tinta: #1E1B33;
+  --rosa: #FF4F8B;
+  --amarillo: #FFC93C;
+  --turquesa: #12A4A0;
+  --azul: #2F5DDB;
+  --naranja: #FF7A3D;
+  --verde: #3BB273;
+  --violeta: #7A5CC7;
+  --piedra: #B9AE98;
+  --estrella: #FFF3C4;
+}
+
 /* Una columna centrada en vertical; en el móvil ocupa toda la pantalla. */
 *,
 *::before,
@@ -15,9 +52,9 @@ body {
   height: 100%;
   overflow: hidden;
   overscroll-behavior: none;
-  background: #0b1030;
-  color: #10131a;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--tinta);
+  color: var(--tinta);
+  font-family: "Bricolage Grotesque Variable", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
 #juego {
@@ -27,7 +64,7 @@ body {
   max-width: 480px;
   height: 100dvh;
   margin: 0 auto;
-  background: #bfe3ff;
+  background: var(--papel);
 }
 
 /* HUD (B5): vidas a la izquierda, puntos grandes en el centro, combo, récord y
@@ -38,8 +75,8 @@ body {
   align-items: center;
   gap: 0.5rem;
   padding: 0.4rem 0.75rem;
-  background: #10131a;
-  color: #fff;
+  background: var(--tinta);
+  color: var(--papel);
 }
 
 .solo-lectores {
@@ -61,9 +98,9 @@ body {
 .vida {
   width: 1rem;
   height: 0.8rem;
-  border: 2px solid #fff;
+  border: 2px solid var(--papel);
   border-radius: 3px;
-  background: #e74c3c;
+  background: var(--rosa);
 }
 
 .vida.perdida {
@@ -95,7 +132,7 @@ body {
 
 .combo {
   font-weight: 800;
-  color: #f4d03f;
+  color: var(--amarillo);
 }
 
 .record {
@@ -105,9 +142,9 @@ body {
 
 button.pequeno {
   padding: 0.3rem 0.6rem;
-  border-color: #fff;
+  border-color: var(--papel);
   background: transparent;
-  color: #fff;
+  color: var(--papel);
   font-size: 0.9rem;
 }
 
@@ -119,8 +156,8 @@ button.pequeno {
   margin: 0;
   padding: 0.5rem 1rem;
   border-radius: 999px;
-  background: rgba(16, 19, 26, 0.8);
-  color: #fff;
+  background: var(--tinta);
+  color: var(--papel);
   font-weight: 700;
   transform: translateX(-50%);
   pointer-events: none;
@@ -154,8 +191,8 @@ button.pequeno {
   gap: 0.6rem;
   padding: 1.25rem;
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.94);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  background: var(--papel);
+  box-shadow: 0 8px 24px var(--tinta);
   touch-action: manipulation;
   user-select: text;
   -webkit-user-select: text;
@@ -176,13 +213,13 @@ button.pequeno {
 }
 
 .ayuda {
-  color: #3b4250;
+  color: var(--tinta);
 }
 
 .destacado {
   padding: 0.5rem 0.75rem;
   border-radius: 8px;
-  background: #fff3c4;
+  background: var(--estrella);
 }
 
 .marcador {
@@ -194,7 +231,7 @@ button.pequeno {
   margin: 0;
   padding: 0.75rem;
   border-radius: 8px;
-  background: #eef1f5;
+  background: var(--papel-oscuro);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   font-family: inherit;
@@ -212,22 +249,22 @@ button.pequeno {
 button {
   min-height: 44px;
   padding: 0.6rem 1rem;
-  border: 2px solid #28508f;
+  border: 2px solid var(--tinta);
   border-radius: 8px;
-  background: #fff;
-  color: #28508f;
+  background: var(--papel);
+  color: var(--tinta);
   font: inherit;
   font-weight: 600;
   cursor: pointer;
 }
 
 button.principal {
-  background: #28508f;
-  color: #fff;
+  background: var(--tinta);
+  color: var(--papel);
 }
 
 button:focus-visible {
-  outline: 3px solid #f39c12;
+  outline: 3px solid var(--azul);
   outline-offset: 2px;
 }
 

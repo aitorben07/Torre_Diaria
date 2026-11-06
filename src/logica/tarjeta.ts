@@ -26,9 +26,19 @@ export function formatearPiezas(piezas: number): string {
   return piezas === 1 ? "1 pieza" : `${piezas} piezas`;
 }
 
-/** Puntos de la v2 (B2): «1 punto», «260 puntos». El punto de miles llega con A1. */
+/**
+ * Entero con punto de miles desde 4 cifras: 999, 1.240, 123.456 (A1). Sin
+ * `Intl`, que en español no separa los números de 4 cifras («1240»).
+ */
+export function formatearNumero(numero: number): string {
+  const valor = Number.isFinite(numero) ? Math.trunc(numero) : 0;
+  const cifras = String(Math.abs(valor)).replace(/\B(?=(\d{3})+$)/g, ".");
+  return valor < 0 ? `-${cifras}` : cifras;
+}
+
+/** Puntos de la v2 (B2): «1 punto», «260 puntos», «1.240 puntos». */
 export function formatearPuntos(puntos: number): string {
-  return puntos === 1 ? "1 punto" : `${puntos} puntos`;
+  return puntos === 1 ? "1 punto" : `${formatearNumero(puntos)} puntos`;
 }
 
 function filaEmojis(formas: Array<{ color: number }>): string {

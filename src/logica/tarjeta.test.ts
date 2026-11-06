@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { PALETA } from "./piezas.ts";
-import { generarTarjeta, type DatosTarjeta } from "./tarjeta.ts";
+import { formatearNumero, formatearPuntos, generarTarjeta, type DatosTarjeta } from "./tarjeta.ts";
 
 const ORIGEN = "https://torre-diaria.pages.dev";
 
@@ -70,5 +70,27 @@ describe("generarTarjeta", () => {
     const formas = piezas(PALETA.length);
     const fila = generarTarjeta(datos({ puntos: formas.length, formas })).split("\n")[1]!;
     expect([...fila]).toEqual(formas.map(({ color }) => PALETA[color]!.emoji));
+  });
+});
+
+describe("formatearNumero", () => {
+  it("pone punto de miles desde 4 cifras (A1)", () => {
+    expect(formatearNumero(0)).toBe("0");
+    expect(formatearNumero(999)).toBe("999");
+    expect(formatearNumero(1240)).toBe("1.240");
+    expect(formatearNumero(123456)).toBe("123.456");
+    expect(formatearNumero(999999)).toBe("999.999");
+    expect(formatearNumero(1234567)).toBe("1.234.567");
+  });
+
+  it("no da NaN ni decimales con valores raros", () => {
+    expect(formatearNumero(Number.NaN)).toBe("0");
+    expect(formatearNumero(12.9)).toBe("12");
+    expect(formatearNumero(-1500)).toBe("-1.500");
+  });
+
+  it("formatearPuntos lo usa", () => {
+    expect(formatearPuntos(1)).toBe("1 punto");
+    expect(formatearPuntos(1240)).toBe("1.240 puntos");
   });
 });

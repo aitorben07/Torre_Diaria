@@ -1,5 +1,5 @@
 // T8 y T11: comprobaciones sobre dist/ (el servidor de pruebas compila antes).
-import { readdirSync, readFileSync } from "node:fs";
+import { readdirSync, readFileSync, statSync } from "node:fs";
 import { gzipSync } from "node:zlib";
 import { expect, test } from "@playwright/test";
 
@@ -11,10 +11,23 @@ test.beforeEach(({}, testInfo) => {
   test.skip(testInfo.project.name !== "escritorio", "Basta con un proyecto: no depende del navegador");
 });
 
-test("dist/ no contiene imágenes, audio ni fuentes", () => {
-  const prohibidos = /\.(png|jpe?g|gif|webp|avif|ico|mp3|ogg|wav|woff2?|ttf|otf)$/i;
+test("dist/ no contiene imágenes ni audio, y las únicas fuentes son .woff2 de _astro/ (G6, G8, A4)", () => {
+  const prohibidos = /\.(png|jpe?g|gif|webp|avif|ico|bmp|mp3|ogg|wav|m4a|aac|flac|woff|ttf|otf|eot)$/i;
   expect(archivos().filter((ruta) => prohibidos.test(ruta))).toEqual([]);
+  expect(archivos().filter((ruta) => ruta.endsWith(".woff2") && !ruta.startsWith("_astro/"))).toEqual([]);
   expect(html()).toMatch(/<link rel="icon" type="image\/svg\+xml" href="data:image\/svg\+xml,/);
+});
+
+test("las fuentes de dist/ suman como mucho 80 KB y va la licencia OFL (A1, G8)", () => {
+  const fuentes = archivos().filter((ruta) => ruta.endsWith(".woff2"));
+  expect(fuentes.length).toBeGreaterThan(0);
+  const bytes = fuentes.reduce((total, ruta) => total + statSync(new URL(ruta, DIST)).size, 0);
+  test.info().annotations.push({ type: "fuentes", description: `${bytes} B en ${fuentes.length} archivo(s)` });
+  expect(bytes).toBeLessThanOrEqual(80 * 1024);
+  // La descarga en español es solo el subconjunto latino (impacto, G8).
+  const latino = fuentes.find((ruta) => /latin-wght/.test(ruta));
+  expect(latino && statSync(new URL(latino, DIST)).size).toBeLessThanOrEqual(45 * 1024);
+  expect(readFileSync(new URL("fuentes/OFL.txt", DIST), "utf8")).toContain("SIL Open Font License");
 });
 
 test("dist/_headers existe y lleva la CSP", () => {
@@ -24,6 +37,8 @@ test("dist/_headers existe y lleva la CSP", () => {
   expect(cabeceras).toContain("Referrer-Policy:");
   expect(cabeceras).not.toContain("unsafe-inline");
   expect(cabeceras).not.toMatch(/https?:\/\//);
+  // Único cambio de la CSP en la v2: las fuentes propias (A1).
+  expect(cabeceras).toContain("font-src 'self'");
 });
 
 test("dist/index.html no tiene <style> ni <script> con código en línea", () => {

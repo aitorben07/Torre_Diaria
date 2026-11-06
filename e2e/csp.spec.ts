@@ -18,6 +18,7 @@ test("la partida completa pasa con la CSP sin errores de CSP", async ({ page, co
   test.setTimeout(90_000);
   const cabeceras = cabecerasDeDist();
   expect(cabeceras["content-security-policy"]).toBeTruthy();
+  expect(cabeceras["content-security-policy"]).toContain("font-src 'self'");
   await page.route("**/*", async (ruta) => {
     const respuesta = await ruta.fetch();
     await ruta.fulfill({ response: respuesta, headers: { ...respuesta.headers(), ...cabeceras } });
@@ -39,6 +40,8 @@ test("la partida completa pasa con la CSP sin errores de CSP", async ({ page, co
   await expect(page.locator("#mensaje")).toHaveText("Copiado");
   expect(await page.evaluate(() => navigator.clipboard.readText())).toContain(`Torre Diaria #${DIA}`);
 
+  // La fuente local se carga con la CSP aplicada (A1).
+  expect(await page.evaluate(() => document.fonts.check('16px "Bricolage Grotesque Variable"'))).toBe(true);
   expect(await page.evaluate(() => (window as unknown as { __violaciones: string[] }).__violaciones)).toEqual([]);
   expect(vigilancia.errores).toEqual([]);
 });
