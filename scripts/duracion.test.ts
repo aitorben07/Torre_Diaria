@@ -1,18 +1,33 @@
 import { describe, expect, it } from "vitest";
 import { jugarConPerfil, medirPerfil, PERFILES } from "./duracion.ts";
 
-const [cuidadoso, descuidado] = PERFILES as [(typeof PERFILES)[0], (typeof PERFILES)[0]];
+const perfil = (nombre: string) => PERFILES.find((p) => p.nombre === nombre)!;
+const novato = perfil("novato");
+const medio = perfil("medio");
 
-describe("duración de las partidas (D6)", () => {
-  it("el mismo día y perfil dan siempre la misma partida", () => {
-    expect(jugarConPerfil("2026-11-05", descuidado)).toEqual(jugarConPerfil("2026-11-05", descuidado));
+describe("jugadores simulados (B4)", () => {
+  it("hay tres perfiles: novato ±180 ms, medio ±90 ms y experto ±40 ms", () => {
+    expect(PERFILES.map((p) => [p.nombre, p.errorMs])).toEqual([
+      ["novato", 180],
+      ["medio", 90],
+      ["experto", 40],
+    ]);
   });
 
-  it("en 10 días, la mediana del descuidado es de 30 s o más y la del cuidadoso de 90 s o menos", () => {
-    expect(medirPerfil(descuidado, 10).medianaS).toBeGreaterThanOrEqual(30);
-    const { medianaS, medidas } = medirPerfil(cuidadoso, 10);
-    expect(medianaS).toBeLessThanOrEqual(90);
-    // Sigue siendo un reto: ni el cuidadoso llega al tope de 10 minutos.
-    for (const medida of medidas) expect(medida.terminada).toBe(true);
+  it("el mismo día y perfil dan siempre la misma partida", () => {
+    expect(jugarConPerfil("2026-11-05", novato)).toEqual(jugarConPerfil("2026-11-05", novato));
+  });
+
+  it("en 3 días, el novato dura de 60 a 150 s de mediana y el medio de 120 a 300 s, más y con más puntos", () => {
+    // La medición completa (30 días y el experto) es `npm run medir:duracion`.
+    const deNovato = medirPerfil(novato, 3);
+    const deMedio = medirPerfil(medio, 3);
+    expect(deNovato.medianaS).toBeGreaterThanOrEqual(60);
+    expect(deNovato.medianaS).toBeLessThanOrEqual(150);
+    expect(deMedio.medianaS).toBeGreaterThanOrEqual(120);
+    expect(deMedio.medianaS).toBeLessThanOrEqual(300);
+    expect(deMedio.medianaPuntos).toBeGreaterThan(deNovato.medianaPuntos);
+    // Ninguna llega al tope de 30 minutos.
+    for (const medida of [...deNovato.medidas, ...deMedio.medidas]) expect(medida.terminada).toBe(true);
   }, 60_000);
 });

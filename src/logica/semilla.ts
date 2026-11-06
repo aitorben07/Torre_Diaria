@@ -52,12 +52,12 @@ export function mulberry32(semilla: number): () => number {
   };
 }
 
-/** Generador de la semilla de texto (la fecha UTC del día o una de práctica). */
+/** Generador de la semilla de texto (la fecha UTC del día o una de partida libre). */
 export function crearGenerador(semilla: string): () => number {
   return mulberry32(hashTexto(semilla));
 }
 
-/** Semilla aleatoria de práctica. Es el único uso de `Math.random` en la lógica. */
-export function semillaPractica(): string {
-  return `practica-${Math.floor(Math.random() * 4_294_967_296).toString(36)}`;
+/** Semilla aleatoria de partida libre. Es el único uso de `Math.random` en la lógica. */
+export function semillaLibre(): string {
+  return `libre-${Math.floor(Math.random() * 4_294_967_296).toString(36)}`;
 }

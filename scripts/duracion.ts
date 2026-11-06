@@ -1,10 +1,11 @@
-// Jugadores simulados para medir cuánto dura una partida (D6). Cada perfil
-// intenta soltar la pieza cuando pasa por el centro de la torre (x = 0), la
-// primera vez que pasa, con un error de tiempo aleatorio fijado por semilla:
-// a más velocidad, el mismo error de tiempo aleja más la pieza del centro.
-// Es orientativo: un jugador real también espera, duda o apunta a otro sitio.
+// Jugadores simulados para medir cuánto dura una partida y cuántos puntos da
+// (B4). Cada perfil intenta soltar la pieza cuando pasa por el objetivo (el
+// centro de la pieza más alta), la primera vez que pasa, con un error de tiempo
+// aleatorio fijado por semilla: a más velocidad, el mismo error de tiempo aleja
+// más la pieza del objetivo. Es orientativo: un jugador real también espera,
+// duda o apunta a otro sitio.
 import { crearGenerador, fechaDeDia } from "../src/logica/semilla.ts";
-import { AMPLITUD, PASO, Partida } from "../src/logica/simulacion.ts";
+import { AMPLITUD, PASO, Partida, type OpcionesPartida } from "../src/logica/simulacion.ts";
 
 export type Perfil = {
   nombre: string;
@@ -13,36 +14,56 @@ export type Perfil = {
 };
 
 export const PERFILES: Perfil[] = [
-  { nombre: "cuidadoso", errorMs: 60 },
-  { nombre: "descuidado", errorMs: 150 },
+  { nombre: "novato", errorMs: 180 },
+  { nombre: "medio", errorMs: 90 },
+  { nombre: "experto", errorMs: 40 },
 ];
 
-/** Tope de seguridad: 10 minutos de partida. */
-export const MAX_PASOS = 36_000;
+/** Tope de seguridad: 30 minutos de partida. */
+export const MAX_PASOS = 108_000;
 
-export type Medida = { semilla: string; segundos: number; piezas: number; puntos: number; terminada: boolean };
+export type Medida = {
+  semilla: string;
+  segundos: number;
+  /** Piezas soltadas. */
+  soltadas: number;
+  /** Piezas colocadas (las que puntúan). */
+  piezas: number;
+  puntos: number;
+  perfectos: number;
+  monedas: number;
+  alturaMax: number;
+  terminada: boolean;
+};
+
+/** Pasos desde que aparece la pieza hasta que su centro pasa por `objetivo`. */
+export function pasosHastaObjetivo(objetivo: number, velocidad: number, desdeDerecha: boolean): number {
+  const distancia = desdeDerecha ? AMPLITUD - objetivo : objetivo + AMPLITUD;
+  return Math.round(distancia / (velocidad * PASO));
+}
 
 /** Juega una partida con el perfil dado. El azar del error depende solo de la semilla y del perfil. */
-export function jugarConPerfil(semilla: string, perfil: Perfil): Medida {
+export function jugarConPerfil(semilla: string, perfil: Perfil, opciones: OpcionesPartida = {}): Medida {
   const azar = crearGenerador(`${semilla}|${perfil.nombre}`);
-  const partida = new Partida(semilla);
-  let piezas = 0;
+  const partida = new Partida(semilla, opciones);
+  let soltadas = 0;
   let pasoToque: number | null = null;
   while (!partida.terminada && partida.pasos < MAX_PASOS) {
-    const { colgada } = partida.estado();
+    const { colgada, objetivo } = partida.estado();
     if (!colgada) {
       pasoToque = null;
     } else if (pasoToque === null) {
-      // Pasos hasta el centro desde el extremo en que aparece, más el error.
-      const alCentro = Math.round(AMPLITUD / (colgada.pieza.velocidad * PASO));
+      // La pieza aparece en un extremo: el de la derecha si está en x > 0.
+      const alObjetivo = pasosHastaObjetivo(objetivo, colgada.pieza.velocidad, colgada.x > 0);
       const error = Math.round(((azar() * 2 - 1) * perfil.errorMs) / (PASO * 1000));
-      pasoToque = partida.pasos + Math.max(1, alCentro + error);
+      pasoToque = partida.pasos + Math.max(1, alObjetivo + error);
     }
-    if (colgada && partida.pasos === pasoToque && partida.soltar()) piezas++;
+    if (colgada && partida.pasos === pasoToque && partida.soltar()) soltadas++;
     partida.paso();
+    partida.tomarEventos();
   }
-  const { puntos, pasos, terminada } = partida.resultado();
-  return { semilla, segundos: pasos / 60, piezas, puntos, terminada };
+  const { puntos, pasos, terminada, piezas, perfectos, monedas, alturaMax } = partida.resultado();
+  return { semilla, segundos: pasos / 60, soltadas, piezas, puntos, perfectos, monedas, alturaMax, terminada };
 }
 
 export function mediana(valores: number[]): number {
@@ -51,8 +72,15 @@ export function mediana(valores: number[]): number {
   return orden.length % 2 === 1 ? orden[medio]! : (orden[medio - 1]! + orden[medio]!) / 2;
 }
 
+export type Medicion = { perfil: string; medianaS: number; medianaPuntos: number; medidas: Medida[] };
+
 /** Mide el perfil en `dias` días seguidos desde `desde` (número de día del reto). */
-export function medirPerfil(perfil: Perfil, dias: number, desde: number = 1): { perfil: string; medianaS: number; medidas: Medida[] } {
+export function medirPerfil(perfil: Perfil, dias: number, desde: number = 1): Medicion {
   const medidas = Array.from({ length: dias }, (_, i) => jugarConPerfil(fechaDeDia(desde + i), perfil));
-  return { perfil: perfil.nombre, medianaS: mediana(medidas.map((m) => m.segundos)), medidas };
+  return {
+    perfil: perfil.nombre,
+    medianaS: mediana(medidas.map((m) => m.segundos)),
+    medianaPuntos: mediana(medidas.map((m) => m.puntos)),
+    medidas,
+  };
 }

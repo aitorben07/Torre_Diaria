@@ -2,7 +2,7 @@
 // un toque y las pantallas.
 import { leerReto } from "../logica/reto.ts";
 import { almacenDelNavegador, guardarResultado, leerResultado, type ResultadoDia } from "../logica/registro.ts";
-import { fechaDeDia, fechaUTC, numeroDia, semillaPractica } from "../logica/semilla.ts";
+import { fechaDeDia, fechaUTC, numeroDia, semillaLibre } from "../logica/semilla.ts";
 import { Partida } from "../logica/simulacion.ts";
 import { formatearAltura, formatearPiezas, generarTarjeta } from "../logica/tarjeta.ts";
 import { Bucle } from "./bucle.ts";
@@ -51,7 +51,7 @@ function mostrarInicio(): void {
 function empezar(nuevoModo: Modo, nuevoDia: number): void {
   modo = nuevoModo;
   dia = nuevoDia;
-  const semilla = modo === "practica" ? semillaPractica() : fechaDeDia(dia);
+  const semilla = modo === "practica" ? semillaLibre() : fechaDeDia(dia);
   partida = new Partida(semilla);
   escena = partida;
   pendiente = false;
@@ -78,7 +78,7 @@ function puntosAmigo(modoPartida: Modo, diaPartida: number): number | null {
 
 function mostrarFin(datos: ResultadoDia, modoPartida: Modo): void {
   textoTarjeta = generarTarjeta({
-    modo: modoPartida === "practica" ? "practica" : "diario",
+    modo: modoPartida === "practica" ? "libre" : "diario",
     dia: datos.dia,
     puntos: datos.puntos,
     altura: datos.altura,

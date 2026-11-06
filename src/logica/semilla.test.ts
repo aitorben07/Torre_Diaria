@@ -1,6 +1,6 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { crearGenerador, DIA_1, fechaDeDia, fechaUTC, numeroDia, semillaPractica } from "./semilla.ts";
+import { crearGenerador, DIA_1, fechaDeDia, fechaUTC, numeroDia, semillaLibre } from "./semilla.ts";
 
 function extraer(semilla: string, n: number): number[] {
   const azar = crearGenerador(semilla);
@@ -54,13 +54,13 @@ describe("generador", () => {
     }
   });
 
-  it("la semilla de práctica cambia en cada llamada", () => {
-    expect(semillaPractica()).not.toBe(semillaPractica());
+  it("la semilla libre cambia en cada llamada", () => {
+    expect(semillaLibre()).not.toBe(semillaLibre());
   });
 });
 
 describe("src/logica", () => {
-  it("solo usa Math.random en semillaPractica", () => {
+  it("solo usa Math.random en semillaLibre", () => {
     const carpeta = new URL("./", import.meta.url);
     const usos = readdirSync(carpeta)
       .filter((archivo) => archivo.endsWith(".ts") && !archivo.endsWith(".test.ts"))
@@ -71,7 +71,7 @@ describe("src/logica", () => {
           .map((linea) => `${archivo}: ${linea.trim()}`),
       );
     expect(usos).toEqual([
-      "semilla.ts: return `practica-${Math.floor(Math.random() * 4_294_967_296).toString(36)}`;",
+      "semilla.ts: return `libre-${Math.floor(Math.random() * 4_294_967_296).toString(36)}`;",
     ]);
   });
 });

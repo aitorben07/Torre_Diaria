@@ -6,8 +6,8 @@ import { crearReto } from "./reto.ts";
 export const MAX_EMOJIS = 24;
 
 export type DatosTarjeta = {
-  modo: "diario" | "practica";
-  /** Número de día; se ignora en práctica. */
+  modo: "diario" | "libre";
+  /** Número de día; se ignora en la partida libre. */
   dia: number;
   puntos: number;
   altura: number;
@@ -22,8 +22,13 @@ export function formatearAltura(altura: number): string {
   return `${valor.toFixed(1).replace(".", ",")} m`;
 }
 
-export function formatearPiezas(puntos: number): string {
-  return puntos === 1 ? "1 pieza" : `${puntos} piezas`;
+export function formatearPiezas(piezas: number): string {
+  return piezas === 1 ? "1 pieza" : `${piezas} piezas`;
+}
+
+/** Puntos de la v2 (B2): «1 punto», «260 puntos». El punto de miles llega con A1. */
+export function formatearPuntos(puntos: number): string {
+  return puntos === 1 ? "1 punto" : `${puntos} puntos`;
 }
 
 function filaEmojis(formas: Array<{ color: number }>): string {
@@ -37,10 +42,10 @@ export function generarTarjeta(datos: DatosTarjeta): string {
   if (datos.modo === "diario") {
     lineas.push(`Torre Diaria #${datos.dia} 🏗️`);
   } else {
-    lineas.push("Torre Diaria · Práctica 🏗️");
+    lineas.push("Torre Diaria · Partida libre 🏗️");
   }
   if (datos.formas.length > 0) lineas.push(filaEmojis(datos.formas));
-  lineas.push(`${formatearPiezas(datos.puntos)} · ${formatearAltura(datos.altura)}`);
+  lineas.push(`${formatearPuntos(datos.puntos)} · ${formatearAltura(datos.altura)}`);
   if (datos.modo === "diario") {
     lineas.push(`¿Me superas? ${datos.origen}/${crearReto(datos.dia, datos.puntos)}`);
   } else {

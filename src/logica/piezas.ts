@@ -24,12 +24,13 @@ export const ALTO_MAX = 1.4;
 export const CIMA_TRIANGULO = 0.5;
 
 /**
- * Velocidad de vaivén en m/s: empieza lenta y crece con cada pieza hasta el tope
- * (pieza 77). Medido con `npm run medir:duracion` para partidas de 30 a 90 s (D6).
+ * Velocidad de vaivén en m/s: `min(VEL_TOPE, VEL_MIN + VEL_INCREMENTO · i)`,
+ * con `i` el índice de la pieza desde 0 (B3). Ajustada con `npm run
+ * medir:duracion` para los objetivos de duración de cada perfil (B4).
  */
-export const VEL_MIN = 1.2;
-export const VEL_MAX = 5;
-export const VEL_INCREMENTO = 0.05;
+export const VEL_MIN = 1.0;
+export const VEL_TOPE = 3.4;
+export const VEL_INCREMENTO = 0.03;
 
 /** Paleta fija: cada color va ligado al emoji de la tarjeta (como mucho 9). */
 export const PALETA = [
@@ -51,11 +52,23 @@ export type Pieza = {
   velocidad: number;
 };
 
-export const PIEZAS_POR_PARTIDA = 300;
+/** Piezas que da `generarSecuencia` si no se pide otro número. La partida las genera bajo demanda. */
+export const PIEZAS_POR_PARTIDA = 600;
 
 /** Las primeras piezas solo salen de las formas más estables, sin triángulo ni columna (D6). */
 export const FORMAS_INICIALES: readonly Forma[] = ["bloque", "tablon", "cuadrado"];
 export const PIEZAS_INICIALES = 5;
+
+/**
+ * Formas por tramos de 10 piezas (B3, Anexo 1, 2.4): tras las iniciales, el
+ * triángulo («trapecio» en los textos) y la columna salen cada uno con
+ * probabilidad `PROB_DIFICIL_INICIAL`, que sube `PROB_DIFICIL_TRAMO` por tramo
+ * hasta `PROB_DIFICIL_TOPE`. El resto se reparte entre las formas iniciales.
+ */
+export const PIEZAS_POR_TRAMO = 10;
+export const PROB_DIFICIL_INICIAL = 0.1;
+export const PROB_DIFICIL_TRAMO = 0.03;
+export const PROB_DIFICIL_TOPE = 0.25;
 
 function centesimas(valor: number): number {
   return Math.round(valor * 100) / 100;
@@ -66,22 +79,57 @@ function entre(azar: () => number, [min, max]: [number, number]): number {
 }
 
 export function velocidadDePieza(indice: number): number {
-  return Math.min(VEL_MAX, centesimas(VEL_MIN + VEL_INCREMENTO * indice));
+  return Math.min(VEL_TOPE, centesimas(VEL_MIN + VEL_INCREMENTO * indice));
 }
 
-export function generarSecuencia(semilla: string, n: number = PIEZAS_POR_PARTIDA): Pieza[] {
-  const azar = crearGenerador(semilla);
-  const piezas: Pieza[] = [];
-  for (let i = 0; i < n; i++) {
-    const formas = i < PIEZAS_INICIALES ? FORMAS_INICIALES : FORMAS;
-    const forma = formas[Math.floor(azar() * formas.length)]!;
+/** Probabilidad de triángulo (y la misma de columna) de la pieza `indice`; 0 en las iniciales. */
+export function probabilidadDificil(indice: number): number {
+  if (indice < PIEZAS_INICIALES) return 0;
+  const tramo = Math.floor(indice / PIEZAS_POR_TRAMO);
+  return Math.min(PROB_DIFICIL_TOPE, PROB_DIFICIL_INICIAL + PROB_DIFICIL_TRAMO * tramo);
+}
+
+/** Forma de la pieza `indice` a partir de un valor de azar en [0, 1). */
+function elegirForma(indice: number, valor: number): Forma {
+  const dificil = probabilidadDificil(indice);
+  if (valor < dificil) return "triangulo";
+  if (valor < 2 * dificil) return "columna";
+  const resto = (valor - 2 * dificil) / (1 - 2 * dificil);
+  return FORMAS_INICIALES[Math.min(FORMAS_INICIALES.length - 1, Math.floor(resto * FORMAS_INICIALES.length))]!;
+}
+
+/**
+ * Secuencia sin fin de piezas de una semilla, generada bajo demanda. Las piezas
+ * salen en orden de un único generador, así que las primeras `k` son las mismas
+ * se generen cuantas se generen (B3).
+ */
+export class Secuencia {
+  private readonly azar: () => number;
+  private readonly piezas: Pieza[] = [];
+
+  constructor(semilla: string) {
+    this.azar = crearGenerador(semilla);
+  }
+
+  pieza(indice: number): Pieza {
+    while (this.piezas.length <= indice) this.piezas.push(this.siguiente(this.piezas.length));
+    return this.piezas[indice]!;
+  }
+
+  private siguiente(i: number): Pieza {
+    const { azar } = this;
+    const forma = elegirForma(i, azar());
     const medidas = CATALOGO[forma];
     const ancho = entre(azar, medidas.ancho);
     const alto = forma === "cuadrado" ? ancho : entre(azar, medidas.alto);
     const color = Math.floor(azar() * PALETA.length);
-    piezas.push({ forma, ancho, alto, color, velocidad: velocidadDePieza(i) });
+    return { forma, ancho, alto, color, velocidad: velocidadDePieza(i) };
   }
-  return piezas;
+}
+
+export function generarSecuencia(semilla: string, n: number = PIEZAS_POR_PARTIDA): Pieza[] {
+  const secuencia = new Secuencia(semilla);
+  return Array.from({ length: n }, (_, i) => secuencia.pieza(i));
 }
 
 /** Vértices en sentido antihorario, relativos al centro de la caja de la pieza. */
