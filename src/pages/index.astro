@@ -48,6 +48,22 @@ const favicon =
       <div id="zona" class="zona">
         <canvas id="lienzo" aria-label="Zona de juego: toca o pulsa Espacio para soltar la pieza"></canvas>
         <div id="grano" class="grano" aria-hidden="true"></div>
+        <div class="ajustes">
+          <button id="boton-sonido" type="button" class="icono" aria-pressed="true" aria-label="Sonido">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path class="cuerpo" d="M4 9h4l5-4v14l-5-4H4z" />
+              <path class="si" d="M16 9a4 4 0 0 1 0 6M18.5 6.5a7.5 7.5 0 0 1 0 11" />
+              <path class="no" d="M16 9l5 6M21 9l-5 6" />
+            </svg>
+          </button>
+          <button id="boton-vibracion" type="button" class="icono" aria-pressed="true" aria-label="Vibración" hidden>
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <rect class="cuerpo" x="8" y="4" width="8" height="16" rx="1.5" />
+              <path class="si" d="M5 8v8M2.5 10v4M19 8v8M21.5 10v4" />
+              <path class="no" d="M4 4l16 16" />
+            </svg>
+          </button>
+        </div>
         <p id="aviso-toque" class="aviso-toque" hidden>Toca para soltar</p>
 
         <section id="reto" class="panel" aria-labelledby="reto-titulo" hidden>

@@ -19,6 +19,8 @@ import { formatearAltura, formatearPuntos, generarTarjeta } from "../logica/tarj
 import { Bucle, PASO_MS } from "./bucle.ts";
 import { Lienzo, NIVEL_AGUA, ratioPixeles } from "./dibujo.ts";
 import { Caidas, Efectos } from "./efectos.ts";
+import { Haptica, puedeVibrar } from "./haptica.ts";
+import { Sonido } from "./sonido.ts";
 import { abrir, transicion, type Accion, type Flujo, type Modo, type Orden } from "./flujo.ts";
 import { cambiarEstado, compartir, copiar, pintarFin, pintarHud, pintarReto, ui } from "./pantallas.ts";
 
@@ -32,6 +34,9 @@ const reto = leerReto(location.search, hoy);
 let registroLibre = leerRegistroLibre(almacen);
 
 const lienzo = new Lienzo(ui.lienzo(), ui.grano());
+// Sonido y vibración (A4): encendidos por defecto; se guardarán con el progreso (C1).
+const sonido = new Sonido();
+const haptica = new Haptica();
 const movimientoReducido = window.matchMedia?.("(prefers-reduced-motion: reduce)") ?? null;
 const efectos = new Efectos({
   reducido: () => movimientoReducido?.matches === true,
@@ -262,6 +267,7 @@ function reaccionar(actual: Partida, eventos: Evento[]): void {
       if (!pieza) continue;
       soltadas.set(evento.indice, pieza);
       efectos.soltada(pieza, ahora);
+      sonido.tic();
       enCaida = { pieza, calidad: evento.calidad, combo: estado.combo + 1, y: estado.cuerpos.at(-1)!.y, bajando: false };
     } else if (evento.tipo === "colocada") {
       // Al tocar, la pieza suele quedarse quieta en el mismo paso y ya cuenta como colocada.
@@ -270,12 +276,17 @@ function reaccionar(actual: Partida, eventos: Evento[]): void {
       if (sitio) efectos.colocada(evento.calidad, evento.combo, evento.puntos, sitio.x, sitio.y, ahora);
     } else if (evento.tipo === "caida") {
       efectos.caida(ahora);
+      sonido.caida();
+      haptica.vibrar("caida");
       enCaida = null;
     } else if (evento.tipo === "vidaExtra") {
       const sitio = posicion(estado, estado.cuerpos.at(-1)?.pieza) ?? { x: 0, y: estado.altura };
       efectos.vidaExtra(sitio.x, sitio.y, ahora);
+      sonido.vidaExtra();
+      haptica.vibrar("vidaExtra");
     } else if (evento.tipo === "hito") {
       efectos.hitoAltura(evento.metros, ahora);
+      sonido.hito();
     }
   }
 }
@@ -310,6 +321,8 @@ function observar(estado: EstadoPartida, pasos: number): void {
   if (!recordCelebrado && flujo.modo === "libre" && registroLibre.record > 0 && estado.puntos > registroLibre.record) {
     recordCelebrado = true;
     efectos.record(estado.objetivo, estado.altura, ahora);
+    sonido.record();
+    haptica.vibrar("record");
   }
 }
 
@@ -320,7 +333,14 @@ function aterrizar(estado: EstadoPartida, ahora: number): void {
   const cuerpo = seguida && estado.cuerpos.find((c) => c.pieza === seguida.pieza);
   if (!seguida || !cuerpo) return;
   efectos.aterrizaje(seguida.pieza, cuerpo.x, cuerpo.y, seguida.calidad, seguida.combo, ahora);
-  if (seguida.calidad === "perfecto") lienzo.vista(seguida.pieza, ahora).contentaHasta = ahora + 900;
+  sonido.toc();
+  if (seguida.calidad === "perfecto") {
+    lienzo.vista(seguida.pieza, ahora).contentaHasta = ahora + 900;
+    sonido.perfecto(seguida.combo);
+    haptica.vibrar("perfecto");
+  } else {
+    haptica.vibrar("aterrizar");
+  }
 }
 
 /** Contadores de efectos en `data-efectos`, solo para las pruebas; se escriben cuando cambian. */
@@ -354,8 +374,28 @@ function focoEnControl(): boolean {
   return activo instanceof HTMLButtonElement || activo instanceof HTMLAnchorElement || activo instanceof HTMLInputElement;
 }
 
+// El AudioContext se crea o se reanuda en el primer gesto, nunca antes (A4).
+document.addEventListener("pointerdown", () => sonido.despertar(), { capture: true });
+document.addEventListener("keydown", () => sonido.despertar(), { capture: true });
+
+/** Botón de sonido o vibración: `aria-pressed` dice si está encendido. */
+function pintarInterruptor(boton: HTMLButtonElement, encendido: boolean): void {
+  boton.setAttribute("aria-pressed", String(encendido));
+}
+ui.botonSonido().addEventListener("click", () => {
+  sonido.cambiar(!sonido.activo);
+  pintarInterruptor(ui.botonSonido(), sonido.activo);
+});
+ui.botonVibracion().hidden = !puedeVibrar();
+ui.botonVibracion().addEventListener("click", () => {
+  haptica.cambiar(!haptica.activa);
+  pintarInterruptor(ui.botonVibracion(), haptica.activa);
+});
+
 ui.zona().addEventListener("pointerdown", (evento) => {
   if (flujo.pantalla !== "jugando") return;
+  // Los botones de la zona (sonido, vibración) no sueltan la pieza.
+  if (evento.target instanceof Element && evento.target.closest("button")) return;
   evento.preventDefault();
   pedirSoltar();
 });
@@ -386,6 +426,7 @@ ui.botonCompartir().addEventListener("click", async () => {
 });
 
 document.addEventListener("visibilitychange", () => {
+  sonido.visibilidad(document.hidden);
   if (document.visibilityState !== "visible") return;
   if (actualizarHoy() && flujo.pantalla === "reto") mostrarReto();
 });

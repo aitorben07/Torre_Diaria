@@ -148,3 +148,112 @@ test("con movimiento reducido no hay sacudida de cámara (A3)", async ({ page })
   expect(c.sacudidaMax ?? 0).toBe(0);
   expect(errores).toEqual([]);
 });
+
+/** Envuelve `AudioContext` antes de cargar: cuenta contextos, su estado y los nodos creados. */
+function espiarAudio(page: Page) {
+  return page.addInitScript(() => {
+    const espia = { contextos: [] as AudioContext[], nodos: 0 };
+    (window as unknown as { __audio: typeof espia }).__audio = espia;
+    const Original = window.AudioContext;
+    class Espia extends Original {
+      constructor(opciones?: AudioContextOptions) {
+        super(opciones);
+        espia.contextos.push(this);
+      }
+    }
+    for (const metodo of ["createOscillator", "createGain", "createBufferSource", "createBiquadFilter", "createBuffer"] as const) {
+      const original = Original.prototype[metodo] as (...args: unknown[]) => unknown;
+      (Original.prototype as unknown as Record<string, unknown>)[metodo] = function (this: AudioContext, ...args: unknown[]) {
+        espia.nodos++;
+        return original.apply(this, args);
+      };
+    }
+    window.AudioContext = Espia;
+  });
+}
+
+const audio = (page: Page) =>
+  page.evaluate(() => {
+    const espia = (window as unknown as { __audio: { contextos: AudioContext[]; nodos: number } }).__audio;
+    return { contextos: espia.contextos.length, sonando: espia.contextos.filter((c) => c.state === "running").length, nodos: espia.nodos };
+  });
+
+test("antes del primer gesto no hay ningún AudioContext sonando; tras el primer toque, sí (A4)", async ({ page }) => {
+  await espiarAudio(page);
+  const { errores } = await preparar(page);
+  await page.goto("/");
+  await esperarLibre(page);
+  await page.waitForTimeout(500);
+  expect((await audio(page)).sonando).toBe(0);
+  await soltarA(page, 0, 0.05);
+  await expect.poll(async () => (await audio(page)).nodos).toBeGreaterThan(1);
+  expect(errores).toEqual([]);
+});
+
+test("con el sonido apagado no se crea ningún nodo de audio al soltar piezas (A4)", async ({ page }, testInfo) => {
+  await espiarAudio(page);
+  const { errores } = await preparar(page);
+  await page.goto("/");
+  await esperarLibre(page);
+  const boton = page.getByRole("button", { name: "Sonido" });
+  if (testInfo.project.use.hasTouch) await boton.tap();
+  else await boton.click();
+  await expect(boton).toHaveAttribute("aria-pressed", "false");
+  const antes = (await audio(page)).nodos;
+  for (let i = 0; i < 3; i++) await soltarA(page, 0, 0.05);
+  await soltarA(page, 0, 0, true);
+  await page.waitForTimeout(800);
+  expect((await audio(page)).nodos).toBe(antes);
+  expect(errores).toEqual([]);
+});
+
+/** Sustituye `navigator.vibrate` por un espía (o lo quita con `quitar`). */
+function espiarVibracion(page: Page, quitar = false) {
+  return page.addInitScript((sin) => {
+    const llamadas: unknown[] = [];
+    (window as unknown as { __vibraciones: unknown[] }).__vibraciones = llamadas;
+    if (sin) {
+      delete (Navigator.prototype as { vibrate?: unknown }).vibrate;
+      return;
+    }
+    Object.defineProperty(Navigator.prototype, "vibrate", {
+      configurable: true,
+      value: (patron: unknown) => {
+        llamadas.push(patron);
+        return true;
+      },
+    });
+  }, quitar);
+}
+
+const vibraciones = (page: Page) => page.evaluate(() => (window as unknown as { __vibraciones: unknown[] }).__vibraciones);
+
+test("un perfecto vibra con 15 ms; con la vibración apagada no vibra (A4)", async ({ page }) => {
+  await espiarVibracion(page);
+  const { errores } = await preparar(page);
+  await page.goto("/");
+  await esperarLibre(page);
+  await soltarA(page, 0, 0.05);
+  await expect.poll(() => vibraciones(page)).toContain(15);
+  const boton = page.getByRole("button", { name: "Vibración" });
+  await boton.dispatchEvent("click");
+  await expect(boton).toHaveAttribute("aria-pressed", "false");
+  const antes = (await vibraciones(page)).length;
+  for (let i = 0; i < 2; i++) await soltarA(page, 0, 0.05);
+  await soltarA(page, 0, 0, true);
+  await page.waitForTimeout(800);
+  expect((await vibraciones(page)).length).toBe(antes);
+  expect(errores).toEqual([]);
+});
+
+test("sin navigator.vibrate no hay error y no se ofrece el botón de vibración (A4)", async ({ page }) => {
+  await espiarVibracion(page, true);
+  const { errores } = await preparar(page);
+  await page.goto("/");
+  await esperarLibre(page);
+  await expect(page.getByRole("button", { name: "Vibración" })).toBeHidden();
+  await soltarA(page, 0, 0.05);
+  await soltarA(page, 0, 0, true);
+  await page.waitForTimeout(800);
+  expect(errores).toEqual([]);
+});

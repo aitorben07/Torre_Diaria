@@ -325,3 +325,39 @@ button:focus-visible {
     animation: none;
   }
 }
+
+/* Sonido y vibración (A4): botones redondos con icono dibujado en SVG (G11). */
+.ajustes {
+  position: absolute;
+  right: 0.6rem;
+  bottom: 0.6rem;
+  display: flex;
+  gap: 0.5rem;
+}
+
+button.icono {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+}
+
+button.icono svg {
+  width: 26px;
+  height: 26px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+button.icono .cuerpo {
+  fill: currentColor;
+}
+
+button.icono[aria-pressed="true"] .no,
+button.icono[aria-pressed="false"] .si {
+  display: none;
+}
