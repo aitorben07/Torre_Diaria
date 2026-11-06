@@ -2,16 +2,18 @@
 import "../estilos.css";
 
 const titulo = "Torre Diaria";
-const descripcion = "Apila piezas con un solo toque. Un reto nuevo cada día, igual para todos. Gratis y sin registrarse.";
-// Favicon en SVG en línea: sin archivos de imagen en dist/.
+const descripcion =
+  "Apila piezas con un solo toque. Juega al momento, encadena perfectos y prueba el reto de cada día, igual para todos. Gratis y sin registrarse.";
+// Favicon en SVG en línea: sin archivos de imagen en dist/. Colores de la paleta «Riso» (Anexo 1, 1.2).
 const favicon =
   "data:image/svg+xml," +
   encodeURIComponent(
     "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'>" +
-      "<rect x='2' y='13' width='12' height='3' fill='#5b6470'/>" +
-      "<rect x='4' y='9' width='8' height='4' fill='#e74c3c'/>" +
-      "<rect x='5' y='5' width='6' height='4' fill='#2e86de'/>" +
-      "<rect x='6' y='1' width='4' height='4' fill='#f4d03f'/>" +
+      "<rect width='16' height='16' fill='#F3EAD7'/>" +
+      "<rect x='2' y='13' width='12' height='3' fill='#1E1B33'/>" +
+      "<rect x='4' y='9' width='8' height='4' fill='#FF4F8B' stroke='#1E1B33' stroke-width='0.6'/>" +
+      "<rect x='5' y='5' width='6' height='4' fill='#12A4A0' stroke='#1E1B33' stroke-width='0.6'/>" +
+      "<rect x='6' y='1' width='4' height='4' fill='#FFC93C' stroke='#1E1B33' stroke-width='0.6'/>" +
       "</svg>",
   );
 ---
@@ -26,42 +28,47 @@ const favicon =
     <meta property="og:type" content="website" />
     <meta property="og:title" content={titulo} />
     <meta property="og:description" content={descripcion} />
-    <meta name="theme-color" content="#28508f" />
+    <meta name="theme-color" content="#F3EAD7" />
     <link rel="icon" type="image/svg+xml" href={favicon} />
   </head>
   <body>
-    <main id="juego" data-estado="inicio">
+    <main id="juego" data-estado="jugando" data-modo="libre">
       <header class="barra">
-        <h1>Torre Diaria</h1>
-        <p id="contador" aria-live="polite"></p>
+        <h1 class="solo-lectores">Torre Diaria</h1>
+        <div id="vidas" class="vidas" role="img" aria-label="3 vidas">
+          <span class="vida"></span><span class="vida"></span><span class="vida"></span>
+        </div>
+        <p id="contador" class="puntos" aria-live="polite"></p>
+        <div class="lado">
+          <p id="combo" class="combo" hidden></p>
+          <p id="record" class="record" hidden></p>
+          <button id="boton-hoy" type="button" class="pequeno">Reto de hoy</button>
+        </div>
       </header>
       <div id="zona" class="zona">
         <canvas id="lienzo" aria-label="Zona de juego: toca o pulsa Espacio para soltar la pieza"></canvas>
+        <p id="aviso-toque" class="aviso-toque" hidden>Toca para soltar</p>
 
-        <section id="inicio" class="panel" aria-labelledby="inicio-titulo">
-          <h2 id="inicio-titulo">Apila piezas con un toque</h2>
-          <p class="ayuda">La pieza va de lado a lado. Toca la pantalla, o pulsa Espacio, para soltarla. Si algo cae de la plataforma, se acaba.</p>
-          <p id="aviso-reto" class="destacado" hidden></p>
+        <section id="reto" class="panel" aria-labelledby="reto-titulo" hidden>
+          <h2 id="reto-titulo">Reto de un amigo</h2>
+          <p id="aviso-reto" class="destacado"></p>
           <p id="comparacion" class="destacado" hidden></p>
-          <button id="boton-hoy" type="button" class="principal">Jugar el reto de hoy</button>
-          <button id="boton-reto" type="button" hidden>Jugar el reto del amigo</button>
-          <button id="boton-practica-inicio" type="button">Práctica</button>
+          <button id="boton-reto" type="button" class="principal">Jugar el reto</button>
+          <button id="boton-libre-reto" type="button">Partida libre</button>
         </section>
 
         <section id="fin" class="panel" aria-labelledby="fin-titulo" hidden>
           <h2 id="fin-titulo"></h2>
           <p class="marcador"><span id="fin-puntos"></span> · <span id="fin-altura"></span></p>
+          <p id="fin-record" hidden></p>
           <p id="fin-reto" class="destacado" hidden></p>
           <pre id="tarjeta" aria-label="Vista previa de la tarjeta"></pre>
           <div class="acciones">
-            <button id="boton-copiar" type="button" class="principal">Copiar</button>
-            <button id="boton-compartir" type="button" class="principal" hidden>Compartir</button>
+            <button id="boton-otra-vez" type="button" class="principal">Otra vez</button>
+            <button id="boton-copiar" type="button">Copiar</button>
+            <button id="boton-compartir" type="button" hidden>Compartir</button>
           </div>
           <p id="mensaje" role="status"></p>
-          <div class="acciones">
-            <button id="boton-practica-fin" type="button">Jugar práctica</button>
-            <button id="boton-volver" type="button">Inicio</button>
-          </div>
         </section>
       </div>
     </main>

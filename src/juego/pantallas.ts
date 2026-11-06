@@ -1,9 +1,9 @@
-// Pantallas de inicio y fin, copiar y compartir. Todo texto que viene del
-// enlace o del almacenamiento se escribe con `textContent`, nunca como HTML.
-import { formatearAltura, formatearPiezas } from "../logica/tarjeta.ts";
+// HUD, aviso del reto de un amigo, pantalla de fin, copiar y compartir. Todo
+// texto que viene del enlace o del almacenamiento se escribe con
+// `textContent`, nunca como HTML.
+import { formatearAltura, formatearPuntos } from "../logica/tarjeta.ts";
 import type { Reto } from "../logica/reto.ts";
-
-export type Estado = "inicio" | "jugando" | "fin";
+import type { Pantalla } from "./flujo.ts";
 
 function elemento<T extends HTMLElement = HTMLElement>(id: string): T {
   const encontrado = document.getElementById(id);
@@ -16,28 +16,32 @@ export const ui = {
   zona: () => elemento("zona"),
   lienzo: () => elemento<HTMLCanvasElement>("lienzo"),
   contador: () => elemento("contador"),
-  inicio: () => elemento("inicio"),
+  vidas: () => elemento("vidas"),
+  combo: () => elemento("combo"),
+  record: () => elemento("record"),
+  botonHoy: () => elemento<HTMLButtonElement>("boton-hoy"),
+  avisoToque: () => elemento("aviso-toque"),
+  reto: () => elemento("reto"),
   avisoReto: () => elemento("aviso-reto"),
   comparacion: () => elemento("comparacion"),
-  botonHoy: () => elemento<HTMLButtonElement>("boton-hoy"),
   botonReto: () => elemento<HTMLButtonElement>("boton-reto"),
-  botonPracticaInicio: () => elemento<HTMLButtonElement>("boton-practica-inicio"),
+  botonLibreReto: () => elemento<HTMLButtonElement>("boton-libre-reto"),
   fin: () => elemento("fin"),
   finTitulo: () => elemento("fin-titulo"),
   finPuntos: () => elemento("fin-puntos"),
   finAltura: () => elemento("fin-altura"),
+  finRecord: () => elemento("fin-record"),
   finReto: () => elemento("fin-reto"),
   tarjeta: () => elemento("tarjeta"),
   botonCopiar: () => elemento<HTMLButtonElement>("boton-copiar"),
   botonCompartir: () => elemento<HTMLButtonElement>("boton-compartir"),
   mensaje: () => elemento("mensaje"),
-  botonPracticaFin: () => elemento<HTMLButtonElement>("boton-practica-fin"),
-  botonVolver: () => elemento<HTMLButtonElement>("boton-volver"),
+  botonOtraVez: () => elemento<HTMLButtonElement>("boton-otra-vez"),
 };
 
-export function cambiarEstado(estado: Estado): void {
+export function cambiarEstado(estado: Pantalla): void {
   ui.juego().dataset.estado = estado;
-  ui.inicio().hidden = estado !== "inicio";
+  ui.reto().hidden = estado !== "reto";
   ui.fin().hidden = estado !== "fin";
 }
 
@@ -46,25 +50,50 @@ function mostrarTexto(nodo: HTMLElement, texto: string | null): void {
   nodo.hidden = texto === null;
 }
 
-export type DatosInicio = {
-  hoy: number;
-  puntosHoy: number | null;
-  reto: Reto | null;
+export type DatosHud = {
+  puntos: number;
+  vidas: number;
+  /** Vidas que caben en el HUD (iconos). */
+  vidasMax: number;
+  combo: number;
+  /** Récord de la partida libre, o `null` fuera de ella. */
+  record: number | null;
 };
 
-export function pintarInicio({ hoy, puntosHoy, reto }: DatosInicio): void {
-  ui.botonHoy().textContent = puntosHoy === null ? `Jugar el reto de hoy #${hoy}` : "Ver mi resultado de hoy";
-  mostrarTexto(
-    ui.avisoReto(),
-    reto ? `Tu amigo hizo ${formatearPiezas(reto.puntos)} en el día #${reto.dia}. ¿Le superas?` : null,
-  );
-  mostrarTexto(
-    ui.comparacion(),
-    reto && reto.dia === hoy && puntosHoy !== null ? `Tú: ${puntosHoy} · Tu amigo: ${reto.puntos}` : null,
-  );
-  const otroDia = reto !== null && reto.dia < hoy;
-  ui.botonReto().hidden = !otroDia;
-  if (otroDia) ui.botonReto().textContent = `Jugar el reto del día #${reto.dia}`;
+/** HUD de la partida: puntos, vidas como iconos (no caracteres, G11), combo si es 2 o más y récord. */
+export function pintarHud({ puntos, vidas, vidasMax, combo, record }: DatosHud): void {
+  ui.contador().textContent = formatearPuntos(puntos);
+  const iconos = ui.vidas();
+  iconos.setAttribute("aria-label", vidas === 1 ? "1 vida" : `${vidas} vidas`);
+  ui.juego().dataset.vidas = String(vidas);
+  const lista = [...iconos.children];
+  for (const [i, icono] of lista.entries()) icono.classList.toggle("perdida", i >= vidas);
+  for (let i = lista.length; i < vidasMax; i++) {
+    const icono = document.createElement("span");
+    icono.className = i >= vidas ? "vida perdida" : "vida";
+    iconos.append(icono);
+  }
+  mostrarTexto(ui.combo(), combo >= 2 ? `Combo ×${combo}` : null);
+  mostrarTexto(ui.record(), record === null ? null : `Récord ${record}`);
+}
+
+export type DatosReto = {
+  hoy: number;
+  reto: Reto;
+  /** Puntos de la oficial de hoy, si ya se jugó. */
+  puntosHoy: number | null;
+};
+
+/** Aviso del enlace de un amigo: su marca y el botón para jugar ese día. */
+export function pintarReto({ hoy, reto, puntosHoy }: DatosReto): void {
+  ui.avisoReto().textContent = `Tu amigo hizo ${formatearPuntos(reto.puntos)} en el día #${reto.dia}. ¿Le superas?`;
+  const jugado = reto.dia === hoy && puntosHoy !== null;
+  mostrarTexto(ui.comparacion(), jugado ? `Tú: ${puntosHoy} · Tu amigo: ${reto.puntos}` : null);
+  ui.botonReto().textContent = jugado
+    ? "Ver mi resultado de hoy"
+    : reto.dia === hoy
+      ? `Jugar el reto de hoy #${hoy}`
+      : `Jugar el reto del día #${reto.dia}`;
 }
 
 export type DatosFin = {
@@ -72,24 +101,30 @@ export type DatosFin = {
   puntos: number;
   altura: number;
   tarjeta: string;
+  /** Récord de la partida libre (ya actualizado), o `null` en el reto diario. */
+  record: number | null;
   /** Puntos del amigo si esta partida responde a su reto. */
   puntosAmigo: number | null;
+  /** Texto del botón principal: «Otra vez» en la libre, «Partida libre» en el reto. */
+  principal: string;
 };
 
 export function textoComparacion(puntos: number, amigo: number): string {
-  if (puntos > amigo) return `¡Has batido la marca de tu amigo (${formatearPiezas(amigo)})!`;
-  if (puntos === amigo) return `Empate con tu amigo: ${formatearPiezas(amigo)}.`;
-  return `Tu amigo sigue por delante: ${formatearPiezas(amigo)}.`;
+  if (puntos > amigo) return `¡Has batido la marca de tu amigo (${formatearPuntos(amigo)})!`;
+  if (puntos === amigo) return `Empate con tu amigo: ${formatearPuntos(amigo)}.`;
+  return `Tu amigo sigue por delante: ${formatearPuntos(amigo)}.`;
 }
 
 export function pintarFin(datos: DatosFin): void {
   ui.finTitulo().textContent = datos.titulo;
-  ui.finPuntos().textContent = formatearPiezas(datos.puntos);
+  ui.finPuntos().textContent = formatearPuntos(datos.puntos);
   ui.finAltura().textContent = formatearAltura(datos.altura);
+  mostrarTexto(ui.finRecord(), datos.record === null ? null : `Récord: ${formatearPuntos(datos.record)}`);
   mostrarTexto(ui.finReto(), datos.puntosAmigo === null ? null : textoComparacion(datos.puntos, datos.puntosAmigo));
   ui.tarjeta().textContent = datos.tarjeta;
   ui.mensaje().textContent = "";
   ui.botonCompartir().hidden = typeof navigator.share !== "function";
+  ui.botonOtraVez().textContent = datos.principal;
 }
 
 /** Copia con el portapapeles y, si no está, con un `textarea` seleccionado. */

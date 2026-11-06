@@ -30,24 +30,100 @@ body {
   background: #bfe3ff;
 }
 
+/* HUD (B5): vidas a la izquierda, puntos grandes en el centro, combo, récord y
+   «Reto de hoy» a la derecha. La dirección de arte llega con el bloque A. */
 .barra {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
   gap: 0.5rem;
-  padding: 0.5rem 0.75rem;
+  padding: 0.4rem 0.75rem;
   background: #10131a;
   color: #fff;
 }
 
-.barra h1 {
-  margin: 0;
-  font-size: 1.1rem;
+.solo-lectores {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.vidas {
+  display: flex;
+  gap: 0.3rem;
+}
+
+/* Las vidas son cajas dibujadas con CSS, no caracteres (G11). */
+.vida {
+  width: 1rem;
+  height: 0.8rem;
+  border: 2px solid #fff;
+  border-radius: 3px;
+  background: #e74c3c;
+}
+
+.vida.perdida {
+  background: transparent;
+  opacity: 0.45;
 }
 
 #contador {
   margin: 0;
+  font-size: 1.5rem;
+  font-weight: 800;
   font-variant-numeric: tabular-nums;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.lado {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.25rem 0.5rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.lado p {
+  margin: 0;
+}
+
+.combo {
+  font-weight: 800;
+  color: #f4d03f;
+}
+
+.record {
+  font-size: 0.85rem;
+  opacity: 0.85;
+}
+
+button.pequeno {
+  padding: 0.3rem 0.6rem;
+  border-color: #fff;
+  background: transparent;
+  color: #fff;
+  font-size: 0.9rem;
+}
+
+/* Aviso del primer toque: no recoge toques, el lienzo los recibe debajo. */
+.aviso-toque {
+  position: absolute;
+  left: 50%;
+  bottom: 18%;
+  margin: 0;
+  padding: 0.5rem 1rem;
+  border-radius: 999px;
+  background: rgba(16, 19, 26, 0.8);
+  color: #fff;
+  font-weight: 700;
+  transform: translateX(-50%);
+  pointer-events: none;
 }
 
 .zona {

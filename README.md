@@ -10,6 +10,8 @@ Una pieza va de lado a lado sobre la plataforma. Toca la pantalla o pulsa Espaci
 
 ## Reglas
 
+> **Segunda versión en curso (rama `segunda-version`).** El núcleo ya tiene vidas, perfectos con imán, combos, hitos de altura y partida libre al abrir (ver `docs/diseno/diseno-juego.md`, apartado 2, y «Mediciones de la segunda versión» más abajo). Las reglas de este apartado son las de la v1 hasta que el bloque H de `docs/proceso/segunda-version/tareas.md` reescriba este README.
+
 - **Puntuación: piezas colocadas.** La partida acaba cuando una pieza cae de la plataforma. La puntuación son las **piezas colocadas**: las que estaban en pie (centro por encima de la plataforma y dentro de sus 4 m de ancho) en el momento de soltar la última pieza. No cuenta esa última ni se resta lo que se derrumbe después. Tras la caída, la escena sigue moviéndose sin piezas nuevas hasta que todo está quieto o pasan 180 pasos (3 s); es solo animación y no cambia los puntos. La altura y las formas de la tarjeta son las de las piezas colocadas.
 - **Un intento oficial al día.** El reto de hoy (misma secuencia para todos, derivada de la fecha UTC) cuenta una sola vez; el resultado se guarda en `localStorage` y, al volver, se muestra con su tarjeta. Después se puede jugar práctica, que no se guarda. Si el almacenamiento falla, el juego funciona sin guardar.
 - **El día cambia a medianoche UTC** (la 1:00 en España en invierno, las 2:00 en verano). El día 1 es el 2026-11-05 (`DIA_1` en `src/logica/semilla.ts`, supuesto D5).
@@ -68,7 +70,25 @@ Requiere iniciar sesión en Cloudflare con la cuenta del propietario (`wrangler`
 
 No está hecha. Haría falta una base D1 y Pages Functions en la cuenta de Cloudflare, y decidir sobre nombres y moderación (D3). Sin registro, cualquier puntuación enviada desde el navegador se puede falsificar, salvo que el servidor vuelva a simular la partida con `jugar(semilla, toques)`. **Eso no cabe tal cual en 10 ms de CPU por petición** (límite de un Worker gratuito): simular una partida de 43 piezas tarda del orden de 1 a 2 s en Node (ver Mediciones), 100 veces o más. Además, ni un Worker con V8 reproduce al bit una partida de Chrome (ver la última medición), así que habría que validar con margen (por ejemplo, solo los puntos) o pasar a una física sin trigonometría del sistema. Hay que medirlo en un Worker real antes de decidir.
 
+## Mediciones de la segunda versión (2026-11-06, bloque B)
+
+Node 24.18.0 en este equipo Windows. Las cifras caducan: repítelas tras cambiar el código.
+
+- **Duración y puntos (B4, `npm run medir:duracion`, días 1 a 30):** tres jugadores simulados sueltan cada pieza la primera vez que pasa por el objetivo (el centro de la pieza más alta), con un error de tiempo uniforme fijado por semilla. La duración es pasos/60 e incluye los episodios de caída. Ninguna partida llega al tope de 30 minutos y dos ejecuciones dan las mismas cifras.
+
+  | Perfil | Error | Duración mediana (rango) | Piezas | Puntos | Perfectos | Monedas | Tiempo del script |
+  |---|---|---|---|---|---|---|---|
+  | novato | ±180 ms | **83,2 s** (48,9 a 115,7) | 19 (10 a 29) | 567,5 (205 a 1.200) | 13 | 38,5 | 12,6 s |
+  | medio | ±90 ms | **169,8 s** (113,5 a 202,1) | 49 (30 a 63) | 2.430 (1.725 a 3.220) | 42 | 112 | 26,4 s |
+  | experto | ±40 ms | **302,3 s** (110,6 a 370,3) | 105,5 (30 a 130) | 5.435 (1.725 a 6.670) | 96,5 | 231 | 50,5 s |
+
+  Cumple los objetivos (novato de 60 a 150 s, medio de 120 a 300 s, experto de 240 a 720 s). Para llegar se ajustaron las constantes del plan: velocidad inicial 1,3 → 1,0 m/s, aumento 0,035 → 0,03 por pieza, tope 4,2 → 3,4 m/s y tolerancia del perfecto 0,12 → 0,16 m. Con las del plan, las medianas (10 días) eran 52, 82 y 200 s. **Sin comprobar con personas**: en la v1 las partidas reales duraron la mitad que las simuladas.
+- **Coste por paso con el cementado (B3, `npm run medir`):** con un jugador que suelta siempre sobre el objetivo (semilla `2026-11-09`), 0,068 ms por paso tras la pieza 10 y 0,069 ms tras la 150: cociente **1,01** (límite: 2). Partida de 40 piezas (semilla `2026-11-06`, 8.117 pasos): mediana de 640 ms.
+- **Tamaño (`npm run build`):** el JavaScript de `dist/` ocupa 227.991 bytes y **52.612 bytes con `gzip -9`** (presupuesto: 150 KB); el CSS, 2.662 bytes (1.170 con gzip). Sin fuentes, imágenes ni audio.
+
 ## Mediciones (2026-11-05)
+
+Son las de la v1 (`main`); las de duración y tiempo de `jugar` ya no valen para la segunda versión.
 
 Las cifras caducan: repítelas tras cambiar el código.
 

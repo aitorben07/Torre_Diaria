@@ -1,7 +1,7 @@
 // Casos límite que no cubre la partida normal: almacenamiento bloqueado,
 // pestaña oculta a mitad de partida y enlaces de reto inválidos.
 import { expect, test, type Page } from "@playwright/test";
-import { conTactil, datosFin, empezarHoy, juego, jugarHastaElFin, preparar } from "./ayudas.ts";
+import { conTactil, datosFin, empezarHoy, esperarLibre, juego, jugarHastaElFin, preparar } from "./ayudas.ts";
 
 test("con localStorage bloqueado se juega entera y sin errores en consola", async ({ page }, testInfo) => {
   await page.addInitScript(() => {
@@ -14,15 +14,23 @@ test("con localStorage bloqueado se juega entera y sin errores en consola", asyn
   });
   const { errores, ajenas } = await preparar(page);
   await page.goto("/");
-  await empezarHoy(page);
+  await esperarLibre(page);
   await jugarHastaElFin(page, conTactil(testInfo), { conRetraso: 1, retrasoMs: 1600 });
-  const fin = await datosFin(page);
+  let fin = await datosFin(page);
   expect(fin.toques.length).toBeGreaterThan(0);
   await expect(page.locator("#tarjeta")).toContainText("Torre Diaria");
 
+  // El reto de hoy también se juega entero.
+  await page.waitForTimeout(800);
+  await empezarHoy(page);
+  await jugarHastaElFin(page, conTactil(testInfo));
+  fin = await datosFin(page);
+  expect(fin.toques.length).toBeGreaterThan(0);
+
   // Sin almacenamiento no se guarda nada: al recargar se puede volver a jugar.
   await page.reload();
-  await expect(page.getByRole("button", { name: /Jugar el reto de hoy/ })).toBeVisible();
+  await esperarLibre(page);
+  await empezarHoy(page);
   expect(errores).toEqual([]);
   expect(ajenas).toEqual([]);
 });
@@ -39,7 +47,7 @@ async function ocultarPestana(page: Page, oculta: boolean): Promise<void> {
 test("con la pestaña oculta la simulación se para y al volver sigue", async ({ page }) => {
   const { errores } = await preparar(page);
   await page.goto("/");
-  await empezarHoy(page);
+  await esperarLibre(page);
   await expect(juego(page)).toHaveAttribute("data-fase", "apuntando");
   await expect(juego(page)).toHaveAttribute("data-x", /\d/);
 
@@ -87,6 +95,7 @@ test("un enlace de reto inválido o con HTML se ignora sin inyectar nada", async
     await expect(page.locator("#aviso-reto"), reto).toBeHidden();
     await expect(page.locator("#comparacion"), reto).toBeHidden();
     await expect(page.locator("#boton-reto"), reto).toBeHidden();
+    await expect(juego(page), reto).toHaveAttribute("data-modo", "libre");
     await expect(page.locator("img, svg, b"), reto).toHaveCount(0);
     expect(await page.locator("script").count(), reto).toBe(scripts);
     expect(await page.locator("body").innerHTML(), reto).not.toContain("alert(1)");

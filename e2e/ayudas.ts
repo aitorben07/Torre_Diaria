@@ -1,4 +1,5 @@
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
+import type { OpcionesPartida } from "../src/logica/simulacion.ts";
 
 /** Fecha fijada en las pruebas: el día 16 (`2026-11-20`). */
 export const FECHA = "2026-11-20T12:00:00Z";
@@ -40,15 +41,30 @@ export async function tocar(page: Page, tactil: boolean): Promise<void> {
 
 export const juego = (page: Page) => page.locator("#juego");
 
-export async function empezarHoy(page: Page): Promise<void> {
-  await page.getByRole("button", { name: /Jugar el reto de hoy/ }).click();
+/** Al abrir `/` la partida libre ya está en marcha, sin ningún clic (B5). */
+export async function esperarLibre(page: Page): Promise<void> {
   await expect(juego(page)).toHaveAttribute("data-estado", "jugando");
+  await expect(juego(page)).toHaveAttribute("data-modo", "libre");
+}
+
+/** Empieza el reto de hoy con el botón «Reto de hoy» del HUD. */
+export async function empezarHoy(page: Page): Promise<void> {
+  await page.getByRole("button", { name: "Reto de hoy" }).click();
+  await expect(juego(page)).toHaveAttribute("data-modo", "oficial");
+  await expect(juego(page)).toHaveAttribute("data-estado", "jugando");
+}
+
+/** Espera a que pasen los 700 ms en que la pantalla de fin ignora toques y teclas. */
+export async function esperarFinListo(page: Page): Promise<void> {
+  await expect(juego(page)).toHaveAttribute("data-estado", "fin");
+  await page.waitForTimeout(800);
 }
 
 /**
  * Toca cada pieza hasta que acaba la partida. Las `centradas` primeras se
- * tocan cuando pasan cerca del centro (`data-x`); las `conRetraso` siguientes,
- * `retrasoMs` después de aparecer; las demás, en cuanto aparecen.
+ * tocan cuando pasan cerca del objetivo (`data-x` y `data-objetivo`); las
+ * `conRetraso` siguientes, `retrasoMs` después de aparecer; las demás, en
+ * cuanto aparecen (en el extremo: caen y cuestan una vida).
  */
 export async function jugarHastaElFin(
   page: Page,
@@ -71,7 +87,7 @@ export async function jugarHastaElFin(
             const mirar = () => {
               const el = document.getElementById("juego")!;
               if (el.dataset.estado === "fin") return listo();
-              if (Math.abs(Number(el.dataset.x || "9")) <= 0.15) {
+              if (Math.abs(Number(el.dataset.x || "9") - Number(el.dataset.objetivo || "0")) <= 0.15) {
                 document.getElementById("zona")!.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true }));
                 return listo();
               }
@@ -92,7 +108,16 @@ export async function jugarHastaElFin(
   throw new Error("La partida no ha terminado en 200 piezas");
 }
 
-export async function datosFin(page: Page): Promise<{ toques: number[]; puntos: number; altura: number; semilla: string }> {
+export type DatosFin = {
+  toques: number[];
+  puntos: number;
+  altura: number;
+  semilla: string;
+  /** Opciones de la partida (`data-opciones`), para repetirla con `jugar` (G3). */
+  opciones: OpcionesPartida;
+};
+
+export async function datosFin(page: Page): Promise<DatosFin> {
   const contenedor = juego(page);
   await expect(contenedor).toHaveAttribute("data-estado", "fin");
   return {
@@ -100,5 +125,6 @@ export async function datosFin(page: Page): Promise<{ toques: number[]; puntos: 
     puntos: Number(await contenedor.getAttribute("data-puntos")),
     altura: Number(await contenedor.getAttribute("data-altura")),
     semilla: (await contenedor.getAttribute("data-semilla")) ?? "",
+    opciones: JSON.parse((await contenedor.getAttribute("data-opciones")) ?? "{}") as OpcionesPartida,
   };
 }

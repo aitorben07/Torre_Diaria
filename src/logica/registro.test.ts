@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { CLAVE, guardarResultado, leerResultado, type Almacen, type ResultadoDia } from "./registro.ts";
+import {
+  CLAVE,
+  CLAVE_LIBRE,
+  guardarRegistroLibre,
+  guardarResultado,
+  leerRegistroLibre,
+  leerResultado,
+  type Almacen,
+  type ResultadoDia,
+} from "./registro.ts";
 
 function almacenEnMemoria(): Almacen & { datos: Map<string, string> } {
   const datos = new Map<string, string>();
@@ -71,5 +80,39 @@ describe("registro", () => {
     expect([...almacen.datos.keys()]).toEqual([CLAVE]);
     expect(CLAVE.startsWith("torre-diaria:")).toBe(true);
     expect(Object.keys(JSON.parse(almacen.datos.get(CLAVE)!))).toEqual(["dia", "puntos", "altura", "formas"]);
+  });
+});
+
+describe("registro de la partida libre (B5)", () => {
+  it("guardar y leer devuelve el récord y el aviso visto, en su propia clave", () => {
+    const almacen = almacenEnMemoria();
+    expect(leerRegistroLibre(almacen)).toEqual({ record: 0, tutorialVisto: false });
+    expect(guardarRegistroLibre(almacen, { record: 540, tutorialVisto: true })).toBe(true);
+    expect(leerRegistroLibre(almacen)).toEqual({ record: 540, tutorialVisto: true });
+    expect([...almacen.datos.keys()]).toEqual([CLAVE_LIBRE]);
+    expect(CLAVE_LIBRE.startsWith("torre-diaria:")).toBe(true);
+  });
+
+  it.each(["{no es json", "null", "[]", JSON.stringify({ record: -3, tutorialVisto: "sí" }), JSON.stringify({ record: 1.5 })])(
+    "con datos corruptos empieza de cero sin error: %s",
+    (texto) => {
+      const almacen = almacenEnMemoria();
+      almacen.datos.set(CLAVE_LIBRE, texto);
+      expect(leerRegistroLibre(almacen)).toEqual({ record: 0, tutorialVisto: false });
+    },
+  );
+
+  it("un almacenamiento que lanza error no propaga la excepción (G10)", () => {
+    const roto: Almacen = {
+      getItem: () => {
+        throw new Error("SecurityError");
+      },
+      setItem: () => {
+        throw new Error("QuotaExceededError");
+      },
+    };
+    expect(leerRegistroLibre(roto)).toEqual({ record: 0, tutorialVisto: false });
+    expect(guardarRegistroLibre(roto, { record: 10, tutorialVisto: true })).toBe(false);
+    expect(guardarRegistroLibre(null, { record: 10, tutorialVisto: true })).toBe(false);
   });
 });

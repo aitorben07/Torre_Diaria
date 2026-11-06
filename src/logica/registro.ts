@@ -63,6 +63,45 @@ export function guardarResultado(almacen: Almacen | null, resultado: ResultadoDi
   }
 }
 
+/**
+ * Récord de la partida libre y si ya se ha visto el aviso «Toca para soltar»
+ * (B5). Va en su propia clave hasta que el guardado v2 (C1) lo pase a
+ * `torre-diaria:progreso`.
+ */
+export const CLAVE_LIBRE = "torre-diaria:libre";
+
+export type RegistroLibre = { record: number; tutorialVisto: boolean };
+
+export const REGISTRO_LIBRE_VACIO: RegistroLibre = { record: 0, tutorialVisto: false };
+
+/** Lo guardado de la partida libre; si falta o no se puede leer, el registro vacío. */
+export function leerRegistroLibre(almacen: Almacen | null): RegistroLibre {
+  try {
+    const texto = almacen?.getItem(CLAVE_LIBRE);
+    if (!texto) return { ...REGISTRO_LIBRE_VACIO };
+    const valor: unknown = JSON.parse(texto);
+    if (typeof valor !== "object" || valor === null) return { ...REGISTRO_LIBRE_VACIO };
+    const r = valor as Record<string, unknown>;
+    return {
+      record: esEnteroNoNegativo(r.record) ? r.record : 0,
+      tutorialVisto: r.tutorialVisto === true,
+    };
+  } catch {
+    return { ...REGISTRO_LIBRE_VACIO };
+  }
+}
+
+/** Guarda lo de la partida libre. Devuelve `false` si no se ha podido. */
+export function guardarRegistroLibre(almacen: Almacen | null, registro: RegistroLibre): boolean {
+  try {
+    if (!almacen) return false;
+    almacen.setItem(CLAVE_LIBRE, JSON.stringify({ record: registro.record, tutorialVisto: registro.tutorialVisto }));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** `localStorage` si existe y se puede tocar; si no, `null`. */
 export function almacenDelNavegador(): Almacen | null {
   try {
