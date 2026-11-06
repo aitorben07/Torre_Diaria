@@ -179,6 +179,14 @@ button.pequeno {
   height: 100%;
 }
 
+/* Grano de papel sobre el lienzo: la textura la pone dibujo.ts como fondo (A2). */
+.grano {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-repeat: repeat;
+}
+
 .panel {
   position: absolute;
   inset: 1rem;

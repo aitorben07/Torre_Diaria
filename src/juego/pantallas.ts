@@ -15,6 +15,7 @@ export const ui = {
   juego: () => elemento("juego"),
   zona: () => elemento("zona"),
   lienzo: () => elemento<HTMLCanvasElement>("lienzo"),
+  grano: () => elemento("grano"),
   contador: () => elemento("contador"),
   vidas: () => elemento("vidas"),
   combo: () => elemento("combo"),

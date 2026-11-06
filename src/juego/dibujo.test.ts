@@ -1,5 +1,16 @@
+import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { ESPACIO_SOBRE_CIMA, MARGEN_BAJO_TARJETA, MARGEN_SUELO, objetivoCamara } from "./dibujo.ts";
+import {
+  enVista,
+  ESPACIO_SOBRE_CIMA,
+  MARGEN_BAJO_TARJETA,
+  MARGEN_SUELO,
+  objetivoCamara,
+  ZOOM_ALEJAMIENTO,
+  ZOOM_DESDE,
+  ZOOM_FIN_MIN,
+  zoomObjetivo,
+} from "./dibujo.ts";
 
 /** Metros entre el borde inferior de la vista y la cima, con la cámara en `camara`. */
 const cimaSobreBorde = (altura: number, camara: number) => altura - camara + MARGEN_SUELO;
@@ -39,5 +50,67 @@ describe("objetivoCamara", () => {
 
   it("si la tarjeta tapa casi toda la vista, encuadra como durante la partida", () => {
     expect(objetivoCamara(20, ALTO_MOVIL, ALTO_MOVIL - 1)).toBe(objetivoCamara(20, ALTO_MOVIL));
+  });
+});
+
+describe("zoomObjetivo", () => {
+  it("jugando no aleja hasta 20 m y luego como mucho un 10 %", () => {
+    expect(zoomObjetivo(0, false, 18)).toBe(1);
+    expect(zoomObjetivo(ZOOM_DESDE, false, 18)).toBe(1);
+    expect(zoomObjetivo(25, false, 18)).toBeCloseTo(0.95, 9);
+    expect(zoomObjetivo(200, false, 18)).toBeCloseTo(1 - ZOOM_ALEJAMIENTO, 9);
+  });
+
+  it("en el fin aleja lo justo para ver la torre entera bajo la tarjeta, con un tope", () => {
+    expect(zoomObjetivo(3, true, 10)).toBe(1);
+    const zoom = zoomObjetivo(14, true, 8);
+    expect((14 + MARGEN_SUELO + MARGEN_BAJO_TARJETA) * zoom).toBeCloseTo(8, 9);
+    expect(zoomObjetivo(500, true, 8)).toBe(ZOOM_FIN_MIN);
+  });
+});
+
+describe("enVista (recorte de piezas, impacto A2)", () => {
+  const pieza = { ancho: 1, alto: 1 };
+  it("dibuja las piezas cuya caja toca la franja visible y no las demás", () => {
+    expect(enVista({ pieza, y: 5 }, 0, 10)).toBe(true);
+    expect(enVista({ pieza, y: 10.6 }, 0, 10)).toBe(true);
+    expect(enVista({ pieza, y: -0.6 }, 0, 10)).toBe(true);
+    expect(enVista({ pieza, y: 12 }, 0, 10)).toBe(false);
+    expect(enVista({ pieza, y: -2 }, 0, 10)).toBe(false);
+  });
+});
+
+describe("coste por fotograma (impacto A2)", () => {
+  const fuente = readFileSync(new URL("./dibujo.ts", import.meta.url), "utf8");
+
+  it("no usa sombras difusas, filtros ni modos de fusión", () => {
+    expect(fuente).not.toMatch(/shadowBlur|\.filter\s*=|globalCompositeOperation/);
+  });
+
+  it("degradados y patrones solo se crean al ajustar (en precalcular y crear…)", () => {
+    const metodos = [...fuente.matchAll(/^ {2}(?:private |export )?(?:function )?(\w+)\(/gm)];
+    const creaciones = [...fuente.matchAll(/create(?:Linear|Radial|Conic)Gradient|createPattern/g)];
+    expect(creaciones.length).toBeGreaterThan(0);
+    for (const creacion of creaciones) {
+      const metodo = metodos.filter((m) => m.index! < creacion.index!).at(-1)?.[1] ?? "";
+      expect(metodo, `${creacion[0]} en ${metodo}`).toMatch(/^(precalcular|crear\w+)$/);
+    }
+  });
+});
+
+describe("el dibujo no toca la partida (A2)", () => {
+  const raiz = new URL("./", import.meta.url);
+  const archivos = (readdirSync(raiz) as string[]).filter((nombre) => nombre.endsWith(".ts") && !nombre.endsWith(".test.ts"));
+
+  // Que ningún archivo de src/juego/ importe la física ya lo comprueba simulacion.test.ts (T8).
+  it("solo principal.ts suelta piezas y avanza la partida; el resto solo lee estado() y tomarEventos()", () => {
+    for (const nombre of archivos.filter((n) => n !== "principal.ts")) {
+      expect(readFileSync(new URL(nombre, raiz), "utf8"), nombre).not.toMatch(/\.(soltar|paso)\(\)/);
+    }
+  });
+
+  it("la simulación no conoce temas ni escenarios: cambiar de tema no cambia puntos ni pasos", () => {
+    const simulacion = readFileSync(new URL("../logica/simulacion.ts", import.meta.url), "utf8");
+    expect(simulacion).not.toMatch(/juego\/|tema|escenario/i);
   });
 });

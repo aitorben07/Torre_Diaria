@@ -28,7 +28,7 @@ const almacen = almacenDelNavegador();
 const reto = leerReto(location.search, hoy);
 let registroLibre = leerRegistroLibre(almacen);
 
-const lienzo = new Lienzo(ui.lienzo());
+const lienzo = new Lienzo(ui.lienzo(), ui.grano());
 let partida: Partida | null = null;
 /** Partida que se dibuja: sigue en pantalla, quieta, tras acabar. */
 let escena: Partida | null = null;

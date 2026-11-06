@@ -20,7 +20,7 @@ export const COLORES = {
 
 export type NombreColor = keyof typeof COLORES;
 
-/** Nombre de la variable CSS de cada color: `papelOscuro` → `--papel-oscuro`. */
+/** Nombre de la variable CSS de cada color: `papelOscuro` da `--papel-oscuro`. */
 export function variableCss(nombre: NombreColor): string {
   return `--${nombre.replace(/[A-Z]/g, (letra) => `-${letra.toLowerCase()}`)}`;
 }
@@ -50,4 +50,101 @@ export function luminancia(hex: string): number {
 export function contraste(a: string, b: string): number {
   const [claro, oscuro] = [luminancia(a), luminancia(b)].sort((x, y) => y - x) as [number, number];
   return (claro + 0.05) / (oscuro + 0.05);
+}
+
+/** Mezcla `a` con `b` en proporción `t` (0 = `a`, 1 = `b`). Colores `#RRGGBB`. */
+export function mezclar(a: string, b: string, t: number): string {
+  const canal = (hex: string, i: number) => parseInt(hex.slice(i, i + 2), 16);
+  const partes = [1, 3, 5].map((i) => Math.round(canal(a, i) + (canal(b, i) - canal(a, i)) * t));
+  return `#${partes.map((c) => c.toString(16).padStart(2, "0")).join("").toUpperCase()}`;
+}
+
+/** El color oscurecido en `t` (0,35 = 35 % más oscuro), para la sombra de impresión. */
+export function oscurecer(hex: string, t: number): string {
+  return mezclar(hex, "#000000", t);
+}
+
+/**
+ * Colores de las piezas y de su dibujo (A2). El bloque C añade temas sin tocar
+ * `dibujo.ts`: basta con otra entrada de este tipo.
+ */
+export type Tema = {
+  id: string;
+  nombre: string;
+  /** Un color por índice de `PALETA` de `piezas.ts` (7). */
+  piezas: readonly string[];
+  /** Contorno y ojos. */
+  contorno: string;
+  /** Puntos de la trama de la mitad superior. */
+  trama: string;
+  /** Piezas cementadas de la base. */
+  piedra: string;
+  /** Bloque y cuadrado con ojos. */
+  ojos: boolean;
+};
+
+export const TEMA_RISO: Tema = {
+  id: "riso",
+  nombre: "Riso",
+  piezas: [COLORES.rosa, COLORES.amarillo, COLORES.turquesa, COLORES.azul, COLORES.naranja, COLORES.verde, COLORES.violeta],
+  contorno: COLORES.tinta,
+  trama: COLORES.papel,
+  piedra: COLORES.piedra,
+  ojos: true,
+};
+
+/**
+ * Escenario (A2): cielo por alturas, mar, siluetas lejanas, nubes y muelle.
+ * Los colores del cielo se reparten en un degradado que se crea al ajustar el
+ * tamaño; las capas se pintan en lienzos aparte, también al ajustar.
+ */
+export type Escenario = {
+  id: string;
+  nombre: string;
+  /** Color del cielo a cada altura en metros, de abajo arriba. */
+  cielo: ReadonlyArray<{ metros: number; color: string }>;
+  /** Mar opaco (azul riso al 35 % sobre papel) y espuma de las ondas. */
+  agua: string;
+  espuma: string;
+  /** Grúas y barcos lejanos (azul riso al 40 %). */
+  siluetas: string;
+  nubes: string;
+  /** Tablas del muelle, su cara frontal y los pilotes. */
+  madera: string;
+  maderaFrente: string;
+  pilotes: string;
+  estrellas: string;
+};
+
+export const ESCENARIO_PUERTO: Escenario = {
+  id: "puerto",
+  nombre: "Puerto",
+  cielo: [
+    { metros: 0, color: COLORES.papel },
+    { metros: 6, color: "#FBD9C0" },
+    { metros: 14, color: "#FBD9C0" },
+    { metros: 30, color: "#9ED3E0" },
+    { metros: 60, color: "#3E3A7A" },
+    { metros: 100, color: "#1A1840" },
+  ],
+  agua: mezclar(COLORES.papel, COLORES.azul, 0.35),
+  espuma: COLORES.papel,
+  siluetas: mezclar(COLORES.papel, COLORES.azul, 0.4),
+  nubes: COLORES.papel,
+  madera: COLORES.papelOscuro,
+  maderaFrente: COLORES.naranja,
+  pilotes: COLORES.tinta,
+  estrellas: COLORES.estrella,
+};
+
+/** Color del cielo a `metros` de altura, interpolado entre las paradas del escenario. */
+export function colorCielo(escenario: Escenario, metros: number): string {
+  const paradas = escenario.cielo;
+  if (metros <= paradas[0]!.metros) return paradas[0]!.color;
+  for (let i = 1; i < paradas.length; i++) {
+    const a = paradas[i - 1]!;
+    const b = paradas[i]!;
+    if (metros <= b.metros) return mezclar(a.color, b.color, (metros - a.metros) / (b.metros - a.metros));
+  }
+  return paradas[paradas.length - 1]!.color;
 }
