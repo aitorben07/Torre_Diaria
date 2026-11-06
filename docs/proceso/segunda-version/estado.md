@@ -1,6 +1,6 @@
 ﻿Estado: en curso
-Actualizado: 2026-11-06T12:25:33+01:00
+Actualizado: 2026-11-06T13:41:55+01:00
 Rama: segunda-version
-Paso actual: desarrollador, bloques 0 y B
-Siguiente paso: desarrollador implementa por bloques (0+B, luego A, luego C+D, luego E+F+G+H) según tareas.md con impacto.md §5 como prevalente; después probador
-Decisiones tomadas: plan S1-S27 en tareas.md: 3 vidas, perfecto con imán y combos, partida libre al abrir; estilo risografía con Bricolage Grotesque empaquetada; una sola moneda sin gemas; 30 niveles en 3 mundos; imagen PNG 1080x1350 para compartir; anuncios solo como interfaz vacía; reglas v2 cambian resultados de todos los días (no desplegado); CI en Actions al ser repo público; impacto aceptado entero (I1 recorte: 10 niveles, sin misiones, 6 temas, 3 escenarios con desbloqueo por racha; I2 migración mínima; I3 CI con guarda de repo público)
+Paso actual: desarrollador, bloque A (bloques 0 y B terminados: 7e7e2f5, fdde676, b690ae3)
+Siguiente paso: desarrollador implementa el bloque A, luego C+D, luego E+F+G+H según tareas.md con impacto.md §5 como prevalente; después probador
+Decisiones tomadas: plan S1-S27 en tareas.md: 3 vidas, perfecto con imán y combos, partida libre al abrir; estilo risografía con Bricolage Grotesque empaquetada; una sola moneda sin gemas; 30 niveles en 3 mundos; imagen PNG 1080x1350 para compartir; anuncios solo como interfaz vacía; reglas v2 cambian resultados de todos los días (no desplegado); CI en Actions al ser repo público; impacto aceptado entero (I1 recorte: 10 niveles, sin misiones, 6 temas, 3 escenarios con desbloqueo por racha; I2 migración mínima; I3 CI con guarda de repo público); desviaciones del bloque B: constantes ajustadas para cumplir duraciones (velocidad 1,0 m/s, +0,03, tope 3,4, perfecto 0,16 m), cementado al soltar, requisito de 1 mm en 60 pasos sustituido por <1 cm en 30 pasos, «Reto de hoy» visible en el HUD; pendientes anotados para C1 (claves libre→progreso, resultado v1), D3 (tope 999 en reto.ts), F2 (emojis en tarjeta)
