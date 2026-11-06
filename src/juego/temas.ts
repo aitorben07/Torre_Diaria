@@ -20,6 +20,9 @@ export const COLORES = {
 
 export type NombreColor = keyof typeof COLORES;
 
+/** Tipografía del lienzo; hasta que carga, el lienzo no escribe texto (impacto, A3). */
+export const FAMILIA = '"Bricolage Grotesque Variable", system-ui, sans-serif';
+
 /** Nombre de la variable CSS de cada color: `papelOscuro` da `--papel-oscuro`. */
 export function variableCss(nombre: NombreColor): string {
   return `--${nombre.replace(/[A-Z]/g, (letra) => `-${letra.toLowerCase()}`)}`;

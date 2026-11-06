@@ -51,6 +51,13 @@ function mostrarTexto(nodo: HTMLElement, texto: string | null): void {
   nodo.hidden = texto === null;
 }
 
+/** Vuelve a lanzar una animación CSS de `clase` en `nodo`, aunque ya la tuviera. */
+function reanimar(nodo: Element, clase: string): void {
+  nodo.classList.remove("rompe", "vuelve", "late");
+  void (nodo as HTMLElement).offsetWidth;
+  nodo.classList.add(clase);
+}
+
 export type DatosHud = {
   puntos: number;
   vidas: number;
@@ -68,13 +75,21 @@ export function pintarHud({ puntos, vidas, vidasMax, combo, record }: DatosHud):
   iconos.setAttribute("aria-label", vidas === 1 ? "1 vida" : `${vidas} vidas`);
   ui.juego().dataset.vidas = String(vidas);
   const lista = [...iconos.children];
-  for (const [i, icono] of lista.entries()) icono.classList.toggle("perdida", i >= vidas);
+  for (const [i, icono] of lista.entries()) {
+    const perdida = i >= vidas;
+    // La vida que se pierde se rompe y la que vuelve salta (A3).
+    if (perdida !== icono.classList.contains("perdida")) reanimar(icono, perdida ? "rompe" : "vuelve");
+    icono.classList.toggle("perdida", perdida);
+  }
   for (let i = lista.length; i < vidasMax; i++) {
     const icono = document.createElement("span");
     icono.className = i >= vidas ? "vida perdida" : "vida";
     iconos.append(icono);
   }
+  const comboAntes = ui.combo().hidden ? 0 : Number(ui.combo().dataset.combo ?? 0);
   mostrarTexto(ui.combo(), combo >= 2 ? `Combo ×${combo}` : null);
+  ui.combo().dataset.combo = String(combo);
+  if (combo >= 2 && combo > comboAntes) reanimar(ui.combo(), "late");
   mostrarTexto(ui.record(), record === null ? null : `Récord ${record}`);
 }
 

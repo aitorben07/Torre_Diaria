@@ -15,7 +15,7 @@ import {
   type EstadoPartida,
 } from "../logica/simulacion.ts";
 import { crearAzarVisual, entreVisual } from "./efectos.ts";
-import { COLORES, ESCENARIO_PUERTO, TEMA_RISO, mezclar, oscurecer, type Escenario, type Tema } from "./temas.ts";
+import { COLORES, ESCENARIO_PUERTO, FAMILIA, TEMA_RISO, mezclar, oscurecer, type Escenario, type Tema } from "./temas.ts";
 
 /** Metros visibles a lo ancho de la columna de juego y a lo alto: el ancho cubre todo el vaivén. */
 export const ANCHO_VISTA = 9.2;
@@ -136,8 +136,6 @@ export type CapaEfectos = {
   dibujarPantalla(ctx: CanvasRenderingContext2D, ahora: number, aPantalla: (x: number, y: number) => { x: number; y: number }): void;
 };
 
-/** Tipografía del lienzo; hasta que carga, el lienzo no escribe texto (impacto, A3). */
-export const FAMILIA = '"Bricolage Grotesque Variable", system-ui, sans-serif';
 
 export class Lienzo {
   private readonly ctx: CanvasRenderingContext2D;
@@ -260,7 +258,8 @@ export class Lienzo {
     this.enFin = this.reserva > 0;
   }
 
-  dibujar(estado: EstadoPartida | null, ahora: number = performance.now()): void {
+  /** `sueltas`: piezas que ya no están en la partida pero aún caen en pantalla (A3). */
+  dibujar(estado: EstadoPartida | null, ahora: number = performance.now(), sueltas: readonly CuerpoVisible[] = []): void {
     const { ctx, canvas } = this;
     const fondo = this.fondo;
     if (!fondo) return;
@@ -293,7 +292,7 @@ export class Lienzo {
     const sueloY = canvas.height - (MARGEN_SUELO - this.camaraY) * k + sacudida.y;
     ctx.setTransform(k, 0, 0, -k, cx, sueloY);
     this.dibujarAdornos(ctx, ahora, abajo, arribaVista, izquierda, anchoVista);
-    const cuerpos = estado ? estado.cuerpos.filter((c) => enVista(c, abajo, arribaVista)) : [];
+    const cuerpos = (estado ? estado.cuerpos.concat(sueltas) : sueltas.slice()).filter((c) => enVista(c, abajo, arribaVista));
     for (const cuerpo of cuerpos) this.dibujarPieza(cuerpo, ahora, true);
     for (const cuerpo of cuerpos) this.dibujarPieza(cuerpo, ahora, false);
     if (estado?.colgada) this.dibujarColgada(estado, arribaVista, ahora);
@@ -385,8 +384,28 @@ export class Lienzo {
     const [aparte, c] = this.lienzoAparte(this.canvas.width, alto);
     const azar = crearAzarVisual(0x1e705);
     c.setTransform(escala, 0, 0, -escala, aparte.width / 2, aparte.height);
-    c.fillStyle = this.escenario.siluetas;
     const medio = aparte.width / 2 / escala;
+    // Sol de dos tintas, amarillo y rosa algo desplazado, con franjas de papel abajo.
+    c.globalAlpha = 0.9;
+    c.fillStyle = COLORES.amarillo;
+    c.beginPath();
+    c.arc(-2.1, 1.25, 1.35, 0, Math.PI * 2);
+    c.fill();
+    c.globalAlpha = 0.5;
+    c.fillStyle = COLORES.rosa;
+    c.beginPath();
+    c.arc(-2.1 + 0.16, 1.25 - 0.12, 1.35, 0, Math.PI * 2);
+    c.fill();
+    c.globalAlpha = 1;
+    c.fillStyle = this.escenario.cielo[0]!.color;
+    for (const [y, alto] of [
+      [0.42, 0.1],
+      [0.68, 0.08],
+      [0.9, 0.06],
+    ] as const) {
+      c.fillRect(-3.6, y, 3.2, alto);
+    }
+    c.fillStyle = this.escenario.siluetas;
     // Costa baja a lo largo de todo el ancho.
     c.fillRect(-medio, 0, medio * 2, 0.35);
     const grua = (x: number, alto: number, haciaDerecha: boolean) => {

@@ -80,10 +80,20 @@ for (const [nombre, ancho, alto] of [
     const guardar = (paso: string) => page.screenshot({ path: fileURLToPath(new URL(`${nombre}-${paso}.png`, CARPETA)) });
     await guardar("1-inicio");
 
+    const contador = (tipo: string) =>
+      page.evaluate((t) => (JSON.parse(document.getElementById("juego")!.dataset.efectos ?? "{}") as Record<string, number>)[t] ?? 0, tipo);
+    const esperarEfecto = async (tipo: string, antes: number) => {
+      await page.waitForFunction(
+        ([t, n]) => ((JSON.parse(document.getElementById("juego")!.dataset.efectos ?? "{}") as Record<string, number>)[t as string] ?? 0) > (n as number),
+        [tipo, antes] as const,
+      );
+    };
     for (let i = 0; i < 11; i++) {
       await soltarCentrada(page);
-      if (i === 3) {
-        await page.waitForTimeout(260);
+      const antes = await contador("aterrizaje");
+      if (i === 4) {
+        await esperarEfecto("aterrizaje", antes);
+        await page.waitForTimeout(110);
         await guardar("3-perfecto");
       }
     }
@@ -91,8 +101,10 @@ for (const [nombre, ancho, alto] of [
     await page.waitForTimeout(400);
     await guardar("2-mitad");
 
+    const chapuzones = await contador("chapuzon");
     await soltarEnExtremo(page);
-    await page.waitForTimeout(650);
+    await esperarEfecto("chapuzon", chapuzones);
+    await page.waitForTimeout(90);
     await guardar("4-caida");
     while ((await juego(page).getAttribute("data-estado")) !== "fin") {
       await soltarEnExtremo(page).catch(() => undefined);
