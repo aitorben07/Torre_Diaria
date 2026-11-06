@@ -4,6 +4,15 @@ Plan del 2026-11-06. Rama `segunda-version`, creada desde `main`. Base: el códi
 
 Los dos documentos de diseño que pide el encargo (`docs/diseno/diseno-juego.md` y `docs/diseno/anuncios.md`) van como **Anexo 1** y **Anexo 2** al final de este archivo. Al planificador solo se le permite crear este archivo (ver decisión S1), así que la tarea 0.1 los pasa a su sitio.
 
+## Cambios [impacto] incorporados (prevalecen sobre el resto del plan)
+
+El coordinador incorpora **todos** los cambios del apartado 5 de `impacto.md` («Cambios al plan»), marcados [impacto]. Donde una tarea de abajo o un anexo contradiga ese apartado, manda `impacto.md` §5. En resumen:
+
+- **Alcance recortado (I1, aceptado):** 10 niveles en un mundo (Puerto); misiones diarias (C4) aplazadas a la siguiente fase; tienda con 6 temas y sin pestaña de efectos; 3 escenarios (Puerto gratis, Ciudad con 25 m o racha de 3, Nubes con 50 m o racha de 7); precios ×1,4 salvo Madera (300); anuncios solo como interfaz, `anunciosNulos` y llamadas, sin botones ocultos.
+- **Migración v1 mínima (I2, aceptada):** el día jugado en la v1 se marca con `reglas: 1`, sin convertir puntos; la clave v1 no se borra. Guardado compacto con tramos de índices.
+- **CI protegido (I3, aceptado):** `push` a `main` y `pull_request`, `concurrency`, `timeout-minutes: 20` y guarda `if: ${{ !github.event.repository.private }}`; pruebas de rendimiento saltadas en CI.
+- **Técnicos:** G6, G8 y G11 nuevos; B1-B5 (retirada de piezas en un solo episodio de vida, objetivo del imán, cementado solo con cuerpos dormidos al colgar la pieza nueva, secuencias con prefijo estable, `jugar` con opciones, `flujo.ts` puro, 700 ms de espera en el fin); A1-A4 (fuente con `index.css` u `@font-face` propio, OFL copiada, `formatearNumero`, sin efectos caros por fotograma, p95 ≤ 33 ms o `RATIO_MAXIMO` 1,5, espera a la fuente en canvas); F1 con comprobación de píxeles; F3 con PNG generado al mostrar el fin y alternativa «Descargar imagen»; D2 muestra el siguiente desbloqueo por racha; H1 con las limitaciones nuevas.
+
 ## Objetivo
 
 Al abrir la web se juega al momento una partida libre, repetible sin límite, más larga y con recompensas por acertar (perfectos, combos, vidas extra, monedas, desbloqueos), con una dirección de arte propia, sonido y vibración. Aparte se pueden elegir los retos diarios en un calendario con rachas y medallas, avanzar por 30 niveles con estrellas y compartir cualquier resultado con una imagen generada.
