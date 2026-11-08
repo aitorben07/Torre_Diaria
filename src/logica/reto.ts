@@ -4,8 +4,8 @@
 export type Reto = { dia: number; puntos: number };
 
 const LARGO_MAXIMO = 20;
-/** Día desde 1 y puntos de 0 a 999, sin ceros a la izquierda. */
-const FORMATO = /^([1-9]\d{0,5})\.(0|[1-9]\d{0,2})$/;
+/** Día desde 1 y puntos de 0 a 999.999 (D3), sin ceros a la izquierda. */
+const FORMATO = /^([1-9]\d{0,5})\.(0|[1-9]\d{0,5})$/;
 
 /** Parte de búsqueda del enlace, por ejemplo `?reto=12.34`. */
 export function crearReto(dia: number, puntos: number): string {

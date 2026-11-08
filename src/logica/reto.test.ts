@@ -9,6 +9,12 @@ describe("reto", () => {
     expect(leerReto(crearReto(12, 34), HOY)).toEqual({ dia: 12, puntos: 34 });
   });
 
+  it("admite los puntos de la v2, hasta 999.999 (D3)", () => {
+    expect(leerReto(crearReto(12, 123456), HOY)).toEqual({ dia: 12, puntos: 123456 });
+    expect(leerReto("?reto=12.999999", HOY)).toEqual({ dia: 12, puntos: 999999 });
+    expect(leerReto("?reto=12.1000", HOY)).toEqual({ dia: 12, puntos: 1000 });
+  });
+
   it("lee el reto de un enlace completo", () => {
     expect(leerReto("https://torre.example/?reto=3.0", HOY)).toEqual({ dia: 3, puntos: 0 });
     expect(leerReto(`?reto=${HOY}.999`, HOY)).toEqual({ dia: HOY, puntos: 999 });
@@ -21,7 +27,8 @@ describe("reto", () => {
     "-1.5",
     "0.5",
     "12.-3",
-    "12.1000",
+    "12.1000000",
+    "12.0123",
     `${HOY + 1}.5`,
     "1.5".padEnd(21, "0"),
     "<script>",
