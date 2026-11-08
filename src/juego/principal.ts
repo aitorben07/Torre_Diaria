@@ -42,7 +42,8 @@ const lienzo = new Lienzo(ui.lienzo(), ui.grano());
 // Sonido y vibración (A4): encendidos por defecto y guardados en `ajustes` (C1).
 const sonido = new Sonido();
 const haptica = new Haptica();
-sonido.cambiar(guardado.actual.ajustes.sonido);
+// Encender el sonido despierta el AudioContext, que no se crea hasta el primer gesto: solo se aplica si está apagado.
+if (!guardado.actual.ajustes.sonido) sonido.cambiar(false);
 haptica.cambiar(guardado.actual.ajustes.vibracion);
 const movimientoReducido = window.matchMedia?.("(prefers-reduced-motion: reduce)") ?? null;
 const efectos = new Efectos({
