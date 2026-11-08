@@ -280,7 +280,7 @@ test("en 1280×800 la columna de juego mide al menos 400 px y el escenario ocupa
   expect(lienzo!.width).toBe(1280);
 });
 
-test("todos los botones visibles miden al menos 44×44 px, jugando, en el fin y en el reto de un amigo (A5)", async ({ page }, testInfo) => {
+test("todos los botones visibles miden al menos 44×44 px, jugando, en el fin, en el reto de un amigo, en Retos y en Colección (A5)", async ({ page }, testInfo) => {
   await preparar(page);
   await page.goto("/");
   await esperarLibre(page);
@@ -298,6 +298,12 @@ test("todos los botones visibles miden al menos 44×44 px, jugando, en el fin y 
   await page.goto("/?reto=1.5");
   await expect(page.locator("#juego")).toHaveAttribute("data-estado", "reto");
   await comprobar("reto");
+  await page.getByRole("button", { name: /^Retos/ }).click();
+  await expect(page.locator("#juego")).toHaveAttribute("data-estado", "retos");
+  await comprobar("retos");
+  await page.getByRole("button", { name: /^Colección/ }).click();
+  await expect(page.locator("#juego")).toHaveAttribute("data-estado", "coleccion");
+  await comprobar("coleccion");
 });
 
 test("con el teclado, Tab llega a todos los botones visibles y el foco se ve (A5)", async ({ page }, testInfo) => {

@@ -73,7 +73,7 @@ const RETOS_INVALIDOS = [
   "1",
   "1.5.5",
   "01.5",
-  "1.1000",
+  "1.1000000",
   "99999.5",
   "<b>1.5</b>",
   '1.5"><script>alert(1)</script>',
@@ -96,8 +96,8 @@ test("un enlace de reto inválido o con HTML se ignora sin inyectar nada", async
     await expect(page.locator("#comparacion"), reto).toBeHidden();
     await expect(page.locator("#boton-reto"), reto).toBeHidden();
     await expect(juego(page), reto).toHaveAttribute("data-modo", "libre");
-    // Los únicos SVG de la página son los iconos de los botones de sonido y vibración (A4).
-    await expect(page.locator("img, svg:not(button.icono > svg), b"), reto).toHaveCount(0);
+    // Los únicos SVG de la página son los iconos dibujados de la interfaz, todos con aria-hidden (A4, G11).
+    await expect(page.locator('img, svg:not([aria-hidden="true"]), b'), reto).toHaveCount(0);
     expect(await page.locator("script").count(), reto).toBe(scripts);
     expect(await page.locator("body").innerHTML(), reto).not.toContain("alert(1)");
   }

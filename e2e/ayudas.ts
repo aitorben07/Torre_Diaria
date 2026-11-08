@@ -1,4 +1,5 @@
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
+import type { Progreso } from "../src/logica/progreso.ts";
 import type { OpcionesPartida } from "../src/logica/simulacion.ts";
 
 /** Fecha fijada en las pruebas: el día 16 (`2026-11-20`). */
@@ -68,11 +69,38 @@ export async function esperarLibre(page: Page): Promise<void> {
   await expect(juego(page)).toHaveAttribute("data-modo", "libre");
 }
 
-/** Empieza el reto de hoy con el botón «Reto de hoy» del HUD. */
+/** Abre Retos desde la barra de abajo (D2). */
+export async function abrirRetos(page: Page): Promise<void> {
+  await page.getByRole("button", { name: /^Retos/ }).click();
+  await expect(juego(page)).toHaveAttribute("data-estado", "retos");
+}
+
+/** Empieza el reto de hoy: Retos en la barra de abajo y «Jugar el reto de hoy» en la ficha de hoy. */
 export async function empezarHoy(page: Page): Promise<void> {
-  await page.getByRole("button", { name: "Reto de hoy" }).click();
+  await abrirRetos(page);
+  await page.getByRole("button", { name: "Jugar el reto de hoy" }).click();
   await expect(juego(page)).toHaveAttribute("data-modo", "oficial");
   await expect(juego(page)).toHaveAttribute("data-estado", "jugando");
+}
+
+export const CLAVE_PROGRESO = "torre-diaria:progreso";
+
+/** Progreso guardado (C1) tal como está en `localStorage`, o `null`. */
+export async function leerProgreso(page: Page): Promise<Progreso | null> {
+  const texto = await page.evaluate((clave) => localStorage.getItem(clave), CLAVE_PROGRESO);
+  return texto ? (JSON.parse(texto) as Progreso) : null;
+}
+
+/** Siembra el progreso antes de cargar la página (en cada carga, salvo `soloUnaVez`). */
+export async function sembrarProgreso(page: Page, progreso: Record<string, unknown>, soloUnaVez = true): Promise<void> {
+  await page.addInitScript(
+    ([clave, valor, unaVez]) => {
+      if (unaVez && sessionStorage.getItem("sembrado")) return;
+      sessionStorage.setItem("sembrado", "1");
+      localStorage.setItem(clave as string, valor as string);
+    },
+    [CLAVE_PROGRESO, JSON.stringify({ version: 2, ...progreso }), soloUnaVez] as const,
+  );
 }
 
 /** Espera a que pasen los 700 ms en que la pantalla de fin ignora toques y teclas. */
