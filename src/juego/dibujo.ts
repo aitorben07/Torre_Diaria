@@ -20,8 +20,8 @@ import { COLORES, ESCENARIO_PUERTO, FAMILIA, TEMA_RISO, mezclar, oscurecer, type
 /** Metros visibles a lo ancho de la columna de juego y a lo alto: el ancho cubre todo el vaivén. */
 export const ANCHO_VISTA = 9.2;
 export const ALTO_VISTA = 13;
-/** Metros de suelo visibles por debajo de la cara de la plataforma. */
-export const MARGEN_SUELO = 1.5;
+/** Metros de suelo visibles por debajo de la cara de la plataforma: el muelle queda por encima de la barra de abajo. */
+export const MARGEN_SUELO = 2.1;
 /** Metros sobre la cima de la torre que deben verse: el hueco, la pieza que cuelga y un margen. */
 export const ESPACIO_SOBRE_CIMA = HUECO_COLGADA + ALTO_MAX + 0.8;
 /** Con la tarjeta de fin, la cima queda a estos metros por debajo de su borde inferior. */
@@ -465,10 +465,10 @@ export class Lienzo {
       for (let d = 6 + entreVisual(azar, 0, 1.2); d < medio + 2; d += entreVisual(azar, 3.2, 4.6)) {
         const x = lado * d;
         const tipo = azar();
-        if (tipo < 0.45) grua(x, entreVisual(azar, 2.3, 3.1), azar() < 0.5);
-        else if (tipo < 0.7) contenedores(x - 0.8);
-        else if (tipo < 0.9) barco(x);
-        else faro(x);
+        // A los lados no hay más faros: uno en el centro basta.
+        if (tipo < 0.5) grua(x, entreVisual(azar, 2.3, 3.1), azar() < 0.5);
+        else if (tipo < 0.75) contenedores(x - 0.8);
+        else barco(x);
       }
     }
     return aparte;
@@ -696,6 +696,8 @@ export class Lienzo {
     ctx.textAlign = "left";
     for (let m = 5 * Math.max(1, Math.ceil(abajo / 5)); m <= arriba; m += 5) {
       const y = sueloY - m * k;
+      // Lo que queda bajo el HUD no se marca.
+      if (y < this.arriba + px) continue;
       const color = m >= 50 ? COLORES.papel : COLORES.tinta;
       ctx.globalAlpha = 0.55;
       ctx.fillStyle = color;

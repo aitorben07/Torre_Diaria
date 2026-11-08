@@ -72,10 +72,12 @@ test("en 390×844 la tarjeta de fin va arriba y deja libre la parte baja para la
   await esperarLibre(page);
   await jugarHastaElFin(page, conTactil(testInfo));
   await expect(juego(page)).toHaveAttribute("data-estado", "fin");
-  const { zona, fin } = await page.evaluate(() => ({
+  const { zona, fin, hud } = await page.evaluate(() => ({
     zona: document.getElementById("zona")!.getBoundingClientRect().toJSON() as DOMRect,
     fin: document.getElementById("fin")!.getBoundingClientRect().toJSON() as DOMRect,
+    hud: document.getElementById("hud")!.getBoundingClientRect().toJSON() as DOMRect,
   }));
-  expect(fin.top - zona.top).toBeLessThan(24);
+  // Desde A5 el HUD va sobre el escenario: la tarjeta queda justo debajo de él.
+  expect(fin.top - hud.bottom).toBeLessThan(24);
   expect(fin.bottom - zona.top).toBeLessThan(zona.height * 0.6);
 });

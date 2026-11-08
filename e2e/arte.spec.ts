@@ -1,6 +1,6 @@
 // Bloque A: fuente local, efectos, sonido, háptica e interfaz.
 import { expect, test, type Page } from "@playwright/test";
-import { esperarLibre, preparar } from "./ayudas.ts";
+import { conTactil, esperarFinListo, esperarLibre, jugarHastaElFin, preparar } from "./ayudas.ts";
 
 test("la fuente local se carga sin peticiones a otros orígenes (A1)", async ({ page }) => {
   const vigilancia = await preparar(page);
@@ -180,7 +180,7 @@ const audio = (page: Page) =>
 
 test("antes del primer gesto no hay ningún AudioContext sonando; tras el primer toque, sí (A4)", async ({ page }) => {
   await espiarAudio(page);
-  const { errores } = await preparar(page);
+  const { errores } = await preparar(page, undefined, { audioReal: true });
   await page.goto("/");
   await esperarLibre(page);
   await page.waitForTimeout(500);
@@ -192,7 +192,7 @@ test("antes del primer gesto no hay ningún AudioContext sonando; tras el primer
 
 test("con el sonido apagado no se crea ningún nodo de audio al soltar piezas (A4)", async ({ page }, testInfo) => {
   await espiarAudio(page);
-  const { errores } = await preparar(page);
+  const { errores } = await preparar(page, undefined, { audioReal: true });
   await page.goto("/");
   await esperarLibre(page);
   const boton = page.getByRole("button", { name: "Sonido" });
@@ -256,4 +256,70 @@ test("sin navigator.vibrate no hay error y no se ofrece el botón de vibración 
   await soltarA(page, 0, 0, true);
   await page.waitForTimeout(800);
   expect(errores).toEqual([]);
+});
+
+/** Botones visibles de la página: id, tamaño y si están dentro de la ventana. */
+const botonesVisibles = (page: Page) =>
+  page.locator("button:visible").evaluateAll((botones) =>
+    botones.map((b) => {
+      const { width, height } = b.getBoundingClientRect();
+      return { id: b.id, ancho: width, alto: height };
+    }),
+  );
+
+test("en 1280×800 la columna de juego mide al menos 400 px y el escenario ocupa todo el ancho (A5)", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "escritorio", "Medida de escritorio");
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await preparar(page);
+  await page.goto("/");
+  await esperarLibre(page);
+  const hud = await page.locator("#hud").boundingBox();
+  expect(hud!.width).toBeGreaterThanOrEqual(400);
+  expect(hud!.width).toBeCloseTo(800 * 0.5625, 0);
+  const lienzo = await page.locator("#lienzo").boundingBox();
+  expect(lienzo!.width).toBe(1280);
+});
+
+test("todos los botones visibles miden al menos 44×44 px, jugando, en el fin y en el reto de un amigo (A5)", async ({ page }, testInfo) => {
+  await preparar(page);
+  await page.goto("/");
+  await esperarLibre(page);
+  const comprobar = async (pantalla: string) => {
+    const botones = await botonesVisibles(page);
+    expect(botones.length, pantalla).toBeGreaterThan(0);
+    for (const b of botones) {
+      expect(b.ancho, `${pantalla} #${b.id}`).toBeGreaterThanOrEqual(44);
+      expect(b.alto, `${pantalla} #${b.id}`).toBeGreaterThanOrEqual(44);
+    }
+  };
+  await comprobar("jugando");
+  await jugarHastaElFin(page, conTactil(testInfo));
+  await comprobar("fin");
+  await page.goto("/?reto=1.5");
+  await expect(page.locator("#juego")).toHaveAttribute("data-estado", "reto");
+  await comprobar("reto");
+});
+
+test("con el teclado, Tab llega a todos los botones visibles y el foco se ve (A5)", async ({ page }, testInfo) => {
+  test.skip(conTactil(testInfo), "Teclado: solo en escritorio");
+  await preparar(page);
+  await page.goto("/");
+  await esperarLibre(page);
+  await jugarHastaElFin(page, false);
+  await esperarFinListo(page);
+  const esperados = (await botonesVisibles(page)).map((b) => b.id).sort();
+  const vistos = new Set<string>();
+  for (let i = 0; i < esperados.length + 3; i++) {
+    await page.keyboard.press("Tab");
+    const foco = await page.evaluate(() => {
+      const el = document.activeElement as HTMLElement | null;
+      if (!el || el.tagName !== "BUTTON") return null;
+      const estilo = getComputedStyle(el);
+      return { id: el.id, visible: el.matches(":focus-visible") && estilo.outlineStyle !== "none" && parseFloat(estilo.outlineWidth) >= 2 };
+    });
+    if (!foco) continue;
+    expect(foco.visible, `foco visible en #${foco.id}`).toBe(true);
+    vistos.add(foco.id);
+  }
+  expect([...vistos].sort()).toEqual(esperados);
 });

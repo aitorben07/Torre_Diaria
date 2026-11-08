@@ -432,12 +432,19 @@ document.addEventListener("visibilitychange", () => {
 });
 // El lienzo cambia de tamaño con la ventana y también con el HUD (combo, récord):
 // se reajusta cada vez que cambia su caja, no solo al redimensionar la ventana.
-new ResizeObserver(() => {
-  lienzo.ajustar();
+/** El lienzo ocupa toda la pantalla; la vista se encaja en la columna del HUD y por debajo de él (A5). */
+function ajustarLienzo(): void {
+  const hud = ui.hud().getBoundingClientRect();
+  lienzo.ajustar(hud.width, hud.bottom - ui.zona().getBoundingClientRect().top);
+}
+const observador = new ResizeObserver(() => {
+  ajustarLienzo();
   if (flujo.pantalla === "fin") reservarTarjeta();
-}).observe(ui.lienzo());
+});
+observador.observe(ui.lienzo());
+observador.observe(ui.hud());
 const inicio = abrir(reto, hoy);
 flujo = inicio.flujo;
 ejecutar(inicio.orden);
-lienzo.ajustar();
+ajustarLienzo();
 bucle.iniciar();

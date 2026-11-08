@@ -1,7 +1,7 @@
 // HUD, aviso del reto de un amigo, pantalla de fin, copiar y compartir. Todo
 // texto que viene del enlace o del almacenamiento se escribe con
 // `textContent`, nunca como HTML.
-import { formatearAltura, formatearPuntos } from "../logica/tarjeta.ts";
+import { formatearAltura, formatearNumero, formatearPuntos } from "../logica/tarjeta.ts";
 import type { Reto } from "../logica/reto.ts";
 import type { Pantalla } from "./flujo.ts";
 
@@ -17,6 +17,8 @@ export const ui = {
   lienzo: () => elemento<HTMLCanvasElement>("lienzo"),
   grano: () => elemento("grano"),
   contador: () => elemento("contador"),
+  hud: () => elemento("hud"),
+  hudPuntos: () => elemento("hud-puntos"),
   vidas: () => elemento("vidas"),
   combo: () => elemento("combo"),
   record: () => elemento("record"),
@@ -32,6 +34,8 @@ export const ui = {
   fin: () => elemento("fin"),
   finTitulo: () => elemento("fin-titulo"),
   finPuntos: () => elemento("fin-puntos"),
+  finNumero: () => elemento("fin-numero"),
+  finUnidad: () => elemento("fin-unidad"),
   finAltura: () => elemento("fin-altura"),
   finRecord: () => elemento("fin-record"),
   finReto: () => elemento("fin-reto"),
@@ -73,6 +77,7 @@ export type DatosHud = {
 /** HUD de la partida: puntos, vidas como iconos (no caracteres, G11), combo si es 2 o más y récord. */
 export function pintarHud({ puntos, vidas, vidasMax, combo, record }: DatosHud): void {
   ui.contador().textContent = formatearPuntos(puntos);
+  ui.hudPuntos().textContent = formatearNumero(puntos);
   const iconos = ui.vidas();
   iconos.setAttribute("aria-label", vidas === 1 ? "1 vida" : `${vidas} vidas`);
   ui.juego().dataset.vidas = String(vidas);
@@ -92,7 +97,8 @@ export function pintarHud({ puntos, vidas, vidasMax, combo, record }: DatosHud):
   mostrarTexto(ui.combo(), combo >= 2 ? `Combo ×${combo}` : null);
   ui.combo().dataset.combo = String(combo);
   if (combo >= 2 && combo > comboAntes) reanimar(ui.combo(), "late");
-  mostrarTexto(ui.record(), record === null ? null : `Récord ${record}`);
+  // Con récord 0 (la primera partida) no hay nada que batir: no se muestra.
+  mostrarTexto(ui.record(), record === null || record <= 0 ? null : `Récord ${formatearNumero(record)}`);
 }
 
 export type DatosReto = {
@@ -136,13 +142,41 @@ export function textoComparacion(puntos: number, amigo: number): string {
 export function pintarFin(datos: DatosFin): void {
   ui.finTitulo().textContent = datos.titulo;
   ui.finPuntos().textContent = formatearPuntos(datos.puntos);
+  ui.finUnidad().textContent = datos.puntos === 1 ? "punto" : "puntos";
+  contar(ui.finNumero(), datos.puntos);
   ui.finAltura().textContent = formatearAltura(datos.altura);
-  mostrarTexto(ui.finRecord(), datos.record === null ? null : `Récord: ${formatearPuntos(datos.record)}`);
+  mostrarTexto(ui.finRecord(), datos.record === null ? null : `Récord ${formatearNumero(datos.record)}`);
   mostrarTexto(ui.finReto(), datos.puntosAmigo === null ? null : textoComparacion(datos.puntos, datos.puntosAmigo));
   ui.tarjeta().textContent = datos.tarjeta;
   ui.mensaje().textContent = "";
   ui.botonCompartir().hidden = typeof navigator.share !== "function";
   ui.botonOtraVez().textContent = datos.principal;
+}
+
+/** Duración del recuento de puntos en el fin (Anexo 1, 1.5). */
+export const RECUENTO_MS = 800;
+let recuento = 0;
+
+/**
+ * Recuento de 0 a `puntos` en `RECUENTO_MS`, solo visual (el número exacto
+ * está en `#fin-puntos` para lectores y pruebas). Con movimiento reducido, directo.
+ */
+function contar(nodo: HTMLElement, puntos: number): void {
+  const vez = ++recuento;
+  const directo = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches || puntos <= 0;
+  if (directo) {
+    nodo.textContent = formatearNumero(puntos);
+    return;
+  }
+  const desde = performance.now();
+  const paso = (ahora: number) => {
+    if (vez !== recuento) return;
+    const t = Math.min(1, (ahora - desde) / RECUENTO_MS);
+    nodo.textContent = formatearNumero(Math.round(puntos * (1 - (1 - t) ** 3)));
+    if (t < 1) requestAnimationFrame(paso);
+  };
+  nodo.textContent = "0";
+  requestAnimationFrame(paso);
 }
 
 /** Copia con el portapapeles y, si no está, con un `textarea` seleccionado. */
