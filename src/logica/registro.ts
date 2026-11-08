@@ -1,5 +1,7 @@
-// Resultado oficial del día guardado en el navegador (D4). Una sola clave; si
-// el almacenamiento falla (modo privado, cuota) el juego sigue sin guardar.
+// Lo que guardaban la v1 y los primeros bloques de la v2, solo para leerlo: el
+// guardado v2 (`progreso.ts`, C1) lo migra a `torre-diaria:progreso` y ya no se
+// escribe en estas claves, que tampoco se borran (S20). Si el almacenamiento
+// falla (modo privado, cuota), la lectura da `null` o el registro vacío.
 import { FORMAS, PALETA, type Forma } from "./piezas.ts";
 
 export const CLAVE = "torre-diaria:resultado";
@@ -38,35 +40,28 @@ function esResultado(valor: unknown): valor is ResultadoDia {
   );
 }
 
-/** Resultado oficial del día `dia`, o `null` si no se ha jugado o no se puede leer. */
+/** Resultado oficial de la v1 del día `dia`, o `null` si no es de ese día o no se puede leer. */
 export function leerResultado(almacen: Almacen | null, dia: number): ResultadoDia | null {
+  const resultado = leerResultadoV1(almacen);
+  return resultado && resultado.dia === dia ? resultado : null;
+}
+
+/** El último resultado oficial que guardó la v1, sea del día que sea (para la migración). */
+export function leerResultadoV1(almacen: Almacen | null): ResultadoDia | null {
   try {
     const texto = almacen?.getItem(CLAVE);
     if (!texto) return null;
     const valor: unknown = JSON.parse(texto);
-    if (!esResultado(valor) || valor.dia !== dia) return null;
+    if (!esResultado(valor)) return null;
     return { dia: valor.dia, puntos: valor.puntos, altura: valor.altura, formas: valor.formas };
   } catch {
     return null;
   }
 }
 
-/** Guarda el resultado oficial. Devuelve `false` si no se ha podido. */
-export function guardarResultado(almacen: Almacen | null, resultado: ResultadoDia): boolean {
-  try {
-    if (!almacen) return false;
-    const { dia, puntos, altura, formas } = resultado;
-    almacen.setItem(CLAVE, JSON.stringify({ dia, puntos, altura, formas }));
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 /**
- * Récord de la partida libre y si ya se ha visto el aviso «Toca para soltar»
- * (B5). Va en su propia clave hasta que el guardado v2 (C1) lo pase a
- * `torre-diaria:progreso`.
+ * Récord de la partida libre y si ya se ha visto el aviso «Toca para soltar»,
+ * como los guardaba el bloque B5 antes del guardado v2.
  */
 export const CLAVE_LIBRE = "torre-diaria:libre";
 
@@ -88,17 +83,6 @@ export function leerRegistroLibre(almacen: Almacen | null): RegistroLibre {
     };
   } catch {
     return { ...REGISTRO_LIBRE_VACIO };
-  }
-}
-
-/** Guarda lo de la partida libre. Devuelve `false` si no se ha podido. */
-export function guardarRegistroLibre(almacen: Almacen | null, registro: RegistroLibre): boolean {
-  try {
-    if (!almacen) return false;
-    almacen.setItem(CLAVE_LIBRE, JSON.stringify({ record: registro.record, tutorialVisto: registro.tutorialVisto }));
-    return true;
-  } catch {
-    return false;
   }
 }
 

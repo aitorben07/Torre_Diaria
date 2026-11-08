@@ -117,6 +117,8 @@ export type Resultado = {
   alturaMax: number;
   /** Piezas colocadas (las que puntuaron), en orden. */
   formas: FormaColocada[];
+  /** Índice en la secuencia de cada pieza de `formas`: con la semilla basta para rehacerlas (C1). */
+  indices: number[];
   piezas: number;
   perfectos: number;
   comboMax: number;
@@ -165,6 +167,8 @@ export class Partida {
   /** Piezas soltadas que siguen en el mundo, en orden de soltado. */
   private soltadas: Soltada[] = [];
   private readonly colocadas: FormaColocada[] = [];
+  /** Índice en la secuencia de cada pieza colocada (el guardado de C1 guarda solo esto). */
+  private readonly indicesColocadas: number[] = [];
   private eventos: Evento[] = [];
   private faseActual: Fase = "apuntando";
   private pasosHechos = 0;
@@ -284,6 +288,7 @@ export class Partida {
       altura: this.alturaTorre(this.sobrePlataforma()),
       alturaMax: m.alturaMax,
       formas: this.colocadas.map((f) => ({ ...f })),
+      indices: [...this.indicesColocadas],
       piezas: m.piezas,
       perfectos: m.perfectos,
       comboMax: m.comboMax,
@@ -320,6 +325,7 @@ export class Partida {
     const pieza = this.secuencia.pieza(enEspera.indice);
     const { puntos, combo, vidaExtra } = this.marcador.colocar(enEspera.calidad);
     this.colocadas.push({ forma: pieza.forma, color: pieza.color, ancho: pieza.ancho, alto: pieza.alto });
+    this.indicesColocadas.push(enEspera.indice);
     const paso = this.pasosHechos;
     this.eventos.push({ tipo: "colocada", paso, indice: enEspera.indice, calidad: enEspera.calidad, combo, puntos });
     if (vidaExtra) this.eventos.push({ tipo: "vidaExtra", paso, vidas: this.marcador.vidas });

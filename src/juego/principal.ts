@@ -2,19 +2,14 @@
 // un toque y las pantallas. Las transiciones entre pantallas las decide
 // `flujo.ts`; aquí solo se conectan con el DOM (B5).
 import { leerReto } from "../logica/reto.ts";
-import {
-  almacenDelNavegador,
-  guardarRegistroLibre,
-  guardarResultado,
-  leerRegistroLibre,
-  leerResultado,
-  type ResultadoDia,
-} from "../logica/registro.ts";
+import { almacenDelNavegador } from "../logica/registro.ts";
+import { aTramos, deTramos, Guardado, type DiaJugado } from "../logica/progreso.ts";
+import { generarSecuencia } from "../logica/piezas.ts";
 import { VIDAS_INICIALES, VIDAS_MAX } from "../logica/puntuacion.ts";
 import { fechaDeDia, fechaUTC, numeroDia, semillaLibre } from "../logica/semilla.ts";
 import type { Pieza } from "../logica/piezas.ts";
 import type { Calidad } from "../logica/puntuacion.ts";
-import { Partida, type EstadoPartida, type Evento, type OpcionesPartida } from "../logica/simulacion.ts";
+import { Partida, REGLAS, type EstadoPartida, type Evento, type OpcionesPartida } from "../logica/simulacion.ts";
 import { formatearAltura, formatearPuntos, generarTarjeta } from "../logica/tarjeta.ts";
 import { Bucle, PASO_MS } from "./bucle.ts";
 import { Lienzo, NIVEL_AGUA, ratioPixeles } from "./dibujo.ts";
@@ -31,12 +26,15 @@ const OPCIONES: OpcionesPartida = { vidas: VIDAS_INICIALES };
 let hoy = numeroDia(fechaUTC(new Date()));
 const almacen = almacenDelNavegador();
 const reto = leerReto(location.search, hoy);
-let registroLibre = leerRegistroLibre(almacen);
+/** Progreso guardado (C1): una sola clave; si el almacenamiento falla, queda en memoria. */
+const guardado = new Guardado(almacen);
 
 const lienzo = new Lienzo(ui.lienzo(), ui.grano());
-// Sonido y vibración (A4): encendidos por defecto; se guardarán con el progreso (C1).
+// Sonido y vibración (A4): encendidos por defecto y guardados en `ajustes` (C1).
 const sonido = new Sonido();
 const haptica = new Haptica();
+sonido.cambiar(guardado.actual.ajustes.sonido);
+haptica.cambiar(guardado.actual.ajustes.vibracion);
 const movimientoReducido = window.matchMedia?.("(prefers-reduced-motion: reduce)") ?? null;
 const efectos = new Efectos({
   reducido: () => movimientoReducido?.matches === true,
@@ -72,8 +70,23 @@ function actualizarHoy(): boolean {
   return true;
 }
 
-function resultadoHoy(): ResultadoDia | null {
-  return leerResultado(almacen, hoy);
+/** Lo que se muestra en el fin: una partida recién acabada o un día guardado. */
+type DatosFin = { dia: number; puntos: number; altura: number; piezas: number; formas: Array<{ color: number }>; reglas: number };
+
+function resultadoDe(dia: number): DiaJugado | null {
+  return guardado.actual.diarios[dia] ?? null;
+}
+
+function resultadoHoy(): DiaJugado | null {
+  return resultadoDe(hoy);
+}
+
+/** Datos de fin de un día guardado: las piezas se rehacen con la semilla del día y sus índices. */
+function datosDeDia(dia: number, jugado: DiaJugado): DatosFin {
+  const indices = deTramos(jugado.colocadas) ?? [];
+  const secuencia = indices.length > 0 ? generarSecuencia(fechaDeDia(dia), indices[indices.length - 1]! + 1) : [];
+  const formas = indices.map((i) => secuencia[i]!).filter(Boolean);
+  return { dia, puntos: jugado.puntos, altura: jugado.altura, piezas: jugado.piezas, formas, reglas: jugado.reglas };
 }
 
 /** Aplica una acción de la interfaz: el flujo decide y aquí se ejecuta la orden. */
@@ -102,12 +115,12 @@ function mostrarReto(): void {
 }
 
 function verGuardado(): void {
-  const guardado = resultadoHoy();
-  if (!guardado) return;
+  const jugado = resultadoHoy();
+  if (!jugado) return;
   partida = null;
   escena = null;
   ui.juego().dataset.modo = "oficial";
-  mostrarFin(guardado, "oficial");
+  mostrarFin(datosDeDia(hoy, jugado), "oficial");
 }
 
 /** «Reto de hoy» se ve siempre salvo mientras se juega un reto diario. */
@@ -135,7 +148,7 @@ function empezar(modo: Modo, dia: number): void {
   delete juego.dataset.toques;
   delete juego.dataset.puntos;
   delete juego.dataset.altura;
-  ui.avisoToque().hidden = registroLibre.tutorialVisto;
+  ui.avisoToque().hidden = guardado.actual.ajustes.tutorialVisto;
   lienzo.reiniciarCamara();
   lienzo.reservarArriba(0);
   bucle.reiniciar();
@@ -151,22 +164,24 @@ function puntosAmigo(modoPartida: Modo, diaPartida: number): number | null {
   return reto.puntos;
 }
 
-function mostrarFin(datos: ResultadoDia, modoPartida: Modo): void {
+function mostrarFin(datos: DatosFin, modoPartida: Modo): void {
   const libre = modoPartida === "libre";
+  const enPiezas = datos.reglas === 1;
   textoTarjeta = generarTarjeta({
     modo: libre ? "libre" : "diario",
     dia: datos.dia,
-    puntos: datos.puntos,
+    puntos: enPiezas ? datos.piezas : datos.puntos,
     altura: datos.altura,
     formas: datos.formas,
     origen: location.origin,
   });
   pintarFin({
     titulo: libre ? "Partida libre" : `Reto del día #${datos.dia}`,
-    puntos: datos.puntos,
+    puntos: enPiezas ? datos.piezas : datos.puntos,
+    enPiezas,
     altura: datos.altura,
     tarjeta: textoTarjeta,
-    record: libre ? registroLibre.record : null,
+    record: libre ? guardado.actual.libre.record : null,
     puntosAmigo: puntosAmigo(modoPartida, datos.dia),
     principal: libre ? "Otra vez" : "Partida libre",
   });
@@ -185,14 +200,17 @@ function reservarTarjeta(): void {
 }
 
 function terminar(actual: Partida): void {
-  const { puntos, altura, formas } = actual.resultado();
+  const resultado = actual.resultado();
+  const { puntos, altura, formas, piezas, perfectos, indices } = resultado;
   const { modo, dia } = flujo;
-  const datos: ResultadoDia = { dia, puntos, altura, formas };
-  // Con dos pestañas a la vez vale la primera oficial que acaba (D4).
-  if (modo === "oficial" && leerResultado(almacen, dia) === null) guardarResultado(almacen, datos);
-  if (modo === "libre" && puntos > registroLibre.record) {
-    registroLibre = { ...registroLibre, record: puntos };
-    guardarRegistroLibre(almacen, registroLibre);
+  const datos: DatosFin = { dia, puntos, altura, piezas, formas, reglas: REGLAS };
+  // Con dos pestañas a la vez vale la primera oficial que acaba (D4): el cambio se aplica sobre lo releído.
+  if (modo === "oficial") {
+    const jugado: DiaJugado = { puntos, piezas, altura, perfectos, colocadas: aTramos(indices), enSuDia: dia === hoy, reglas: REGLAS };
+    guardado.cambiar((p) => (p.diarios[dia] ? p : { ...p, diarios: { ...p.diarios, [dia]: jugado } }));
+  }
+  if (modo === "libre" && puntos > guardado.actual.libre.record) {
+    guardado.cambiar((p) => (puntos > p.libre.record ? { ...p, libre: { ...p.libre, record: puntos } } : p));
   }
   ui.juego().dataset.toques = JSON.stringify(toques);
   // La última pieza caída sigue cayendo en pantalla aunque la partida ya la haya retirado.
@@ -207,7 +225,7 @@ function terminar(actual: Partida): void {
 function actualizarHud(): void {
   if (!partida) return;
   const { puntos, vidas, combo } = partida.estado();
-  const record = flujo.modo === "libre" ? registroLibre.record : null;
+  const record = flujo.modo === "libre" ? guardado.actual.libre.record : null;
   const clave = `${puntos}|${vidas}|${combo}|${record}`;
   if (clave === hudPintado) return;
   hudPintado = clave;
@@ -318,7 +336,8 @@ function observar(estado: EstadoPartida, pasos: number): void {
     }
   }
   // Récord de la partida libre superado durante la partida.
-  if (!recordCelebrado && flujo.modo === "libre" && registroLibre.record > 0 && estado.puntos > registroLibre.record) {
+  const record = guardado.actual.libre.record;
+  if (!recordCelebrado && flujo.modo === "libre" && record > 0 && estado.puntos > record) {
     recordCelebrado = true;
     efectos.record(estado.objetivo, estado.altura, ahora);
     sonido.record();
@@ -353,9 +372,8 @@ function pintarEfectos(): void {
 function pedirSoltar(): void {
   if (flujo.pantalla !== "jugando") return;
   pendiente = true;
-  if (!registroLibre.tutorialVisto) {
-    registroLibre = { ...registroLibre, tutorialVisto: true };
-    guardarRegistroLibre(almacen, registroLibre);
+  if (!guardado.actual.ajustes.tutorialVisto) {
+    guardado.cambiar((p) => ({ ...p, ajustes: { ...p.ajustes, tutorialVisto: true } }));
     ui.avisoToque().hidden = true;
   }
 }
@@ -382,14 +400,20 @@ document.addEventListener("keydown", () => sonido.despertar(), { capture: true }
 function pintarInterruptor(boton: HTMLButtonElement, encendido: boolean): void {
   boton.setAttribute("aria-pressed", String(encendido));
 }
+pintarInterruptor(ui.botonSonido(), sonido.activo);
+pintarInterruptor(ui.botonVibracion(), haptica.activa);
 ui.botonSonido().addEventListener("click", () => {
   sonido.cambiar(!sonido.activo);
   pintarInterruptor(ui.botonSonido(), sonido.activo);
+  const activo = sonido.activo;
+  guardado.cambiar((p) => ({ ...p, ajustes: { ...p.ajustes, sonido: activo } }));
 });
 ui.botonVibracion().hidden = !puedeVibrar();
 ui.botonVibracion().addEventListener("click", () => {
   haptica.cambiar(!haptica.activa);
   pintarInterruptor(ui.botonVibracion(), haptica.activa);
+  const activa = haptica.activa;
+  guardado.cambiar((p) => ({ ...p, ajustes: { ...p.ajustes, vibracion: activa } }));
 });
 
 ui.zona().addEventListener("pointerdown", (evento) => {

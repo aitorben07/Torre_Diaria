@@ -1,7 +1,7 @@
 // HUD, aviso del reto de un amigo, pantalla de fin, copiar y compartir. Todo
 // texto que viene del enlace o del almacenamiento se escribe con
 // `textContent`, nunca como HTML.
-import { formatearAltura, formatearNumero, formatearPuntos } from "../logica/tarjeta.ts";
+import { formatearAltura, formatearNumero, formatearPiezas, formatearPuntos } from "../logica/tarjeta.ts";
 import type { Reto } from "../logica/reto.ts";
 import type { Pantalla } from "./flujo.ts";
 
@@ -131,6 +131,8 @@ export type DatosFin = {
   puntosAmigo: number | null;
   /** Texto del botón principal: «Otra vez» en la libre, «Partida libre» en el reto. */
   principal: string;
+  /** Un día jugado con la v1 se cuenta en piezas, no en puntos (C1). */
+  enPiezas?: boolean;
 };
 
 export function textoComparacion(puntos: number, amigo: number): string {
@@ -141,8 +143,8 @@ export function textoComparacion(puntos: number, amigo: number): string {
 
 export function pintarFin(datos: DatosFin): void {
   ui.finTitulo().textContent = datos.titulo;
-  ui.finPuntos().textContent = formatearPuntos(datos.puntos);
-  ui.finUnidad().textContent = datos.puntos === 1 ? "punto" : "puntos";
+  ui.finPuntos().textContent = datos.enPiezas ? formatearPiezas(datos.puntos) : formatearPuntos(datos.puntos);
+  ui.finUnidad().textContent = datos.enPiezas ? (datos.puntos === 1 ? "pieza" : "piezas") : datos.puntos === 1 ? "punto" : "puntos";
   contar(ui.finNumero(), datos.puntos);
   ui.finAltura().textContent = formatearAltura(datos.altura);
   mostrarTexto(ui.finRecord(), datos.record === null ? null : `Récord ${formatearNumero(datos.record)}`);
