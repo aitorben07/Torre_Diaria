@@ -21,6 +21,7 @@ export class Sonido {
   private salida: GainNode | null = null;
   private ruido: AudioBuffer | null = null;
   private encendido = true;
+  private creando = false;
 
   get activo(): boolean {
     return this.encendido;
@@ -37,17 +38,33 @@ export class Sonido {
   despertar(): void {
     if (!this.encendido || document.hidden) return;
     if (!this.ctx) {
-      const Contexto = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-      if (!Contexto) return;
-      try {
-        this.ctx = new Contexto();
-      } catch {
-        return;
+      // Abrir el dispositivo de audio puede tardar (segundos en algunos equipos
+      // Windows): se hace justo después del gesto, no dentro, para que el toque
+      // suelte la pieza sin esperar. Con la activación del gesto ya hecha, el
+      // contexto puede sonar; en iPhone quizá solo desde el segundo toque.
+      if (!this.creando) {
+        this.creando = true;
+        setTimeout(() => this.crear(), 0);
       }
-      this.salida = this.ctx.createGain();
-      this.salida.gain.value = VOLUMEN;
-      this.salida.connect(this.ctx.destination);
+      return;
     }
+    if (this.ctx.state === "suspended") void this.ctx.resume().catch(() => undefined);
+  }
+
+  /** Crea el contexto y la salida con el volumen general (una sola vez). */
+  private crear(): void {
+    this.creando = false;
+    if (this.ctx || !this.encendido) return;
+    const Contexto = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!Contexto) return;
+    try {
+      this.ctx = new Contexto();
+    } catch {
+      return;
+    }
+    this.salida = this.ctx.createGain();
+    this.salida.gain.value = VOLUMEN;
+    this.salida.connect(this.ctx.destination);
     if (this.ctx.state === "suspended") void this.ctx.resume().catch(() => undefined);
   }
 

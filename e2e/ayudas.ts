@@ -11,9 +11,30 @@ export type Vigilancia = { errores: string[]; ajenas: string[] };
 /**
  * Fija la fecha (sin falsear los temporizadores, para que la animación siga) y
  * recoge errores de consola, excepciones y peticiones a otros orígenes.
+ *
+ * Salvo con `audioReal`, cambia `AudioContext` por uno mudo que nunca llega a
+ * sonar: abrir el dispositivo de audio de verdad tarda de 0,4 a 6 s en algunos
+ * equipos Windows y bloquea la página, y estas pruebas no prueban el sonido
+ * (las de A4, en `arte.spec.ts`, usan el real).
  */
-export async function preparar(page: Page, fecha: string = FECHA): Promise<Vigilancia> {
+export async function preparar(page: Page, fecha: string = FECHA, { audioReal = false }: { audioReal?: boolean } = {}): Promise<Vigilancia> {
   await page.clock.setFixedTime(new Date(fecha));
+  if (!audioReal) {
+    await page.addInitScript(() => {
+      const nodo = () => ({ gain: { value: 1 }, connect: () => nodo() });
+      class AudioContextMudo {
+        state = "suspended";
+        currentTime = 0;
+        sampleRate = 44100;
+        destination = {};
+        createGain = nodo;
+        resume = () => Promise.resolve();
+        suspend = () => Promise.resolve();
+        close = () => Promise.resolve();
+      }
+      (window as unknown as { AudioContext: unknown }).AudioContext = AudioContextMudo;
+    });
+  }
   const vigilancia: Vigilancia = { errores: [], ajenas: [] };
   page.on("console", (mensaje) => {
     if (mensaje.type() === "error") vigilancia.errores.push(mensaje.text());
