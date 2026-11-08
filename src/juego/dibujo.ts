@@ -1,7 +1,8 @@
 // Dibujo procedural en <canvas> con la dirección de arte «Riso» (A2, Anexo 1,
 // 1.3 y 1.4): piezas de tinta plana con contorno, sombra de impresión
-// desplazada, color algo fuera de registro y trama de puntos; puerto con capas
-// en paralaje, cielo que oscurece con la altura y grano de papel. Todo lo caro
+// desplazada, color algo fuera de registro y trama de puntos; escenario (puerto,
+// ciudad o nubes, C3) con capas en paralaje, cielo que oscurece con la altura y
+// grano de papel. Todo lo caro
 // (degradado, tramas, capas, grano y la imagen de cada pieza) se crea al
 // ajustar o la primera vez que hace falta, no por fotograma; el fondo se
 // repinta solo cuando se mueve la cámara. El grano va en un elemento encima del
@@ -56,6 +57,8 @@ const MARGEN_IMAGEN = 0.06;
 const LADO_GRANO = 192;
 /** Altura del cielo que cubre el degradado; por encima, el último color. */
 const ALTURA_CIELO = 110;
+/** Rayas de la línea de récord, en metros (C2). */
+const RAYA_RECORD = 0.22;
 
 /**
  * Altura de la cámara en metros: con 0, la cara de la plataforma queda
@@ -88,6 +91,14 @@ export function zoomObjetivo(altura: number, enFin: boolean, libre: number): num
 export function enVista(cuerpo: Pick<CuerpoVisible, "y"> & { pieza: Pick<Pieza, "ancho" | "alto"> }, abajo: number, arriba: number): boolean {
   const radio = Math.hypot(cuerpo.pieza.ancho, cuerpo.pieza.alto) / 2 + Math.abs(SOMBRA_Y);
   return cuerpo.y + radio >= abajo && cuerpo.y - radio <= arriba;
+}
+
+/**
+ * Fila en píxeles reales de una altura en metros, con la cara de la plataforma
+ * en la fila `sueloY` y `k` píxeles por metro. La usa la línea de récord (C2).
+ */
+export function alturaEnPantalla(metros: number, sueloY: number, k: number): number {
+  return sueloY - metros * k;
 }
 
 export function ratioPixeles(dispositivo: number): number {
@@ -123,6 +134,9 @@ type ImagenPieza = { escala: number; tema: Tema; color: HTMLCanvasElement; sombr
 
 /** Decorado que aparece al subir (Anexo 1, 1.4). */
 type Adorno = { tipo: "gaviota" | "globo" | "avion"; x: number; y: number; fase: number; color: string; velocidad: number };
+
+/** Metros de mundo que caben en la columna; las muestras de la colección (C3) usan una vista más cerca. */
+export type OpcionesLienzo = { anchoVista?: number; altoVista?: number };
 
 /** Lo que pinta `efectos` en cada fotograma, con el mundo ya colocado (A3). */
 export type CapaEfectos = {
@@ -170,15 +184,22 @@ export class Lienzo {
   private inclinacion = 0;
   private efectos: CapaEfectos | null = null;
   private ajustado = false;
+  /** Altura récord de la partida libre, o `null` si no se dibuja la línea (C2). */
+  private alturaRecord: number | null = null;
+  private readonly anchoVista: number;
+  private readonly altoVista: number;
 
   /** `grano`: elemento sobre el lienzo que lleva la textura de papel como fondo CSS. */
   constructor(
     private readonly canvas: HTMLCanvasElement,
     private readonly grano: HTMLElement | null = null,
+    { anchoVista = ANCHO_VISTA, altoVista = ALTO_VISTA }: OpcionesLienzo = {},
   ) {
     const ctx = canvas.getContext("2d");
     if (!ctx) throw new Error("El navegador no permite dibujar en <canvas>");
     this.ctx = ctx;
+    this.anchoVista = anchoVista;
+    this.altoVista = altoVista;
     this.cambiarTema(TEMA_RISO, ESCENARIO_PUERTO);
     this.crearAdornos();
     document.fonts
@@ -213,13 +234,20 @@ export class Lienzo {
     return vista;
   }
 
-  /** Cambia tema y escenario y rehace lo precalculado (el bloque C equipa otros). */
+  /** Cambia tema y escenario (los equipados en la colección, C3) y rehace lo precalculado. */
   cambiarTema(tema: Tema, escenario: Escenario): void {
+    if (tema === this.tema && escenario === this.escenario && this.ajustado) return;
     this.tema = tema;
     this.escenario = escenario;
     this.sombras = tema.piezas.map((color) => oscurecer(color, 0.35));
     this.canvas.dataset.tema = tema.id;
+    this.canvas.dataset.escenario = escenario.id;
     if (this.ajustado) this.precalcular();
+  }
+
+  /** Línea de récord a `metros` de altura (partida libre), o ninguna con `null` (C2). */
+  ponerRecord(metros: number | null): void {
+    this.alturaRecord = metros !== null && metros > 0 ? metros : null;
   }
 
   /**
@@ -234,7 +262,7 @@ export class Lienzo {
     this.canvas.height = Math.max(1, Math.round(height * ratio));
     this.columna = Math.max(1, Math.min(this.canvas.width, (columna ?? width) * ratio));
     this.arriba = Math.max(0, arriba * ratio);
-    this.escala = Math.min(this.columna / ANCHO_VISTA, (this.canvas.height - this.arriba) / ALTO_VISTA);
+    this.escala = Math.min(this.columna / this.anchoVista, (this.canvas.height - this.arriba) / this.altoVista);
     this.ajustado = true;
     this.precalcular();
     if (this.grano) {
@@ -292,6 +320,11 @@ export class Lienzo {
     const sueloY = canvas.height - (MARGEN_SUELO - this.camaraY) * k + sacudida.y;
     ctx.setTransform(k, 0, 0, -k, cx, sueloY);
     this.dibujarAdornos(ctx, ahora, abajo, arribaVista, izquierda, anchoVista);
+    if (this.alturaRecord !== null && this.alturaRecord > abajo && this.alturaRecord < arribaVista) {
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      this.dibujarRecord(ctx, alturaEnPantalla(this.alturaRecord, sueloY, k), k);
+      ctx.setTransform(k, 0, 0, -k, cx, sueloY);
+    }
     const cuerpos = (estado ? estado.cuerpos.concat(sueltas) : sueltas.slice()).filter((c) => enVista(c, abajo, arribaVista));
     for (const cuerpo of cuerpos) this.dibujarPieza(cuerpo, ahora, true);
     for (const cuerpo of cuerpos) this.dibujarPieza(cuerpo, ahora, false);
@@ -315,7 +348,7 @@ export class Lienzo {
     c.setTransform(1, 0, 0, 1, 0, 0);
     this.dibujarCapas(c, k, sueloY, (abajo + arriba) / 2);
     mundo();
-    this.dibujarMuelle(c, abajo);
+    this.dibujarSuelo(c, abajo);
     c.setTransform(1, 0, 0, 1, 0, 0);
     this.dibujarMarcas(c, k, sueloY, abajo, arriba);
   }
@@ -378,21 +411,25 @@ export class Lienzo {
     return aparte;
   }
 
-  /** Capa lejana (paralaje 0,3): grúas, contenedores, un faro y barcos en silueta. */
+  /**
+   * Capa lejana (paralaje 0,3), en silueta: el sol de dos tintas y, según el
+   * escenario, el puerto, la ciudad o las islas flotantes.
+   */
   private crearLejos(escala: number): HTMLCanvasElement {
     const alto = 3.6 * escala;
     const [aparte, c] = this.lienzoAparte(this.canvas.width, alto);
     const azar = crearAzarVisual(0x1e705);
     c.setTransform(escala, 0, 0, -escala, aparte.width / 2, aparte.height);
     const medio = aparte.width / 2 / escala;
-    // Sol de dos tintas, amarillo y rosa algo desplazado, con franjas de papel abajo.
+    const [solA, solB] = this.escenario.sol;
+    // Sol de dos tintas, la segunda algo desplazada, con franjas de papel abajo.
     c.globalAlpha = 0.9;
-    c.fillStyle = COLORES.amarillo;
+    c.fillStyle = solA;
     c.beginPath();
     c.arc(-2.1, 1.25, 1.35, 0, Math.PI * 2);
     c.fill();
     c.globalAlpha = 0.5;
-    c.fillStyle = COLORES.rosa;
+    c.fillStyle = solB;
     c.beginPath();
     c.arc(-2.1 + 0.16, 1.25 - 0.12, 1.35, 0, Math.PI * 2);
     c.fill();
@@ -405,6 +442,14 @@ export class Lienzo {
     ] as const) {
       c.fillRect(-3.6, y, 3.2, alto);
     }
+    if (this.escenario.lejos === "ciudad") this.pintarCiudad(c, medio, azar);
+    else if (this.escenario.lejos === "nubes") this.pintarIslas(c, medio, azar);
+    else this.pintarPuerto(c, medio, azar);
+    return aparte;
+  }
+
+  /** Grúas, contenedores, un faro y barcos en silueta. */
+  private pintarPuerto(c: CanvasRenderingContext2D, medio: number, azar: () => number): void {
     c.fillStyle = this.escenario.siluetas;
     // Costa baja a lo largo de todo el ancho.
     c.fillRect(-medio, 0, medio * 2, 0.35);
@@ -471,7 +516,157 @@ export class Lienzo {
         else barco(x);
       }
     }
-    return aparte;
+  }
+
+  /**
+   * Ciudad junto a un canal: una fila de edificios lejanos más clara y otra
+   * delante con ventanas, depósitos de agua en las azoteas y antenas.
+   */
+  private pintarCiudad(c: CanvasRenderingContext2D, medio: number, azar: () => number): void {
+    const { siluetas, cielo } = this.escenario;
+    const atras = mezclar(cielo[0]!.color, siluetas, 0.55);
+    const ventana = cielo[0]!.color;
+    const deposito = (x: number, y: number) => {
+      c.fillRect(x - 0.17, y, 0.04, 0.32);
+      c.fillRect(x + 0.13, y, 0.04, 0.32);
+      c.fillRect(x - 0.22, y + 0.3, 0.44, 0.48);
+      c.beginPath();
+      c.moveTo(x - 0.27, y + 0.78);
+      c.lineTo(x, y + 1.02);
+      c.lineTo(x + 0.27, y + 0.78);
+      c.closePath();
+      c.fill();
+    };
+    type Remate = "deposito" | "antena" | "torre" | null;
+    const edificio = (x: number, ancho: number, alto: number, color: string, remate: Remate, conVentanas: boolean) => {
+      c.fillStyle = color;
+      c.fillRect(x, 0, ancho, alto);
+      // Pretil de la azotea, algo más ancho.
+      c.fillRect(x - 0.05, alto - 0.08, ancho + 0.1, 0.1);
+      if (remate === "deposito") deposito(x + ancho * 0.68, alto);
+      else if (remate === "antena") {
+        c.fillRect(x + ancho * 0.3 - 0.02, alto, 0.04, 0.9);
+        c.fillRect(x + ancho * 0.3 - 0.14, alto + 0.55, 0.28, 0.04);
+      } else if (remate === "torre") {
+        c.beginPath();
+        c.moveTo(x + 0.1, alto);
+        c.lineTo(x + ancho / 2, alto + 1.1);
+        c.lineTo(x + ancho - 0.1, alto);
+        c.closePath();
+        c.fill();
+      }
+      if (!conVentanas) return;
+      c.fillStyle = ventana;
+      for (let y = 0.45; y < alto - 0.35; y += 0.42) {
+        for (let vx = x + 0.16; vx < x + ancho - 0.24; vx += 0.3) {
+          c.globalAlpha = azar() < 0.22 ? 0.95 : 0.55;
+          c.fillRect(vx, y, 0.13, 0.19);
+        }
+      }
+      c.globalAlpha = 1;
+    };
+    const atrasMano: ReadonlyArray<[number, number, number, Remate]> = [
+      [-3.9, 1.1, 3.2, "antena"],
+      [-0.6, 1.2, 2.9, null],
+      [0.9, 0.9, 3.35, "torre"],
+      [3.4, 1.2, 2.6, "deposito"],
+    ];
+    // Fila de atrás, más clara y alta.
+    for (const [x, ancho, alto, remate] of atrasMano) edificio(x, ancho, alto, atras, remate, false);
+    for (const lado of [-1, 1]) {
+      for (let d = 5.6 + entreVisual(azar, 0, 0.8); d < medio + 2; d += entreVisual(azar, 1.3, 2.2)) {
+        const tipo = azar();
+        edificio(lado * d - 0.6, entreVisual(azar, 0.9, 1.4), entreVisual(azar, 2.3, 3.3), atras, tipo < 0.3 ? "antena" : tipo < 0.45 ? "torre" : null, false);
+      }
+    }
+    // Fila de delante, con ventanas y depósitos de agua.
+    c.fillStyle = siluetas;
+    c.fillRect(-medio, 0, medio * 2, 0.3);
+    const delanteMano: ReadonlyArray<[number, number, number, Remate]> = [
+      [-4.5, 1.3, 2.2, "deposito"],
+      [-3.05, 1.0, 1.55, null],
+      [-1.85, 1.45, 2.45, "antena"],
+      [1.5, 1.15, 1.75, "deposito"],
+      [2.85, 1.5, 2.25, null],
+      [4.5, 1.0, 1.4, "deposito"],
+    ];
+    for (const [x, ancho, alto, remate] of delanteMano) edificio(x, ancho, alto, siluetas, remate, true);
+    for (const lado of [-1, 1]) {
+      for (let d = 6 + entreVisual(azar, 0, 1); d < medio + 2; d += entreVisual(azar, 1.5, 2.4)) {
+        const tipo = azar();
+        edificio(lado * d - 0.6, entreVisual(azar, 1, 1.6), entreVisual(azar, 1.3, 2.5), siluetas, tipo < 0.45 ? "deposito" : tipo < 0.65 ? "antena" : null, true);
+      }
+    }
+  }
+
+  /**
+   * Islas flotantes lejanas con árboles y cascadas, un arcoíris de tres tintas
+   * y un banco de nubes abajo.
+   */
+  private pintarIslas(c: CanvasRenderingContext2D, medio: number, azar: () => number): void {
+    const { siluetas, nubes, cielo } = this.escenario;
+    // Arcoíris de tres tintas, suave.
+    c.lineWidth = 0.22;
+    for (const [i, color] of [COLORES.rosa, COLORES.amarillo, COLORES.turquesa].entries()) {
+      c.globalAlpha = 0.45;
+      c.strokeStyle = color;
+      c.beginPath();
+      c.arc(1.2 + i * 0.03, 0, 3.0 - i * 0.22, 0, Math.PI);
+      c.stroke();
+    }
+    c.globalAlpha = 1;
+    const isla = (x: number, y: number, ancho: number) => {
+      c.fillStyle = siluetas;
+      c.beginPath();
+      c.moveTo(x - ancho / 2, y);
+      c.lineTo(x + ancho / 2, y);
+      c.lineTo(x + ancho * 0.28, y - ancho * 0.32);
+      c.lineTo(x + ancho * 0.06, y - ancho * 0.62);
+      c.lineTo(x - ancho * 0.18, y - ancho * 0.38);
+      c.closePath();
+      c.fill();
+      // Hierba en lomas y dos árboles redondos.
+      for (let i = 0; i < 3; i++) {
+        c.beginPath();
+        c.arc(x - ancho * 0.32 + i * ancho * 0.32, y, ancho * 0.16, 0, Math.PI * 2);
+        c.fill();
+      }
+      for (const dx of [-0.25, 0.18]) {
+        c.fillRect(x + dx * ancho - 0.025, y, 0.05, 0.28);
+        c.beginPath();
+        c.arc(x + dx * ancho, y + 0.36, 0.17, 0, Math.PI * 2);
+        c.fill();
+      }
+      // Cascada de papel que cae de la isla.
+      c.fillStyle = cielo[0]!.color;
+      c.globalAlpha = 0.8;
+      c.fillRect(x + ancho * 0.12, 0.3, 0.07, y - ancho * 0.3 - 0.3);
+      c.globalAlpha = 1;
+    };
+    isla(-3.2, 2.35, 1.7);
+    isla(2.7, 1.55, 1.25);
+    isla(4.4, 2.85, 0.8);
+    isla(-0.2, 3.0, 0.6);
+    for (const lado of [-1, 1]) {
+      for (let d = 6 + entreVisual(azar, 0, 1.2); d < medio + 2; d += entreVisual(azar, 2.4, 3.6)) {
+        isla(lado * d, entreVisual(azar, 1.4, 3), entreVisual(azar, 0.7, 1.6));
+      }
+    }
+    // Banco de nubes a lo largo de todo el ancho, con sombra fuera de registro.
+    const banco = (dx: number, dy: number) => {
+      c.beginPath();
+      c.rect(-medio, dy, medio * 2, 0.32);
+      for (let x = -medio; x < medio + 1; x += 0.75) {
+        const r = 0.32 + (Math.abs(Math.sin(x * 13.7)) * 0.28);
+        c.moveTo(x + dx + r, 0.32 + dy);
+        c.arc(x + dx, 0.32 + dy, r, 0, Math.PI * 2);
+      }
+      c.fill();
+    };
+    c.fillStyle = COLORES.papelOscuro;
+    banco(0.09, -0.07);
+    c.fillStyle = nubes;
+    banco(0, 0);
   }
 
   /** Nubes de papel (paralaje 0,6) en un lienzo que se repite hacia arriba; sombra fuera de registro. */
@@ -640,20 +835,27 @@ export class Lienzo {
     }
   }
 
+  /** Lo que sostiene la torre según el escenario: muelle, azotea o isla flotante. */
+  private dibujarSuelo(ctx: CanvasRenderingContext2D, abajo: number): void {
+    if (this.escenario.suelo === "azotea") this.dibujarAzotea(ctx, abajo);
+    else if (this.escenario.suelo === "isla") this.dibujarIsla(ctx);
+    else this.dibujarMuelle(ctx, abajo);
+  }
+
   /** Muelle de madera: tablas, cara frontal con salvavidas y pilotes que bajan al agua. */
   private dibujarMuelle(ctx: CanvasRenderingContext2D, abajo: number): void {
     const { escenario } = this;
     const medio = PLATAFORMA_MEDIO_ANCHO;
     ctx.lineWidth = CONTORNO;
     ctx.strokeStyle = COLORES.tinta;
-    ctx.fillStyle = escenario.pilotes;
+    ctx.fillStyle = escenario.soportes;
     for (const x of [-medio + 0.11, -0.7, 0.7, medio - 0.11]) ctx.fillRect(x - 0.11, abajo, 0.22, -0.4 - abajo);
     // Sombra de impresión del muelle.
     ctx.fillStyle = COLORES.tinta;
     ctx.fillRect(-medio + SOMBRA_X, -0.44 + SOMBRA_Y, medio * 2, 0.44);
-    ctx.fillStyle = escenario.maderaFrente;
+    ctx.fillStyle = escenario.frente;
     ctx.fillRect(-medio + REGISTRO_X, -0.44 + REGISTRO_Y, medio * 2, 0.32);
-    ctx.fillStyle = escenario.madera;
+    ctx.fillStyle = escenario.superficie;
     ctx.fillRect(-medio + REGISTRO_X, -0.12 + REGISTRO_Y, medio * 2, 0.12);
     ctx.strokeRect(-medio, -0.44, medio * 2, 0.44);
     ctx.beginPath();
@@ -685,6 +887,153 @@ export class Lienzo {
     ctx.moveTo(-1.2 + 0.06, -0.28);
     ctx.arc(-1.2, -0.28, 0.06, 0, Math.PI * 2);
     ctx.stroke();
+  }
+
+  /** Azotea: cornisa de piedra y fachada de ladrillo con ventanas que baja hasta el canal. */
+  private dibujarAzotea(ctx: CanvasRenderingContext2D, abajo: number): void {
+    const { escenario } = this;
+    const medio = PLATAFORMA_MEDIO_ANCHO;
+    const fachada = medio - 0.12;
+    ctx.lineWidth = CONTORNO;
+    ctx.strokeStyle = COLORES.tinta;
+    // Fachada: sombra de impresión, ladrillo y ventanas por filas.
+    ctx.fillStyle = COLORES.tinta;
+    ctx.fillRect(-fachada + SOMBRA_X, abajo, fachada * 2, -0.3 - abajo);
+    ctx.fillStyle = escenario.frente;
+    ctx.fillRect(-fachada + REGISTRO_X, abajo, fachada * 2, -0.3 - abajo + REGISTRO_Y);
+    ctx.strokeRect(-fachada, abajo, fachada * 2, -0.3 - abajo);
+    ctx.lineWidth = 0.025;
+    for (let fila = 0, y = -0.5; y - 0.42 > abajo && fila < 6; fila++, y -= 0.75) {
+      for (let i = 0, x = -fachada + 0.3; x + 0.4 < fachada; i++, x += 0.72) {
+        // Siempre las mismas ventanas encendidas.
+        ctx.fillStyle = (fila * 3 + i * 5) % 7 === 1 ? COLORES.amarillo : escenario.soportes;
+        ctx.fillRect(x, y - 0.42, 0.4, 0.42);
+        ctx.strokeRect(x, y - 0.42, 0.4, 0.42);
+        ctx.beginPath();
+        ctx.moveTo(x + 0.2, y - 0.42);
+        ctx.lineTo(x + 0.2, y);
+        ctx.stroke();
+      }
+    }
+    // Cornisa de piedra, algo más ancha que la fachada.
+    ctx.lineWidth = CONTORNO;
+    ctx.fillStyle = COLORES.tinta;
+    ctx.fillRect(-medio + SOMBRA_X, -0.3 + SOMBRA_Y, medio * 2, 0.3);
+    ctx.fillStyle = escenario.superficie;
+    ctx.fillRect(-medio + REGISTRO_X, -0.3 + REGISTRO_Y, medio * 2, 0.3);
+    ctx.fillStyle = oscurecer(escenario.superficie, 0.18);
+    ctx.fillRect(-medio + REGISTRO_X, -0.3 + REGISTRO_Y, medio * 2, 0.09);
+    ctx.strokeRect(-medio, -0.3, medio * 2, 0.3);
+    ctx.beginPath();
+    ctx.moveTo(-medio, -0.21);
+    ctx.lineTo(medio, -0.21);
+    ctx.stroke();
+  }
+
+  /** Isla flotante: hierba, franja de tierra y roca colgante con vetas, raíces y una cascada. */
+  private dibujarIsla(ctx: CanvasRenderingContext2D): void {
+    const { escenario } = this;
+    const medio = PLATAFORMA_MEDIO_ANCHO;
+    const roca = new Path2D();
+    roca.moveTo(-medio, -0.42);
+    roca.lineTo(-medio + 0.35, -1.05);
+    roca.lineTo(-1.0, -1.25);
+    roca.lineTo(-0.55, -1.95);
+    roca.lineTo(0.05, -2.45);
+    roca.lineTo(0.5, -1.8);
+    roca.lineTo(1.15, -1.45);
+    roca.lineTo(medio - 0.25, -0.95);
+    roca.lineTo(medio, -0.42);
+    roca.closePath();
+    ctx.lineWidth = CONTORNO;
+    ctx.lineJoin = "round";
+    // Sombra de impresión de toda la isla.
+    ctx.save();
+    ctx.translate(SOMBRA_X, SOMBRA_Y);
+    ctx.fillStyle = COLORES.tinta;
+    ctx.fill(roca);
+    ctx.fillRect(-medio, -0.42, medio * 2, 0.42);
+    ctx.restore();
+    ctx.save();
+    ctx.translate(REGISTRO_X, REGISTRO_Y);
+    ctx.fillStyle = escenario.soportes;
+    ctx.fill(roca);
+    ctx.restore();
+    // Vetas de la roca y raíces que cuelgan.
+    ctx.strokeStyle = oscurecer(escenario.soportes, 0.3);
+    ctx.lineWidth = 0.03;
+    ctx.beginPath();
+    for (const [x1, y1, x2, y2] of [
+      [-1.5, -0.8, -0.6, -0.95],
+      [-0.7, -1.4, 0.2, -1.55],
+      [0.4, -1.0, 1.4, -0.9],
+      [-0.2, -2.0, 0.3, -2.05],
+    ] as const) {
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+    }
+    ctx.stroke();
+    ctx.strokeStyle = COLORES.tinta;
+    ctx.lineWidth = CONTORNO;
+    ctx.stroke(roca);
+    ctx.lineWidth = 0.025;
+    ctx.beginPath();
+    for (const [x, largo] of [
+      [-1.35, 0.5],
+      [0.85, 0.65],
+      [1.3, 0.35],
+    ] as const) {
+      ctx.moveTo(x, -1.0);
+      ctx.quadraticCurveTo(x + 0.12, -1.0 - largo / 2, x - 0.04, -1.0 - largo);
+    }
+    ctx.stroke();
+    // Cascada de papel desde el borde hasta el mar de nubes.
+    ctx.fillStyle = COLORES.papel;
+    ctx.globalAlpha = 0.85;
+    ctx.fillRect(-1.75, NIVEL_AGUA - 0.2, 0.16, -0.5 - NIVEL_AGUA + 0.2);
+    ctx.globalAlpha = 1;
+    // Tierra y hierba con gotas colgando.
+    ctx.fillStyle = escenario.frente;
+    ctx.fillRect(-medio + REGISTRO_X, -0.42 + REGISTRO_Y, medio * 2, 0.3);
+    ctx.fillStyle = escenario.superficie;
+    ctx.beginPath();
+    ctx.rect(-medio + REGISTRO_X, -0.14 + REGISTRO_Y, medio * 2, 0.14);
+    for (let x = -medio + 0.2; x < medio; x += 0.4) {
+      ctx.moveTo(x + 0.1 + REGISTRO_X, -0.14 + REGISTRO_Y);
+      ctx.arc(x + REGISTRO_X, -0.14 + REGISTRO_Y, 0.1, 0, Math.PI * 2);
+    }
+    ctx.fill();
+    ctx.strokeRect(-medio, -0.42, medio * 2, 0.42);
+    ctx.beginPath();
+    ctx.moveTo(-medio, -0.14);
+    ctx.lineTo(medio, -0.14);
+    ctx.stroke();
+  }
+
+  /** Línea discontinua de récord a la fila `y` (píxeles reales) con su etiqueta, en la columna (C2). */
+  private dibujarRecord(ctx: CanvasRenderingContext2D, y: number, k: number): void {
+    const ancho = this.columna * this.zoom;
+    const izquierda = (this.canvas.width - ancho) / 2;
+    ctx.save();
+    ctx.strokeStyle = COLORES.rosa;
+    ctx.lineWidth = Math.max(2, k * 0.04);
+    ctx.setLineDash([RAYA_RECORD * k, RAYA_RECORD * k * 0.7]);
+    ctx.beginPath();
+    ctx.moveTo(izquierda, y);
+    ctx.lineTo(izquierda + ancho, y);
+    ctx.stroke();
+    ctx.restore();
+    if (!this.fuenteLista) return;
+    const px = Math.round(Math.max(11, 0.3 * k));
+    ctx.font = `800 ${px}px ${FAMILIA}`;
+    ctx.textAlign = "right";
+    ctx.textBaseline = "bottom";
+    const x = izquierda + ancho - Math.max(6, 0.15 * k);
+    const caja = ctx.measureText("Récord").width;
+    ctx.fillStyle = COLORES.rosa;
+    ctx.fillRect(x - caja - px * 0.4, y - px * 1.35, caja + px * 0.8, px * 1.35);
+    ctx.fillStyle = COLORES.tinta;
+    ctx.fillText("Récord", x, y - px * 0.18);
   }
 
   /** Marcas de altura cada 5 m en el borde izquierdo de la columna (Anexo 1, 1.4). */
@@ -741,6 +1090,12 @@ export class Lienzo {
       c.fillRect(-pieza.ancho / 2, 0, pieza.ancho, pieza.alto / 2);
       c.restore();
     }
+    if (tema.textura && !piedra) {
+      c.save();
+      c.clip(ruta);
+      this.pintarTextura(c, pieza, tema.textura);
+      c.restore();
+    }
     centro();
     if (piedra) {
       // Vetas de piedra en la base cementada, siempre las mismas para cada pieza.
@@ -752,6 +1107,16 @@ export class Lienzo {
         c.fill();
       }
     }
+    if (tema.filo && !piedra) {
+      // Filo de luz por dentro del contorno: se pinta ancho, recortado a la pieza.
+      c.save();
+      c.clip(ruta);
+      c.globalAlpha = 0.75;
+      c.strokeStyle = tema.filo;
+      c.lineWidth = CONTORNO * 3.2;
+      c.stroke(ruta);
+      c.restore();
+    }
     c.strokeStyle = tema.contorno;
     c.lineWidth = CONTORNO;
     c.lineJoin = "round";
@@ -761,6 +1126,62 @@ export class Lienzo {
     s.fillStyle = piedra ? oscurecer(tema.piedra, 0.35) : (this.sombras[pieza.color] ?? COLORES.tinta);
     s.fill(ruta);
     return { escala, tema, color, sombra, ancho, alto };
+  }
+
+  /**
+   * Textura del tema sobre el color (C3), en metros con el centro de la pieza
+   * en el origen: vetas de madera, vetas de mármol o rayas de caramelo. Siempre
+   * la misma para cada pieza (azar visual con sus medidas).
+   */
+  private pintarTextura(c: CanvasRenderingContext2D, pieza: Pieza, textura: NonNullable<Tema["textura"]>): void {
+    const azar = crearAzarVisual(Math.round(pieza.ancho * 997 + pieza.alto * 31 + pieza.color));
+    const medioAncho = pieza.ancho / 2 + 0.1;
+    const medioAlto = pieza.alto / 2 + 0.1;
+    c.strokeStyle = textura.color;
+    c.fillStyle = textura.color;
+    c.lineCap = "round";
+    if (textura.tipo === "rayas") {
+      c.globalAlpha = 0.5;
+      c.lineWidth = 0.11;
+      c.beginPath();
+      for (let x = -medioAncho - medioAlto; x < medioAncho + medioAlto; x += 0.32) {
+        c.moveTo(x, -medioAlto);
+        c.lineTo(x + medioAlto * 2, medioAlto);
+      }
+      c.stroke();
+    } else if (textura.tipo === "madera") {
+      c.globalAlpha = 0.4;
+      c.lineWidth = 0.022;
+      c.beginPath();
+      for (let y = -medioAlto + entreVisual(azar, 0.06, 0.14); y < medioAlto; y += entreVisual(azar, 0.12, 0.2)) {
+        c.moveTo(-medioAncho, y);
+        const onda = entreVisual(azar, -0.05, 0.05);
+        c.bezierCurveTo(-medioAncho / 3, y + onda, medioAncho / 3, y - onda, medioAncho, y + onda / 2);
+      }
+      c.stroke();
+      if (pieza.ancho > 0.7 && azar() < 0.7) {
+        c.lineWidth = 0.02;
+        c.beginPath();
+        c.ellipse(entreVisual(azar, -0.25, 0.25) * pieza.ancho, entreVisual(azar, -0.2, 0.2) * pieza.alto, 0.09, 0.045, 0, 0, Math.PI * 2);
+        c.stroke();
+      }
+    } else {
+      c.globalAlpha = 0.55;
+      for (let i = 0; i < 2; i++) {
+        c.lineWidth = i === 0 ? 0.025 : 0.014;
+        c.beginPath();
+        let x = entreVisual(azar, -medioAncho, 0);
+        let y = -medioAlto;
+        c.moveTo(x, y);
+        while (y < medioAlto) {
+          x += entreVisual(azar, -0.05, 0.16);
+          y += entreVisual(azar, 0.08, 0.16);
+          c.lineTo(x, y);
+        }
+        c.stroke();
+      }
+    }
+    c.globalAlpha = 1;
   }
 
   private imagenPieza(pieza: Pieza, piedra: boolean): ImagenPieza {
@@ -904,6 +1325,10 @@ export class Lienzo {
   /** Mar delante de todo: lo que cae se hunde. Ondas de espuma que se mueven despacio. */
   private dibujarAgua(ctx: CanvasRenderingContext2D, ahora: number, abajo: number, izquierda: number, ancho: number): void {
     if (abajo > NIVEL_AGUA) return;
+    if (this.escenario.mar === "nubes") {
+      this.dibujarMarDeNubes(ctx, ahora, abajo, izquierda, ancho);
+      return;
+    }
     const t = ahora / 1000;
     ctx.fillStyle = this.escenario.agua;
     ctx.fillRect(izquierda, abajo, ancho, NIVEL_AGUA - abajo);
@@ -936,5 +1361,30 @@ export class Lienzo {
     ctx.moveTo(izquierda, NIVEL_AGUA);
     ctx.lineTo(izquierda + ancho, NIVEL_AGUA);
     ctx.stroke();
+  }
+
+  /** Mar de nubes (escenario Nubes): lomas de papel que se mueven despacio, con sombra. */
+  private dibujarMarDeNubes(ctx: CanvasRenderingContext2D, ahora: number, abajo: number, izquierda: number, ancho: number): void {
+    const t = ahora / 1000;
+    const paso = 0.7;
+    const lomas = (desfase: number, y: number, radio: number) => {
+      ctx.beginPath();
+      ctx.rect(izquierda, abajo, ancho, y - abajo);
+      const deriva = (t * 0.12 + desfase) % paso;
+      for (let x = Math.floor(izquierda / paso) * paso - paso; x < izquierda + ancho + paso; x += paso) {
+        const r = radio * (0.8 + 0.2 * Math.sin(x * 1.7 + desfase * 5));
+        ctx.moveTo(x + deriva + r, y);
+        ctx.arc(x + deriva, y, r, 0, Math.PI * 2);
+      }
+      ctx.fill();
+    };
+    ctx.fillStyle = this.escenario.espuma;
+    lomas(0.35, NIVEL_AGUA + 0.02 - 0.08, 0.34);
+    ctx.fillStyle = this.escenario.agua;
+    lomas(0, NIVEL_AGUA - 0.08, 0.3);
+    ctx.globalAlpha = 0.45;
+    ctx.fillStyle = this.escenario.espuma;
+    lomas(0.2, NIVEL_AGUA - 0.6, 0.22);
+    ctx.globalAlpha = 1;
   }
 }

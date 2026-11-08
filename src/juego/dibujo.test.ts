@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
+  alturaEnPantalla,
   enVista,
   ESPACIO_SOBRE_CIMA,
   MARGEN_BAJO_TARJETA,
@@ -77,6 +78,15 @@ describe("enVista (recorte de piezas, impacto A2)", () => {
     expect(enVista({ pieza, y: -0.6 }, 0, 10)).toBe(true);
     expect(enVista({ pieza, y: 12 }, 0, 10)).toBe(false);
     expect(enVista({ pieza, y: -2 }, 0, 10)).toBe(false);
+  });
+});
+
+describe("línea de récord (C2)", () => {
+  it("queda a la altura guardada: k píxeles por metro sobre la fila de la plataforma", () => {
+    expect(alturaEnPantalla(0, 700, 40)).toBe(700);
+    expect(alturaEnPantalla(12.5, 700, 40)).toBe(200);
+    // Con la cámara subida, la fila de la plataforma baja y la línea con ella.
+    expect(alturaEnPantalla(12.5, 900, 40) - alturaEnPantalla(12.5, 700, 40)).toBe(200);
   });
 });
 
