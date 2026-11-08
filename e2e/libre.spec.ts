@@ -59,6 +59,8 @@ test("tras el fin, un toque a los 300 ms no reinicia; a los 800 ms, «Otra vez»
   expect(temprano.estado).toBe("fin");
   await page.waitForTimeout(200);
   await expect(juego(page)).toHaveAttribute("data-estado", "fin");
+  // 300 + 200 ms no bastan: se espera a pasar de los 700 ms antes del toque (antes dependía de lo que tardase el clic).
+  await page.waitForTimeout(300);
 
   // Ya pasados 700 ms desde el fin: un solo toque basta.
   await page.getByRole("button", { name: "Otra vez" }).click();
