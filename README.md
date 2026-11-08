@@ -86,6 +86,14 @@ Node 24.18.0 en este equipo Windows. Las cifras caducan: repítelas tras cambiar
 - **Coste por paso con el cementado (B3, `npm run medir`):** con un jugador que suelta siempre sobre el objetivo (semilla `2026-11-09`), 0,068 ms por paso tras la pieza 10 y 0,069 ms tras la 150: cociente **1,01** (límite: 2). Partida de 40 piezas (semilla `2026-11-06`, 8.117 pasos): mediana de 640 ms.
 - **Tamaño (`npm run build`):** el JavaScript de `dist/` ocupa 227.991 bytes y **52.612 bytes con `gzip -9`** (presupuesto: 150 KB); el CSS, 2.662 bytes (1.170 con gzip). Sin fuentes, imágenes ni audio.
 
+## Mediciones de la segunda versión (2026-11-08, bloque A)
+
+Chromium de Playwright sin GPU en este equipo Windows. Las cifras caducan.
+
+- **Tamaño (`npm run build`):** el JavaScript de `dist/` ocupa 258.229 bytes y **63.029 bytes con `gzip -9`** (presupuesto: 150 KB); el CSS, 6.583 bytes (2.400 con gzip). **Fuentes: 60.012 bytes** en dos `.woff2` de Bricolage Grotesque (presupuesto: 80 KB); en español solo se descarga el latino, 41.344 bytes (límite: 45 KB). Licencia OFL en `dist/fuentes/OFL.txt`. Sin imágenes ni audio.
+- **Fotogramas (A2, `e2e/arte.spec.ts`, 20 s de partida jugando sola):** escritorio 1280×800, mediana 16 ms y p95 23 ms (límites 17,5 y 25); móvil (Pixel 7, ratio 2) con la CPU 4 veces más lenta, mediana 17 ms y p95 31 ms (objetivo 33 ms, así que `RATIO_MAXIMO` sigue en 2). Antes de pintar fondo, piezas y grano aparte, el móvil daba p95 131 ms, y el dibujo de la v1, 69 ms. **Sin medir en un móvil real.**
+- **Audio:** en este equipo, abrir el `AudioContext` tarda de 0,4 a 6 s. Por eso se crea justo después del primer gesto y no dentro de él, y las pruebas que no prueban el sonido usan un `AudioContext` mudo. En iPhone, el interruptor de silencio apaga WebAudio, y el sonido puede empezar en el segundo toque.
+
 ## Mediciones (2026-11-05)
 
 Son las de la v1 (`main`); las de duración y tiempo de `jugar` ya no valen para la segunda versión.
