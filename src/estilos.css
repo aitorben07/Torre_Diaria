@@ -33,6 +33,8 @@
   --violeta: #7A5CC7;
   --piedra: #B9AE98;
   --estrella: #FFF3C4;
+  --plata: #C3C7D4;
+  --bronce: #D99A5E;
   /* Columna de juego: todo el ancho en el móvil y 9:16 en escritorio (A5). */
   --columna: min(100vw, 56.25dvh);
   --borde: 3px;
@@ -499,5 +501,473 @@ button.icono[aria-pressed="false"] {
 
   button {
     transition: none;
+  }
+}
+
+/* Botones desactivados: sin sombra ni pulsado. */
+button:disabled {
+  opacity: 0.5;
+  box-shadow: none;
+  cursor: default;
+  transform: none;
+}
+
+/* Iconos dibujados en SVG (G11): moneda y llama de la racha. */
+svg.moneda,
+svg.llama {
+  flex: none;
+  width: 1.25em;
+  height: 1.25em;
+}
+
+svg.moneda circle {
+  fill: var(--amarillo);
+  stroke: var(--tinta);
+  stroke-width: 2;
+}
+
+svg.moneda .canto {
+  fill: none;
+  stroke-width: 1.5;
+}
+
+svg.llama path {
+  fill: var(--naranja);
+  stroke: var(--tinta);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+/* Barra de abajo (C2, D2): Retos con la racha y Colección con las monedas. */
+.modos {
+  display: flex;
+  gap: 0.5rem;
+}
+
+button.con-icono {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.45rem 0.7rem;
+}
+
+.insignia {
+  min-width: 1.6rem;
+  padding: 0 0.35rem;
+  border: 2px solid var(--tinta);
+  border-radius: 999px;
+  background: var(--rosa);
+  font-size: 0.85rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+/* Premios del fin (C2, D1). */
+.premios {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.9rem;
+}
+
+.premios:not(:has(> :not([hidden]))) {
+  display: none;
+}
+
+.premio {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 700;
+}
+
+#fin-monedas-numero {
+  font-size: 1.4rem;
+  font-weight: 800;
+}
+
+.sello {
+  display: inline-block;
+  padding: 0.15rem 0.6rem;
+  border: 3px solid var(--rosa);
+  border-radius: 8px;
+  background: var(--estrella);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  transform: rotate(-3deg);
+  animation: sella 380ms ease-out;
+}
+
+@keyframes sella {
+  0% {
+    transform: rotate(-3deg) scale(1.8);
+    opacity: 0;
+  }
+  60% {
+    transform: rotate(-3deg) scale(0.92);
+    opacity: 1;
+  }
+  100% {
+    transform: rotate(-3deg) scale(1);
+  }
+}
+
+/* Medalla dibujada con CSS: disco de metal con cinta; sin medalla, un punto de «jugado». */
+.medalla {
+  position: relative;
+  display: inline-block;
+  flex: none;
+  width: 1.15rem;
+  height: 1.15rem;
+  border: 2px solid var(--tinta);
+  border-radius: 50%;
+  background: var(--amarillo);
+  box-shadow: 1px 1px 0 var(--tinta);
+}
+
+.medalla::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -0.45rem;
+  width: 0.5rem;
+  height: 0.4rem;
+  border: 2px solid var(--tinta);
+  border-bottom: 0;
+  background: var(--rosa);
+  transform: translateX(-50%);
+}
+
+.medalla.plata {
+  background: var(--plata);
+}
+
+.medalla.bronce {
+  background: var(--bronce);
+}
+
+.medalla.ninguna {
+  width: 0.5rem;
+  height: 0.5rem;
+  background: var(--tinta);
+  box-shadow: none;
+}
+
+.medalla.ninguna::before {
+  display: none;
+}
+
+.desbloqueo {
+  display: grid;
+  grid-template-columns: 4.5rem 1fr auto;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.45rem;
+  border: 2px solid var(--tinta);
+  border-radius: 10px;
+  background: var(--estrella);
+  font-weight: 800;
+}
+
+.desbloqueo .muestra {
+  width: 4.5rem;
+  aspect-ratio: 4 / 3;
+}
+
+/* Siguiente objetivo: flecha dibujada con bordes (G11). */
+.siguiente {
+  font-weight: 700;
+}
+
+.siguiente::before {
+  content: "";
+  display: inline-block;
+  width: 0.45rem;
+  height: 0.45rem;
+  margin: 0 0.55rem 0.1rem 0.1rem;
+  border-top: 3px solid var(--rosa);
+  border-right: 3px solid var(--rosa);
+  transform: rotate(45deg);
+}
+
+/* Paneles de Retos y Colección: algo más anchos para que quepan las 7 columnas. */
+#retos,
+#coleccion {
+  margin: 0 0.5rem;
+  width: calc(var(--columna) - 1rem);
+  padding: 0.8rem 0.7rem 1rem;
+  gap: 0.55rem;
+}
+
+.cabecera {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.cabecera h2 {
+  flex: 1;
+}
+
+.saldo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+
+.panel h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.racha {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.racha svg.llama {
+  width: 2.4rem;
+  height: 2.4rem;
+}
+
+.racha p {
+  flex: 1;
+  line-height: 1.25;
+}
+
+.cifra {
+  font-size: 1.8rem;
+  font-weight: 800;
+}
+
+.suave {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.congeladores {
+  display: flex;
+  gap: 0.3rem;
+}
+
+/* Congelador de racha: cubito de hielo dibujado con CSS; vacío, con borde de rayas. */
+.congelador {
+  position: relative;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 2px dashed var(--tinta);
+  border-radius: 6px;
+  background: var(--papel-oscuro);
+}
+
+.congelador.lleno {
+  border-style: solid;
+  background: var(--turquesa);
+  box-shadow: 2px 2px 0 var(--tinta);
+}
+
+.congelador.lleno::after {
+  content: "";
+  position: absolute;
+  left: 0.2rem;
+  top: 0.2rem;
+  width: 0.35rem;
+  height: 0.55rem;
+  border-radius: 2px;
+  background: var(--papel);
+}
+
+.racha-pie {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.9rem;
+}
+
+#comprar-congelador {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+}
+
+.mes {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.mes h3::first-letter {
+  text-transform: uppercase;
+}
+
+.semana,
+.calendario {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+  text-align: center;
+}
+
+.semana {
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.hueco {
+  display: grid;
+  place-items: center;
+  min-height: 44px;
+  opacity: 0.35;
+  font-weight: 600;
+}
+
+button.dia {
+  position: relative;
+  min-width: 0;
+  width: 100%;
+  min-height: 46px;
+  padding: 0 0 0.6rem;
+  display: grid;
+  place-items: center;
+  border-width: 2px;
+  border-radius: 8px;
+  box-shadow: 0 3px 0 var(--tinta);
+  font-weight: 700;
+}
+
+button.dia .medalla {
+  position: absolute;
+  left: 50%;
+  bottom: 0.25rem;
+  width: 0.8rem;
+  height: 0.8rem;
+  border-width: 1.5px;
+  transform: translateX(-50%);
+}
+
+button.dia .medalla::before {
+  display: none;
+}
+
+button.dia .medalla.ninguna {
+  width: 0.4rem;
+  height: 0.4rem;
+}
+
+button.dia.atrasado {
+  border-style: dashed;
+}
+
+button.dia.hoy {
+  border-width: 3px;
+  border-color: var(--rosa);
+}
+
+button.dia.elegido {
+  background: var(--amarillo);
+}
+
+button.dia.futuro {
+  opacity: 0.35;
+}
+
+.ficha {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.7rem;
+  border: 2px solid var(--tinta);
+  border-radius: 10px;
+  background: var(--papel-oscuro);
+}
+
+#ficha-mensaje:empty,
+#coleccion-mensaje:empty {
+  display: none;
+}
+
+/* Colección (C3): pestañas y tarjetas con muestra. */
+.pestanas {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.pestanas button {
+  flex: 1;
+}
+
+.pestanas button[aria-selected="true"] {
+  background: var(--turquesa);
+}
+
+.articulos {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.articulo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.45rem;
+  border: 2px solid var(--tinta);
+  border-radius: 10px;
+  background: var(--papel);
+  box-shadow: 3px 3px 0 var(--tinta);
+}
+
+.articulo.equipado {
+  background: var(--estrella);
+}
+
+/* Lo bloqueado se ve apagado: se sabe qué es, pero aún no es tuyo. */
+.articulo.bloqueado .muestra {
+  opacity: 0.55;
+}
+
+.muestra {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border: 2px solid var(--tinta);
+  border-radius: 6px;
+}
+
+.articulo .nombre {
+  font-weight: 800;
+}
+
+.articulo .estado {
+  min-height: 1.2em;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.articulo button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  padding: 0.45rem 0.5rem;
+}
+
+.articulo button.principal {
+  font-size: 1rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sello {
+    animation: none;
   }
 }

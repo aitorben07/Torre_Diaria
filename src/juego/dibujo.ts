@@ -615,33 +615,37 @@ export class Lienzo {
       c.stroke();
     }
     c.globalAlpha = 1;
+    const hierba = mezclar(siluetas, COLORES.verde, 0.45);
     const isla = (x: number, y: number, ancho: number) => {
+      // Cascada de papel que cae del borde, detrás de la roca.
+      c.fillStyle = cielo[0]!.color;
+      c.globalAlpha = 0.85;
+      c.fillRect(x + ancho * 0.3, 0.3, 0.07, y - 0.3);
+      c.globalAlpha = 1;
+      // Roca colgante, en punta hacia abajo.
       c.fillStyle = siluetas;
       c.beginPath();
       c.moveTo(x - ancho / 2, y);
       c.lineTo(x + ancho / 2, y);
-      c.lineTo(x + ancho * 0.28, y - ancho * 0.32);
-      c.lineTo(x + ancho * 0.06, y - ancho * 0.62);
-      c.lineTo(x - ancho * 0.18, y - ancho * 0.38);
+      c.lineTo(x + ancho * 0.4, y - ancho * 0.2);
+      c.lineTo(x + ancho * 0.2, y - ancho * 0.42);
+      c.lineTo(x + ancho * 0.04, y - ancho * 0.78);
+      c.lineTo(x - ancho * 0.14, y - ancho * 0.48);
+      c.lineTo(x - ancho * 0.38, y - ancho * 0.24);
       c.closePath();
       c.fill();
-      // Hierba en lomas y dos árboles redondos.
-      for (let i = 0; i < 3; i++) {
+      // Hierba por encima y dos árboles redondos.
+      c.fillStyle = hierba;
+      c.fillRect(x - ancho / 2 - 0.04, y - 0.06, ancho + 0.08, 0.14);
+      for (const [dx, alto] of [
+        [-0.22, 0.32],
+        [0.12, 0.22],
+      ] as const) {
+        c.fillRect(x + dx * ancho - 0.025, y, 0.05, alto);
         c.beginPath();
-        c.arc(x - ancho * 0.32 + i * ancho * 0.32, y, ancho * 0.16, 0, Math.PI * 2);
+        c.arc(x + dx * ancho, y + alto + 0.1, 0.15, 0, Math.PI * 2);
         c.fill();
       }
-      for (const dx of [-0.25, 0.18]) {
-        c.fillRect(x + dx * ancho - 0.025, y, 0.05, 0.28);
-        c.beginPath();
-        c.arc(x + dx * ancho, y + 0.36, 0.17, 0, Math.PI * 2);
-        c.fill();
-      }
-      // Cascada de papel que cae de la isla.
-      c.fillStyle = cielo[0]!.color;
-      c.globalAlpha = 0.8;
-      c.fillRect(x + ancho * 0.12, 0.3, 0.07, y - ancho * 0.3 - 0.3);
-      c.globalAlpha = 1;
     };
     isla(-3.2, 2.35, 1.7);
     isla(2.7, 1.55, 1.25);

@@ -116,3 +116,86 @@ for (const [nombre, ancho, alto] of [
     await contexto.close();
   });
 }
+
+/** Progreso sembrado para las capturas de C y D: monedas, Madera comprada, racha 2 y días con medallas. */
+function progresoDeMuestra(escenario: string, mejorRacha: number) {
+  const dia = (puntos: number, enSuDia: boolean, reglas = 2) => ({ puntos, piezas: 30, altura: 12.3, perfectos: 9, colocadas: "0-29", enSuDia, reglas });
+  return {
+    version: 2,
+    monedas: 1240,
+    catalogo: { comprados: ["madera"], equipado: { tema: "riso", escenario } },
+    libre: { record: 2310, alturaRecord: 7.5, partidas: 12 },
+    diarios: { 9: dia(4100, true), 10: dia(2500, true), 11: dia(300, true), 12: dia(700, false), 14: dia(0, true, 1), 15: dia(1200, true) },
+    racha: { actual: 2, mejor: mejorRacha, ultimoDia: 15, congeladores: 1 },
+    niveles: {},
+    ajustes: { sonido: true, vibracion: true, tutorialVisto: true },
+    estadisticas: { piezas: 400, perfectos: 120, comboMax: 9, alturaMax: 18.5 },
+    ultimaCobrada: "",
+  };
+}
+
+for (const [nombre, ancho, alto] of [
+  ["movil", 390, 844],
+  ["escritorio", 1280, 800],
+] as const) {
+  test(`capturas de C y D ${nombre} ${ancho}x${alto}`, async ({ browser }, testInfo) => {
+    test.skip(testInfo.project.name !== "escritorio", "Una vez basta");
+    test.setTimeout(240_000);
+    mkdirSync(CARPETA, { recursive: true });
+    const contexto = await browser.newContext({
+      viewport: { width: ancho, height: alto },
+      deviceScaleFactor: nombre === "movil" ? 2 : 1,
+      hasTouch: nombre === "movil",
+    });
+    const guardarEn = (page: Page, paso: string) => page.screenshot({ path: fileURLToPath(new URL(`${nombre}-${paso}.png`, CARPETA)) });
+    const abrirCon = async (escenario: string, mejorRacha: number) => {
+      const page = await contexto.newPage();
+      await page.addInitScript((valor) => localStorage.setItem("torre-diaria:progreso", valor), JSON.stringify(progresoDeMuestra(escenario, mejorRacha)));
+      await preparar(page);
+      await page.goto("/");
+      await esperarLibre(page);
+      await page.evaluate(() => document.fonts.ready);
+      return page;
+    };
+
+    // Colección: pestaña de piezas y de escenarios.
+    let page = await abrirCon("puerto", 2);
+    await page.getByRole("button", { name: /^Colección/ }).click();
+    await page.waitForTimeout(400);
+    await guardarEn(page, "6-coleccion-piezas");
+    await page.getByRole("tab", { name: "Escenarios" }).click();
+    await page.waitForTimeout(300);
+    await guardarEn(page, "7-coleccion-escenarios");
+    await page.getByRole("button", { name: "Cerrar" }).first().click();
+
+    // Retos: calendario con medallas, racha y congeladores.
+    await page.getByRole("button", { name: /^Retos/ }).click();
+    await page.waitForTimeout(300);
+    await guardarEn(page, "8-retos");
+
+    // Desbloqueo: el reto de hoy lleva la racha a 3 y desbloquea la Ciudad.
+    await page.getByRole("button", { name: "Jugar el reto de hoy" }).click();
+    await expect(juego(page)).toHaveAttribute("data-modo", "oficial");
+    while ((await juego(page).getAttribute("data-estado")) !== "fin") {
+      await soltarEnExtremo(page).catch(() => undefined);
+      await page.waitForTimeout(100);
+    }
+    await page.waitForTimeout(1200);
+    await guardarEn(page, "9-desbloqueo");
+    await page.close();
+
+    // Partidas en Ciudad y en Nubes, con la torre a media altura.
+    for (const [escenario, paso] of [
+      ["ciudad", "10-ciudad"],
+      ["nubes", "11-nubes"],
+    ] as const) {
+      page = await abrirCon(escenario, 7);
+      for (let i = 0; i < 9; i++) await soltarCentrada(page);
+      await page.waitForFunction(() => document.getElementById("juego")!.dataset.fase === "apuntando");
+      await page.waitForTimeout(400);
+      await guardarEn(page, paso);
+      await page.close();
+    }
+    await contexto.close();
+  });
+}

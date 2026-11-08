@@ -1,6 +1,7 @@
-// HUD, aviso del reto de un amigo, pantalla de fin, copiar y compartir. Todo
-// texto que viene del enlace o del almacenamiento se escribe con
-// `textContent`, nunca como HTML.
+// HUD, barra de abajo, aviso del reto de un amigo, pantalla de fin, copiar y
+// compartir. Todo texto que viene del enlace o del almacenamiento se escribe
+// con `textContent`, nunca como HTML.
+import type { Medalla } from "../logica/economia.ts";
 import { formatearAltura, formatearNumero, formatearPiezas, formatearPuntos } from "../logica/tarjeta.ts";
 import type { Reto } from "../logica/reto.ts";
 import type { Pantalla } from "./flujo.ts";
@@ -22,7 +23,10 @@ export const ui = {
   vidas: () => elemento("vidas"),
   combo: () => elemento("combo"),
   record: () => elemento("record"),
-  botonHoy: () => elemento<HTMLButtonElement>("boton-hoy"),
+  botonRetos: () => elemento<HTMLButtonElement>("boton-retos"),
+  botonColeccion: () => elemento<HTMLButtonElement>("boton-coleccion"),
+  barraRacha: () => elemento("barra-racha"),
+  barraMonedas: () => elemento("barra-monedas"),
   avisoToque: () => elemento("aviso-toque"),
   botonSonido: () => elemento<HTMLButtonElement>("boton-sonido"),
   botonVibracion: () => elemento<HTMLButtonElement>("boton-vibracion"),
@@ -30,6 +34,7 @@ export const ui = {
   avisoReto: () => elemento("aviso-reto"),
   comparacion: () => elemento("comparacion"),
   botonReto: () => elemento<HTMLButtonElement>("boton-reto"),
+  botonRepetirReto: () => elemento<HTMLButtonElement>("boton-repetir-reto"),
   botonLibreReto: () => elemento<HTMLButtonElement>("boton-libre-reto"),
   fin: () => elemento("fin"),
   finTitulo: () => elemento("fin-titulo"),
@@ -39,20 +44,39 @@ export const ui = {
   finAltura: () => elemento("fin-altura"),
   finRecord: () => elemento("fin-record"),
   finReto: () => elemento("fin-reto"),
+  finNuevoRecord: () => elemento("fin-nuevo-record"),
+  finMedalla: () => elemento("fin-medalla"),
+  finMedallaIcono: () => elemento("fin-medalla-icono"),
+  finMedallaTexto: () => elemento("fin-medalla-texto"),
+  finMonedas: () => elemento("fin-monedas"),
+  finMonedasNumero: () => elemento("fin-monedas-numero"),
+  finMonedasTexto: () => elemento("fin-monedas-texto"),
+  finDesbloqueo: () => elemento("fin-desbloqueo"),
+  finDesbloqueoMuestra: () => elemento<HTMLCanvasElement>("fin-desbloqueo-muestra"),
+  finDesbloqueoTexto: () => elemento("fin-desbloqueo-texto"),
+  botonEquiparNuevo: () => elemento<HTMLButtonElement>("boton-equipar-nuevo"),
+  finSiguiente: () => elemento("fin-siguiente"),
   tarjeta: () => elemento("tarjeta"),
   botonCopiar: () => elemento<HTMLButtonElement>("boton-copiar"),
   botonCompartir: () => elemento<HTMLButtonElement>("boton-compartir"),
   mensaje: () => elemento("mensaje"),
   botonOtraVez: () => elemento<HTMLButtonElement>("boton-otra-vez"),
+  retos: () => elemento("retos"),
+  coleccion: () => elemento("coleccion"),
+  botonCerrarRetos: () => elemento<HTMLButtonElement>("cerrar-retos"),
+  botonCerrarColeccion: () => elemento<HTMLButtonElement>("cerrar-coleccion"),
+  mensajeColeccion: () => elemento("coleccion-mensaje"),
 };
 
 export function cambiarEstado(estado: Pantalla): void {
   ui.juego().dataset.estado = estado;
   ui.reto().hidden = estado !== "reto";
   ui.fin().hidden = estado !== "fin";
+  ui.retos().hidden = estado !== "retos";
+  ui.coleccion().hidden = estado !== "coleccion";
 }
 
-function mostrarTexto(nodo: HTMLElement, texto: string | null): void {
+export function mostrarTexto(nodo: HTMLElement, texto: string | null): void {
   nodo.textContent = texto ?? "";
   nodo.hidden = texto === null;
 }
@@ -101,23 +125,49 @@ export function pintarHud({ puntos, vidas, vidasMax, combo, record }: DatosHud):
   mostrarTexto(ui.record(), record === null || record <= 0 ? null : `Récord ${formatearNumero(record)}`);
 }
 
+/** Barra de abajo (C2, D2): racha en Retos y monedas en Colección, también para lectores. */
+export function pintarBarra({ racha, monedas }: { racha: number; monedas: number }): void {
+  ui.barraRacha().textContent = String(racha);
+  ui.barraMonedas().textContent = formatearNumero(monedas);
+  ui.botonRetos().setAttribute("aria-label", racha > 0 ? `Retos: racha de ${racha} ${racha === 1 ? "día" : "días"}` : "Retos");
+  ui.botonColeccion().setAttribute("aria-label", `Colección: ${formatearNumero(monedas)} ${monedas === 1 ? "moneda" : "monedas"}`);
+  ui.juego().dataset.monedas = String(monedas);
+  ui.juego().dataset.racha = String(racha);
+}
+
 export type DatosReto = {
   hoy: number;
   reto: Reto;
-  /** Puntos de la oficial de hoy, si ya se jugó. */
-  puntosHoy: number | null;
+  /** ¿Ya hay oficial del día del reto? */
+  jugado: boolean;
+  /** Sus puntos (`null` si no se ha jugado o es de la v1, que no tiene puntos comparables). */
+  puntosDia: number | null;
 };
 
-/** Aviso del enlace de un amigo: su marca y el botón para jugar ese día. */
-export function pintarReto({ hoy, reto, puntosHoy }: DatosReto): void {
+/**
+ * Aviso del enlace de un amigo (D3): su marca y el botón para jugar ese día
+ * (el oficial de hoy o el atrasado). Si ya se jugó: los dos resultados, «Ver
+ * mi resultado» y «Jugar otra vez (no cuenta)».
+ */
+export function pintarReto({ hoy, reto, jugado, puntosDia }: DatosReto): void {
   ui.avisoReto().textContent = `Tu amigo hizo ${formatearPuntos(reto.puntos)} en el día #${reto.dia}. ¿Le superas?`;
-  const jugado = reto.dia === hoy && puntosHoy !== null;
-  mostrarTexto(ui.comparacion(), jugado ? `Tú: ${puntosHoy} · Tu amigo: ${reto.puntos}` : null);
+  mostrarTexto(ui.comparacion(), jugado && puntosDia !== null ? `Tú: ${formatearNumero(puntosDia)} · Tu amigo: ${formatearNumero(reto.puntos)}` : null);
+  const deHoy = reto.dia === hoy;
   ui.botonReto().textContent = jugado
-    ? "Ver mi resultado de hoy"
-    : reto.dia === hoy
+    ? deHoy
+      ? "Ver mi resultado de hoy"
+      : `Ver mi resultado del día #${reto.dia}`
+    : deHoy
       ? `Jugar el reto de hoy #${hoy}`
       : `Jugar el reto del día #${reto.dia}`;
+  ui.botonRepetirReto().hidden = !jugado;
+}
+
+export const NOMBRE_MEDALLA: Record<Medalla, string> = { bronce: "Bronce", plata: "Plata", oro: "Oro" };
+
+/** Icono de medalla dibujado con CSS (G11): el metal, o «ninguna» (marca de jugado sin medalla). */
+export function pintarMedalla(nodo: HTMLElement, medalla: Medalla | null): void {
+  nodo.className = `medalla ${medalla ?? "ninguna"}`;
 }
 
 export type DatosFin = {
@@ -133,6 +183,16 @@ export type DatosFin = {
   principal: string;
   /** Un día jugado con la v1 se cuenta en piezas, no en puntos (C1). */
   enPiezas?: boolean;
+  /** Récord libre superado en esta partida (C2). */
+  nuevoRecord?: boolean;
+  /** Reto diario: medalla y su texto («Plata · racha de 3 días», D1). */
+  diario?: { medalla: Medalla | null; texto: string } | null;
+  /** Monedas ganadas; `null` si no se gana nada (resultado guardado, repetición). */
+  monedas?: number | null;
+  /** Escenario recién desbloqueado (C3). */
+  desbloqueo?: { id: string; texto: string } | null;
+  /** Siguiente objetivo («Te faltan 120 monedas para Madera», Anexo 1, 2.6). */
+  siguiente?: string | null;
 };
 
 export function textoComparacion(puntos: number, amigo: number): string {
@@ -149,6 +209,25 @@ export function pintarFin(datos: DatosFin): void {
   ui.finAltura().textContent = formatearAltura(datos.altura);
   mostrarTexto(ui.finRecord(), datos.record === null ? null : `Récord ${formatearNumero(datos.record)}`);
   mostrarTexto(ui.finReto(), datos.puntosAmigo === null ? null : textoComparacion(datos.puntos, datos.puntosAmigo));
+  ui.finNuevoRecord().hidden = !datos.nuevoRecord;
+  ui.finMedalla().hidden = !datos.diario;
+  if (datos.diario) {
+    pintarMedalla(ui.finMedallaIcono(), datos.diario.medalla);
+    ui.finMedallaTexto().textContent = datos.diario.texto;
+  }
+  const monedas = datos.monedas ?? null;
+  ui.finMonedas().hidden = monedas === null;
+  ui.juego().dataset.ganadas = String(monedas ?? 0);
+  if (monedas !== null) {
+    ui.finMonedasTexto().textContent = `${formatearNumero(monedas)} ${monedas === 1 ? "moneda" : "monedas"}`;
+    contar(ui.finMonedasNumero(), monedas, "+");
+  }
+  ui.finDesbloqueo().hidden = !datos.desbloqueo;
+  if (datos.desbloqueo) {
+    ui.finDesbloqueoTexto().textContent = datos.desbloqueo.texto;
+    ui.botonEquiparNuevo().dataset.articulo = datos.desbloqueo.id;
+  }
+  mostrarTexto(ui.finSiguiente(), datos.siguiente ?? null);
   ui.tarjeta().textContent = datos.tarjeta;
   ui.mensaje().textContent = "";
   ui.botonCompartir().hidden = typeof navigator.share !== "function";
@@ -157,27 +236,29 @@ export function pintarFin(datos: DatosFin): void {
 
 /** Duración del recuento de puntos en el fin (Anexo 1, 1.5). */
 export const RECUENTO_MS = 800;
-let recuento = 0;
+const recuentos = new WeakMap<HTMLElement, number>();
 
 /**
  * Recuento de 0 a `puntos` en `RECUENTO_MS`, solo visual (el número exacto
- * está en `#fin-puntos` para lectores y pruebas). Con movimiento reducido, directo.
+ * está en un texto para lectores y en `data-*` para las pruebas). Con
+ * movimiento reducido, directo. Puntos y monedas cuentan a la vez (C2).
  */
-function contar(nodo: HTMLElement, puntos: number): void {
-  const vez = ++recuento;
+function contar(nodo: HTMLElement, puntos: number, prefijo = ""): void {
+  const vez = (recuentos.get(nodo) ?? 0) + 1;
+  recuentos.set(nodo, vez);
   const directo = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches || puntos <= 0;
   if (directo) {
-    nodo.textContent = formatearNumero(puntos);
+    nodo.textContent = prefijo + formatearNumero(puntos);
     return;
   }
   const desde = performance.now();
   const paso = (ahora: number) => {
-    if (vez !== recuento) return;
+    if (vez !== recuentos.get(nodo)) return;
     const t = Math.min(1, (ahora - desde) / RECUENTO_MS);
-    nodo.textContent = formatearNumero(Math.round(puntos * (1 - (1 - t) ** 3)));
+    nodo.textContent = prefijo + formatearNumero(Math.round(puntos * (1 - (1 - t) ** 3)));
     if (t < 1) requestAnimationFrame(paso);
   };
-  nodo.textContent = "0";
+  nodo.textContent = `${prefijo}0`;
   requestAnimationFrame(paso);
 }
 

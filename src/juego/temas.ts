@@ -16,6 +16,9 @@ export const COLORES = {
   violeta: "#7A5CC7",
   piedra: "#B9AE98",
   estrella: "#FFF3C4",
+  /** Medallas del reto diario (D1). */
+  plata: "#C3C7D4",
+  bronce: "#D99A5E",
 } as const;
 
 export type NombreColor = keyof typeof COLORES;
@@ -39,6 +42,9 @@ export const PARES_TEXTO: ReadonlyArray<{ texto: NombreColor; fondo: NombreColor
   { texto: "tinta", fondo: "amarillo", px: 14, uso: "avisos destacados y combo" },
   { texto: "papel", fondo: "tinta", px: 16, uso: "aviso del primer toque" },
   { texto: "tinta", fondo: "estrella", px: 14, uso: "récord" },
+  { texto: "tinta", fondo: "plata", px: 14, uso: "medalla de plata" },
+  { texto: "tinta", fondo: "bronce", px: 14, uso: "medalla de bronce" },
+  { texto: "tinta", fondo: "turquesa", px: 14, uso: "pestaña elegida y congelador" },
 ];
 
 /** Luminancia relativa WCAG de un color `#RRGGBB`. */

@@ -1,28 +1,37 @@
 // Punto de entrada de la página: une la simulación, el dibujo, la entrada de
 // un toque y las pantallas. Las transiciones entre pantallas las decide
-// `flujo.ts`; aquí solo se conectan con el DOM (B5).
+// `flujo.ts`; aquí solo se conectan con el DOM (B5). El progreso (monedas,
+// récord, retos diarios, colección, C y D) se cambia solo con funciones puras
+// de `src/logica/` aplicadas por `Guardado.cambiar`.
+import { comprar, equipado, equipar, nuevosEscenarios, siguienteObjetivo } from "../logica/catalogo.ts";
+import { actualizarRacha, medallaDe, medallaDePuntos, rachaDeHoy, registrarOficial, UMBRAL_BRONCE, UMBRAL_ORO, UMBRAL_PLATA, type Oficial } from "../logica/diarios.ts";
+import { cobrarLibre, hitosDeAltura, monedasDePartida, type Medalla, type PartidaAcabada } from "../logica/economia.ts";
 import { leerReto } from "../logica/reto.ts";
 import { almacenDelNavegador } from "../logica/registro.ts";
-import { aTramos, deTramos, Guardado, type DiaJugado } from "../logica/progreso.ts";
+import { deTramos, Guardado, type DiaJugado } from "../logica/progreso.ts";
 import { generarSecuencia } from "../logica/piezas.ts";
 import { VIDAS_INICIALES, VIDAS_MAX } from "../logica/puntuacion.ts";
 import { fechaDeDia, fechaUTC, numeroDia, semillaLibre } from "../logica/semilla.ts";
 import type { Pieza } from "../logica/piezas.ts";
 import type { Calidad } from "../logica/puntuacion.ts";
 import { Partida, REGLAS, type EstadoPartida, type Evento, type OpcionesPartida } from "../logica/simulacion.ts";
-import { formatearAltura, formatearPuntos, generarTarjeta } from "../logica/tarjeta.ts";
+import { formatearAltura, formatearNumero, formatearPuntos, generarTarjeta } from "../logica/tarjeta.ts";
 import { Bucle, PASO_MS } from "./bucle.ts";
+import { PanelColeccion } from "./coleccion.ts";
 import { Lienzo, NIVEL_AGUA, ratioPixeles } from "./dibujo.ts";
 import { Caidas, Efectos } from "./efectos.ts";
 import { Haptica, puedeVibrar } from "./haptica.ts";
+import { pintarMuestra } from "./muestras.ts";
 import { Sonido } from "./sonido.ts";
-import { abrir, transicion, type Accion, type Flujo, type Modo, type Orden } from "./flujo.ts";
-import { cambiarEstado, compartir, copiar, pintarFin, pintarHud, pintarReto, ui } from "./pantallas.ts";
+import { abrir, transicion, type Accion, type Flujo, type Modo, type Orden, type Panel, type Pantalla } from "./flujo.ts";
+import { cambiarEstado, compartir, copiar, mostrarTexto, NOMBRE_MEDALLA, pintarBarra, pintarFin, pintarHud, pintarReto, ui, type DatosFin as DatosPantallaFin } from "./pantallas.ts";
+import { PanelRetos } from "./retos.ts";
+import { escenarioPorId, temaPorId } from "./temas.ts";
 
 /** Opciones de toda partida de esta página; van en `data-opciones` para reproducirla con `jugar` (G3). */
 const OPCIONES: OpcionesPartida = { vidas: VIDAS_INICIALES };
 
-/** Día de hoy en UTC. Se recalcula al empezar el reto de hoy y al volver a la pestaña. */
+/** Día de hoy en UTC. Se recalcula en cada acción y al volver a la pestaña. */
 let hoy = numeroDia(fechaUTC(new Date()));
 const almacen = almacenDelNavegador();
 const reto = leerReto(location.search, hoy);
@@ -61,6 +70,8 @@ let pendiente = false;
 let toques: number[] = [];
 let textoTarjeta = "";
 let hudPintado = "";
+/** Modo de lo que muestra la pantalla de fin, para refrescar el siguiente objetivo al volver a ella. */
+let modoFin: Modo = "libre";
 
 /** Recalcula `hoy`, por si ha pasado la medianoche UTC. Devuelve si ha cambiado. */
 function actualizarHoy(): boolean {
@@ -70,15 +81,27 @@ function actualizarHoy(): boolean {
   return true;
 }
 
+/** Tema y escenario equipados (C3), en el lienzo. */
+function aplicarEquipado(): void {
+  const { tema, escenario } = equipado(guardado.actual);
+  lienzo.cambiarTema(temaPorId(tema), escenarioPorId(escenario));
+}
+
+function pintarBarraActual(): void {
+  pintarBarra({ racha: rachaDeHoy(guardado.actual, hoy), monedas: guardado.actual.monedas });
+}
+
+/** Al abrir y al cambiar de día: gasta congeladores o corta la racha (D1). Solo guarda si cambia algo. */
+function revisarRacha(): void {
+  if (actualizarRacha(guardado.actual, hoy) !== guardado.actual) guardado.cambiar((p) => actualizarRacha(p, hoy));
+  pintarBarraActual();
+}
+
 /** Lo que se muestra en el fin: una partida recién acabada o un día guardado. */
 type DatosFin = { dia: number; puntos: number; altura: number; piezas: number; formas: Array<{ color: number }>; reglas: number };
 
 function resultadoDe(dia: number): DiaJugado | null {
   return guardado.actual.diarios[dia] ?? null;
-}
-
-function resultadoHoy(): DiaJugado | null {
-  return resultadoDe(hoy);
 }
 
 /** Datos de fin de un día guardado: las piezas se rehacen con la semilla del día y sus índices. */
@@ -91,41 +114,68 @@ function datosDeDia(dia: number, jugado: DiaJugado): DatosFin {
 
 /** Aplica una acción de la interfaz: el flujo decide y aquí se ejecuta la orden. */
 function actuar(accion: Accion): void {
-  if (accion.tipo !== "terminar") actualizarHoy();
-  const siguiente = transicion(flujo, accion, { ahora: performance.now(), hoy, jugadoHoy: resultadoHoy() !== null });
+  if (accion.tipo !== "terminar") {
+    guardado.releer();
+    if (actualizarHoy()) revisarRacha();
+  }
+  const siguiente = transicion(flujo, accion, { ahora: performance.now(), hoy, jugado: (dia) => resultadoDe(dia) !== null });
   flujo = siguiente.flujo;
   ejecutar(siguiente.orden);
 }
 
 function ejecutar(orden: Orden): void {
   if (orden.tipo === "jugar") empezar(orden.modo, orden.dia);
-  else if (orden.tipo === "resultado") verGuardado();
+  else if (orden.tipo === "resultado") verGuardado(orden.dia);
   else if (orden.tipo === "reto") mostrarReto();
+  else if (orden.tipo === "panel") mostrarPanel(orden.panel);
+  else if (orden.tipo === "volver") volver(orden.pantalla);
 }
 
 function mostrarReto(): void {
   if (!reto) return;
   partida = null;
   escena = null;
-  pintarReto({ hoy, reto, puntosHoy: resultadoHoy()?.puntos ?? null });
+  const jugado = resultadoDe(reto.dia);
+  pintarReto({ hoy, reto, jugado: jugado !== null, puntosDia: jugado && jugado.reglas === REGLAS ? jugado.puntos : null });
   pintarHud({ puntos: 0, vidas: VIDAS_INICIALES, vidasMax: VIDAS_MAX, combo: 0, record: null });
   cambiarEstado("reto");
-  actualizarBotonHoy();
+  actualizarBotones();
   lienzo.reservarArriba(0);
+  lienzo.ponerRecord(null);
 }
 
-function verGuardado(): void {
-  const jugado = resultadoHoy();
+/** Texto de la medalla de un día: el metal (o «Sin medalla») y si sumó racha o fue atrasado. */
+function textoDiario(medalla: Medalla | null, cola: string): string {
+  return `${medalla ? NOMBRE_MEDALLA[medalla] : "Sin medalla"} · ${cola}`;
+}
+
+/** La siguiente medalla por conseguir en el reto diario, para empujar a superarse. */
+function siguienteMedalla(puntos: number): string | null {
+  const metas: Array<[Medalla, number]> = [
+    ["bronce", UMBRAL_BRONCE],
+    ["plata", UMBRAL_PLATA],
+    ["oro", UMBRAL_ORO],
+  ];
+  const meta = metas.find(([, umbral]) => puntos < umbral);
+  return meta ? `${NOMBRE_MEDALLA[meta[0]]} desde ${formatearNumero(meta[1])} puntos` : null;
+}
+
+function verGuardado(dia: number): void {
+  const jugado = resultadoDe(dia);
   if (!jugado) return;
   partida = null;
   escena = null;
   ui.juego().dataset.modo = "oficial";
-  mostrarFin(datosDeDia(hoy, jugado), "oficial");
+  const medalla = medallaDe(jugado);
+  const cola = jugado.reglas === 1 ? "con la versión anterior" : jugado.enSuDia ? "jugado en su día" : "atrasado";
+  mostrarFin(datosDeDia(dia, jugado), "oficial", { diario: { medalla, texto: textoDiario(medalla, cola) }, monedas: null });
 }
 
-/** «Reto de hoy» se ve siempre salvo mientras se juega un reto diario. */
-function actualizarBotonHoy(): void {
-  ui.botonHoy().hidden = flujo.pantalla === "jugando" && flujo.modo !== "libre";
+/** Retos y Colección se ven siempre salvo mientras se juega un reto diario. */
+function actualizarBotones(): void {
+  const ocultar = flujo.pantalla === "jugando" && flujo.modo !== "libre";
+  ui.botonRetos().hidden = ocultar;
+  ui.botonColeccion().hidden = ocultar;
 }
 
 function empezar(modo: Modo, dia: number): void {
@@ -149,12 +199,15 @@ function empezar(modo: Modo, dia: number): void {
   delete juego.dataset.puntos;
   delete juego.dataset.altura;
   ui.avisoToque().hidden = guardado.actual.ajustes.tutorialVisto;
+  aplicarEquipado();
+  lienzo.ponerRecord(modo === "libre" ? guardado.actual.libre.alturaRecord : null);
   lienzo.reiniciarCamara();
   lienzo.reservarArriba(0);
   bucle.reiniciar();
   (document.activeElement as HTMLElement | null)?.blur();
   cambiarEstado("jugando");
-  actualizarBotonHoy();
+  actualizarBotones();
+  hudPintado = "";
   actualizarHud();
 }
 
@@ -164,9 +217,12 @@ function puntosAmigo(modoPartida: Modo, diaPartida: number): number | null {
   return reto.puntos;
 }
 
-function mostrarFin(datos: DatosFin, modoPartida: Modo): void {
+type Premios = Pick<DatosPantallaFin, "nuevoRecord" | "diario" | "monedas" | "desbloqueo" | "siguiente">;
+
+function mostrarFin(datos: DatosFin, modoPartida: Modo, premios: Premios = {}): void {
   const libre = modoPartida === "libre";
   const enPiezas = datos.reglas === 1;
+  modoFin = modoPartida;
   textoTarjeta = generarTarjeta({
     modo: libre ? "libre" : "diario",
     dia: datos.dia,
@@ -176,7 +232,7 @@ function mostrarFin(datos: DatosFin, modoPartida: Modo): void {
     origen: location.origin,
   });
   pintarFin({
-    titulo: libre ? "Partida libre" : `Reto del día #${datos.dia}`,
+    titulo: libre ? "Partida libre" : modoPartida === "repeticion" ? `Reto del día #${datos.dia} (no cuenta)` : `Reto del día #${datos.dia}`,
     puntos: enPiezas ? datos.piezas : datos.puntos,
     enPiezas,
     altura: datos.altura,
@@ -184,12 +240,17 @@ function mostrarFin(datos: DatosFin, modoPartida: Modo): void {
     record: libre ? guardado.actual.libre.record : null,
     puntosAmigo: puntosAmigo(modoPartida, datos.dia),
     principal: libre ? "Otra vez" : "Partida libre",
+    siguiente: libre ? siguienteObjetivo(guardado.actual) : null,
+    ...premios,
   });
   const juego = ui.juego();
   juego.dataset.puntos = String(datos.puntos);
   juego.dataset.altura = String(datos.altura);
   cambiarEstado("fin");
-  actualizarBotonHoy();
+  actualizarBotones();
+  pintarBarraActual();
+  if (premios.desbloqueo) pintarMuestra(ui.finDesbloqueoMuestra(), temaPorId(equipado(guardado.actual).tema), escenarioPorId(premios.desbloqueo.id));
+  lienzo.ponerRecord(null);
   reservarTarjeta();
 }
 
@@ -199,19 +260,59 @@ function reservarTarjeta(): void {
   lienzo.reservarArriba(ui.fin().getBoundingClientRect().bottom - zona.top);
 }
 
+/**
+ * Cobra la partida acabada (C2, D1): la libre suma monedas y récord; la
+ * oficial guarda el día con su medalla, racha y premio; la repetición, nada.
+ * Avisa de los escenarios que se desbloquean y del siguiente objetivo.
+ */
+function cobrar(actual: Partida, modo: Modo, dia: number): Premios {
+  const r = actual.resultado();
+  const partidaAcabada: PartidaAcabada = {
+    semilla: ui.juego().dataset.semilla ?? "",
+    puntos: r.puntos,
+    piezas: r.piezas,
+    perfectos: r.perfectos,
+    comboMax: r.comboMax,
+    alturaMax: r.alturaMax,
+  };
+  const antes = guardado.releer();
+  const premios: Premios = {};
+  if (modo === "libre") {
+    guardado.cambiar((p) => cobrarLibre(p, partidaAcabada));
+    premios.monedas = monedasDePartida({ ...partidaAcabada, hitos: hitosDeAltura(r.alturaMax) });
+    premios.nuevoRecord = r.puntos > antes.libre.record;
+  } else if (modo === "oficial") {
+    // Con dos pestañas vale la primera oficial que acaba (D4): el cambio se aplica sobre lo releído.
+    let oficial: Oficial | null = null;
+    guardado.cambiar((p) => {
+      oficial = registrarOficial(p, dia, hoy, { ...partidaAcabada, altura: r.altura, indices: r.indices });
+      return oficial.progreso;
+    });
+    const hecho = oficial as Oficial | null;
+    const medalla = medallaDePuntos(r.puntos);
+    const racha = rachaDeHoy(guardado.actual, hoy);
+    if (hecho?.nuevo) {
+      premios.monedas = hecho.monedas;
+      const cola = dia === hoy ? `racha de ${racha} ${racha === 1 ? "día" : "días"}` : "atrasado, no suma racha";
+      premios.diario = { medalla, texto: textoDiario(medalla, cola) };
+    } else {
+      premios.monedas = null;
+      premios.diario = { medalla: null, texto: "Este día ya estaba jugado: no cuenta" };
+    }
+    premios.siguiente = siguienteMedalla(r.puntos);
+  } else {
+    premios.monedas = null;
+    premios.siguiente = siguienteMedalla(r.puntos);
+  }
+  const nuevo = nuevosEscenarios(antes, guardado.actual)[0];
+  premios.desbloqueo = nuevo ? { id: nuevo.id, texto: `Nuevo escenario: ${nuevo.nombre}` } : null;
+  return premios;
+}
+
 function terminar(actual: Partida): void {
-  const resultado = actual.resultado();
-  const { puntos, altura, formas, piezas, perfectos, indices } = resultado;
+  const { puntos, altura, formas, piezas } = actual.resultado();
   const { modo, dia } = flujo;
-  const datos: DatosFin = { dia, puntos, altura, piezas, formas, reglas: REGLAS };
-  // Con dos pestañas a la vez vale la primera oficial que acaba (D4): el cambio se aplica sobre lo releído.
-  if (modo === "oficial") {
-    const jugado: DiaJugado = { puntos, piezas, altura, perfectos, colocadas: aTramos(indices), enSuDia: dia === hoy, reglas: REGLAS };
-    guardado.cambiar((p) => (p.diarios[dia] ? p : { ...p, diarios: { ...p.diarios, [dia]: jugado } }));
-  }
-  if (modo === "libre" && puntos > guardado.actual.libre.record) {
-    guardado.cambiar((p) => (puntos > p.libre.record ? { ...p, libre: { ...p.libre, record: puntos } } : p));
-  }
+  const premios = cobrar(actual, modo, dia);
   ui.juego().dataset.toques = JSON.stringify(toques);
   // La última pieza caída sigue cayendo en pantalla aunque la partida ya la haya retirado.
   caidas.observar(actual.estado().cuerpos, 1, PASO_MS, performance.now());
@@ -219,8 +320,85 @@ function terminar(actual: Partida): void {
   actuar({ tipo: "terminar" });
   ui.contador().textContent = `${formatearPuntos(puntos)} · ${formatearAltura(altura)}`;
   hudPintado = "";
-  mostrarFin(datos, modo);
+  mostrarFin({ dia, puntos, altura, piezas, formas, reglas: REGLAS }, modo, premios);
 }
+
+/** Abre Retos o Colección encima de la pantalla que hubiera (si era una partida, queda en pausa). */
+function mostrarPanel(panel: Panel): void {
+  cambiarEstado(panel);
+  ui.avisoToque().hidden = true;
+  if (panel === "retos") panelRetos.abrir();
+  else panelColeccion.pintar(guardado.actual);
+  pintarBarraActual();
+}
+
+/** Cierra el panel y vuelve a la pantalla de debajo; la partida en pausa sigue sin saltos. */
+function volver(pantalla: Exclude<Pantalla, Panel>): void {
+  cambiarEstado(pantalla);
+  actualizarBotones();
+  if (pantalla === "jugando") {
+    bucle.reiniciar();
+    ui.avisoToque().hidden = guardado.actual.ajustes.tutorialVisto;
+  } else if (pantalla === "fin") {
+    if (modoFin === "libre") mostrarTexto(ui.finSiguiente(), siguienteObjetivo(guardado.actual));
+    reservarTarjeta();
+  }
+}
+
+/** Tras comprar o equipar: se guarda, se aplica al lienzo y se repintan barra y panel. */
+function cambiarColeccion(cambio: (p: typeof guardado.actual) => typeof guardado.actual, mensaje: string): void {
+  guardado.cambiar(cambio);
+  aplicarEquipado();
+  pintarBarraActual();
+  ui.mensajeColeccion().textContent = mensaje;
+  if (flujo.pantalla === "coleccion") panelColeccion.pintar(guardado.actual);
+  if (flujo.pantalla === "retos") panelRetos.pintar();
+}
+
+const panelColeccion = new PanelColeccion(
+  {
+    // Comprar un tema lo pone al momento: se ve lo que se ha ganado.
+    comprar: (id) => {
+      const puede = comprar(guardado.releer(), id) !== guardado.actual;
+      cambiarColeccion((p) => {
+        const comprado = comprar(p, id);
+        return comprado === p ? p : equipar(comprado, id);
+      }, puede ? `Tema ${temaPorId(id).nombre} comprado y puesto` : "");
+    },
+    equipar: (id) => cambiarColeccion((p) => equipar(p, id), ""),
+  },
+  () => guardado.actual,
+);
+
+/** Texto de un día guardado para compartir desde su ficha: con `navigator.share` o copiado. */
+async function compartirDia(dia: number): Promise<string> {
+  const jugado = resultadoDe(dia);
+  if (!jugado) return "";
+  const datos = datosDeDia(dia, jugado);
+  const texto = generarTarjeta({
+    modo: "diario",
+    dia,
+    puntos: jugado.reglas === 1 ? jugado.piezas : jugado.puntos,
+    altura: datos.altura,
+    formas: datos.formas,
+    origen: location.origin,
+  });
+  if (typeof navigator.share === "function") {
+    const resultado = await compartir(texto);
+    return resultado === "error" ? "No se ha podido compartir." : "";
+  }
+  return (await copiar(texto)) ? "Copiado" : "No se ha podido copiar.";
+}
+
+const panelRetos = new PanelRetos(
+  {
+    jugar: (dia) => actuar({ tipo: "jugarDia", dia }),
+    repetir: (dia) => actuar({ tipo: "repetirDia", dia }),
+    compartir: compartirDia,
+    comprarCongelador: () => cambiarColeccion((p) => comprar(p, "congelador"), ""),
+  },
+  () => ({ progreso: guardado.actual, hoy }),
+);
 
 function actualizarHud(): void {
   if (!partida) return;
@@ -232,10 +410,12 @@ function actualizarHud(): void {
   pintarHud({ puntos, vidas, vidasMax: VIDAS_MAX, combo, record });
 }
 
+
 /** Aplica los pasos que tocan. Un toque se aplica en el siguiente paso y se anota su número. */
 function avanzar(pasos: number): void {
   const actual = partida;
-  if (!actual) return;
+  // Con Retos o Colección abiertos encima, la partida queda en pausa.
+  if (!actual || flujo.pantalla !== "jugando") return;
   for (let i = 0; i < pasos; i++) {
     if (pendiente) {
       pendiente = false;
@@ -378,6 +558,7 @@ function pedirSoltar(): void {
   }
 }
 
+
 const bucle = new Bucle(avanzar, () => {
   const ahora = performance.now();
   const sueltas = caidas.avanzar(ahora, ahora - ultimoFotograma);
@@ -418,12 +599,16 @@ ui.botonVibracion().addEventListener("click", () => {
 
 ui.zona().addEventListener("pointerdown", (evento) => {
   if (flujo.pantalla !== "jugando") return;
-  // Los botones de la zona (sonido, vibración) no sueltan la pieza.
+  // Los botones de la zona (sonido, vibración, retos, colección) no sueltan la pieza.
   if (evento.target instanceof Element && evento.target.closest("button")) return;
   evento.preventDefault();
   pedirSoltar();
 });
 document.addEventListener("keydown", (evento) => {
+  if (evento.key === "Escape" && (flujo.pantalla === "retos" || flujo.pantalla === "coleccion")) {
+    actuar({ tipo: "cerrar" });
+    return;
+  }
   if (evento.repeat || !(evento.code === "Space" || evento.key === " " || evento.key === "Enter")) return;
   if (flujo.pantalla === "jugando") {
     evento.preventDefault();
@@ -437,9 +622,25 @@ document.addEventListener("keydown", (evento) => {
 
 ui.botonOtraVez().addEventListener("click", () => actuar({ tipo: "libre" }));
 ui.botonLibreReto().addEventListener("click", () => actuar({ tipo: "libre" }));
-ui.botonHoy().addEventListener("click", () => actuar({ tipo: "retoDeHoy" }));
+/** Retos y Colección abren su panel; si ya está abierto, lo cierran. */
+function alternarPanel(panel: Panel): void {
+  actuar(flujo.pantalla === panel ? { tipo: "cerrar" } : { tipo: "abrir", panel });
+}
+ui.botonRetos().addEventListener("click", () => alternarPanel("retos"));
+ui.botonColeccion().addEventListener("click", () => alternarPanel("coleccion"));
+ui.botonCerrarRetos().addEventListener("click", () => actuar({ tipo: "cerrar" }));
+ui.botonCerrarColeccion().addEventListener("click", () => actuar({ tipo: "cerrar" }));
 ui.botonReto().addEventListener("click", () => {
   if (reto) actuar({ tipo: "jugarReto", reto });
+});
+ui.botonRepetirReto().addEventListener("click", () => {
+  if (reto) actuar({ tipo: "repetirDia", dia: reto.dia });
+});
+ui.botonEquiparNuevo().addEventListener("click", () => {
+  const id = ui.botonEquiparNuevo().dataset.articulo ?? "";
+  cambiarColeccion((p) => equipar(p, id), "");
+  ui.finDesbloqueoTexto().textContent = `${escenarioPorId(id).nombre}: en uso`;
+  ui.botonEquiparNuevo().hidden = true;
 });
 ui.botonCopiar().addEventListener("click", async () => {
   ui.mensaje().textContent = (await copiar(textoTarjeta)) ? "Copiado" : "No se ha podido copiar: selecciona el texto.";
@@ -452,7 +653,11 @@ ui.botonCompartir().addEventListener("click", async () => {
 document.addEventListener("visibilitychange", () => {
   sonido.visibilidad(document.hidden);
   if (document.visibilityState !== "visible") return;
-  if (actualizarHoy() && flujo.pantalla === "reto") mostrarReto();
+  guardado.releer();
+  if (!actualizarHoy()) return;
+  revisarRacha();
+  if (flujo.pantalla === "reto") mostrarReto();
+  if (flujo.pantalla === "retos") panelRetos.pintar();
 });
 // El lienzo cambia de tamaño con la ventana y también con el HUD (combo, récord):
 // se reajusta cada vez que cambia su caja, no solo al redimensionar la ventana.
@@ -467,6 +672,8 @@ const observador = new ResizeObserver(() => {
 });
 observador.observe(ui.lienzo());
 observador.observe(ui.hud());
+aplicarEquipado();
+revisarRacha();
 const inicio = abrir(reto, hoy);
 flujo = inicio.flujo;
 ejecutar(inicio.orden);
