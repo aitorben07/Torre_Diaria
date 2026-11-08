@@ -86,6 +86,23 @@ Node 24.18.0 en este equipo Windows. Las cifras caducan: repítelas tras cambiar
 - **Coste por paso con el cementado (B3, `npm run medir`):** con un jugador que suelta siempre sobre el objetivo (semilla `2026-11-09`), 0,068 ms por paso tras la pieza 10 y 0,069 ms tras la 150: cociente **1,01** (límite: 2). Partida de 40 piezas (semilla `2026-11-06`, 8.117 pasos): mediana de 640 ms.
 - **Tamaño (`npm run build`):** el JavaScript de `dist/` ocupa 227.991 bytes y **52.612 bytes con `gzip -9`** (presupuesto: 150 KB); el CSS, 2.662 bytes (1.170 con gzip). Sin fuentes, imágenes ni audio.
 
+## Mediciones de la segunda versión (2026-11-08, bloques C y D)
+
+Node 24.18.0 y Chromium de Playwright en este equipo Windows. Las cifras caducan.
+
+- **Medallas del reto diario (D1, `npm run medir:duracion`, días 1 a 30, 74 s):** umbrales bronce 550, plata 2.400 y oro 4.000 puntos (medianas de novato y medio y percentil 25 del experto, redondeados a 50 hacia abajo; al más cercano, la plata quedaba en 2.450 y el medio solo la sacaba el 40 % de los días). Novato con bronce o más el **63 %** de los días; medio con plata o más el **57 %**; experto con oro el **73 %** (objetivo: 50 % o más cada uno).
+- **Ritmo de la economía (C5, `npm run medir:economia`, 45 días, 26 s):** 10 partidas reales por perfil reutilizadas; cada día el reto diario (partida, premio por medalla y por racha) y partidas libres hasta los minutos del plan (novato 10, medio 15, experto 25; sin misiones ni niveles). Compra el tema más barato que falte en cuanto puede (precios 300, 980, 1.680, 2.520 y 4.200: 9.680 en total).
+
+  | Perfil | Monedas al día | Primera compra | Temas el día 7 | Catálogo completo |
+  |---|---|---|---|---|
+  | novato | 404 | **10,9 min** de juego (objetivo ≤ 12) | 2 | día 25 |
+  | medio | 751 | 8 min | **3** (objetivo 3 a 6) | **día 14** (objetivo 10 a 30) |
+  | experto | 1.404 | 5,4 min | 5 | **día 7** (objetivo: no antes del 7) |
+
+  Cumple, pero el experto va justo: llega el mismo día 7. **Sin comprobar con personas.**
+- **Guardado (C1):** progreso vacío, 393 bytes; 365 días de una partida larga de experto (180 piezas en tres tramos) ocupan **47.125 bytes** (límite: 100 KB), unos 128 bytes por día, porque cada día guarda los índices de sus piezas como tramos (`"0-59,62-121,125-184"`) y no las formas.
+- **Tamaño (`npm run build`):** el JavaScript de `dist/` ocupa 290.052 bytes y **73.234 bytes con `gzip -9`** (presupuesto: 150 KB); el CSS, 12.102 bytes (3.615 con gzip). Fuentes sin cambios.
+
 ## Mediciones de la segunda versión (2026-11-08, bloque A)
 
 Chromium de Playwright sin GPU en este equipo Windows. Las cifras caducan.

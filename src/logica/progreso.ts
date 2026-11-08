@@ -260,8 +260,11 @@ export type Cambio = (progreso: Progreso) => Progreso;
  */
 export class Guardado {
   private memoria: Progreso;
+  // Sin propiedades en el constructor: los scripts de Node cargan este archivo sin compilar.
+  private readonly almacen: Almacen | null;
 
-  constructor(private readonly almacen: Almacen | null) {
+  constructor(almacen: Almacen | null) {
+    this.almacen = almacen;
     this.memoria = leerProgreso(almacen);
   }
 
