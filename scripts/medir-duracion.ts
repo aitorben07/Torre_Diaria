@@ -3,7 +3,10 @@
 // novato de 60 a 150 s, medio de 120 a 300 s y experto de 240 a 720 s, y
 // ninguna partida llega al tope de 30 minutos. También el porcentaje de días
 // con cada medalla del reto diario (D1): el novato bronce o más, el medio plata
-// o más y el experto oro, cada uno en la mitad de los días o más.
+// o más y el experto oro, cada uno en la mitad de los días o más. Y el
+// arranque (B2 de la tercera versión): segundo de la primera suelta, cadencia
+// inicial (mediana de segundos entre las sueltas 1 a 10) y segundo en que se
+// coloca la décima pieza, con la mediana de los días.
 // Uso: npm run medir:duracion [-- <días> [<perfil>]]
 import { UMBRAL_BRONCE, UMBRAL_ORO, UMBRAL_PLATA } from "../src/logica/diarios.ts";
 import { mediana, medirPerfil, PERFILES } from "./duracion.ts";
@@ -17,6 +20,14 @@ const resumen = (valores: number[]) => ({
   min: redondear(Math.min(...valores)),
   max: redondear(Math.max(...valores)),
 });
+
+/** Como `resumen`, sin las partidas que no llegan a medirlo, con dos decimales. */
+const resumenDe = (valores: Array<number | null>) => {
+  const medidos = valores.filter((v): v is number => v !== null);
+  if (medidos.length === 0) return null;
+  const dos = (v: number) => Number(v.toFixed(2));
+  return { mediana: dos(mediana(medidos)), min: dos(Math.min(...medidos)), max: dos(Math.max(...medidos)) };
+};
 
 for (const perfil of PERFILES.filter((p) => !SOLO || p.nombre === SOLO)) {
   const inicio = performance.now();
@@ -32,6 +43,10 @@ for (const perfil of PERFILES.filter((p) => !SOLO || p.nombre === SOLO)) {
       perfectos: resumen(medidas.map((m) => m.perfectos)),
       monedas: resumen(medidas.map((m) => m.monedas)),
       alturaMax: resumen(medidas.map((m) => m.alturaMax)),
+      primeraS: resumenDe(medidas.map((m) => m.primeraS)),
+      cadenciaS: resumenDe(medidas.map((m) => m.cadenciaS)),
+      decimaS: resumenDe(medidas.map((m) => m.decimaS)),
+      sinDecima: medidas.filter((m) => m.decimaS === null).length,
       alTope: medidas.filter((m) => !m.terminada).length,
       medallas: Object.fromEntries(
         (

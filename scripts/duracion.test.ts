@@ -18,6 +18,16 @@ describe("jugadores simulados (B4)", () => {
     expect(jugarConPerfil("2026-11-05", novato)).toEqual(jugarConPerfil("2026-11-05", novato));
   });
 
+  it("mide el arranque: primera suelta, cadencia de las sueltas 1 a 10 y décima colocada (B2)", () => {
+    const m = jugarConPerfil("2026-11-05", medio);
+    expect(m.primeraS).not.toBeNull();
+    expect(m.cadenciaS).not.toBeNull();
+    expect(m.decimaS).not.toBeNull();
+    expect(m.primeraS!).toBeGreaterThan(0);
+    // La décima se coloca tras la primera suelta y unas nueve cadencias (con margen).
+    expect(m.decimaS!).toBeGreaterThan(m.primeraS! + 9 * m.cadenciaS! * 0.5);
+  });
+
   it("en 3 días, el novato dura de 60 a 150 s de mediana y el medio de 120 a 300 s, más y con más puntos", () => {
     // La medición completa (30 días y el experto) es `npm run medir:duracion`.
     const deNovato = medirPerfil(novato, 3);

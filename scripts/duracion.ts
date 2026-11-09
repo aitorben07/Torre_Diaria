@@ -36,7 +36,16 @@ export type Medida = {
   terminada: boolean;
   /** Objetivo de nivel cumplido (E2); sin objetivo, `false`. */
   victoria: boolean;
+  /** Segundo de la primera suelta (B2 de la tercera versión). */
+  primeraS: number | null;
+  /** Cadencia inicial: mediana de segundos entre las sueltas de las piezas 1 a 10 (B2). */
+  cadenciaS: number | null;
+  /** Segundo en que se coloca la décima pieza, o `null` si no llega (B2). */
+  decimaS: number | null;
 };
+
+/** Sueltas que miden la cadencia inicial: de la 1 a la 10. */
+export const SUELTAS_CADENCIA = 10;
 
 /** Pasos desde que aparece la pieza hasta que su centro pasa por `objetivo`. */
 export function pasosHastaObjetivo(objetivo: number, velocidad: number, desdeDerecha: boolean): number {
@@ -53,6 +62,9 @@ export function jugarConPerfil(semilla: string, perfil: Perfil, opciones: Opcion
   const partida = new Partida(semilla, opciones);
   let soltadas = 0;
   let pasoToque: number | null = null;
+  const pasosSueltas: number[] = [];
+  let colocadas = 0;
+  let pasoDecima: number | null = null;
   while (!partida.terminada && partida.pasos < MAX_PASOS) {
     const { colgada, objetivo } = partida.estado();
     if (!colgada) {
@@ -65,10 +77,28 @@ export function jugarConPerfil(semilla: string, perfil: Perfil, opciones: Opcion
     }
     if (colgada && partida.pasos === pasoToque && partida.soltar()) soltadas++;
     partida.paso();
-    partida.tomarEventos();
+    for (const evento of partida.tomarEventos()) {
+      if (evento.tipo === "soltada" && pasosSueltas.length < SUELTAS_CADENCIA) pasosSueltas.push(evento.paso);
+      if (evento.tipo === "colocada" && ++colocadas === 10) pasoDecima = evento.paso;
+    }
   }
   const { puntos, pasos, terminada, piezas, perfectos, monedas, alturaMax, victoria } = partida.resultado();
-  return { semilla, segundos: pasos / 60, soltadas, piezas, puntos, perfectos, monedas, alturaMax, terminada, victoria };
+  const intervalos = pasosSueltas.slice(1).map((paso, i) => (paso - pasosSueltas[i]!) / 60);
+  return {
+    semilla,
+    segundos: pasos / 60,
+    soltadas,
+    piezas,
+    puntos,
+    perfectos,
+    monedas,
+    alturaMax,
+    terminada,
+    victoria,
+    primeraS: pasosSueltas.length > 0 ? pasosSueltas[0]! / 60 : null,
+    cadenciaS: intervalos.length > 0 ? mediana(intervalos) : null,
+    decimaS: pasoDecima === null ? null : pasoDecima / 60,
+  };
 }
 
 export function mediana(valores: number[]): number {
