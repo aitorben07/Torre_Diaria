@@ -3,7 +3,7 @@
 // perfectos con imán y combos).
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
 import { jugar } from "../src/logica/simulacion.ts";
-import { conTactil, datosFin, DIA, empezarHoy, esperarLibre, jugarHastaElFin, preparar, SEMILLA } from "./ayudas.ts";
+import { conTactil, datosFin, DIA, empezarHoy, esperarFinListo, esperarLibre, jugarHastaElFin, preparar, SEMILLA } from "./ayudas.ts";
 
 test("partida completa del reto de hoy tocando cada pieza en cuanto aparece", async ({ page, context }, testInfo) => {
   test.setTimeout(90_000);
@@ -20,6 +20,8 @@ test("partida completa del reto de hoy tocando cada pieza en cuanto aparece", as
   // Piezas en el extremo: cada una cae y cuesta una vida; con tres, fin.
   expect(fin.toques.length).toBeGreaterThanOrEqual(3);
 
+  // «Copiar» ignora los primeros 700 ms del fin.
+  await esperarFinListo(page);
   await page.getByRole("button", { name: "Copiar" }).click();
   await expect(page.locator("#mensaje")).toHaveText("Copiado");
   const tarjeta = await page.evaluate(() => navigator.clipboard.readText());

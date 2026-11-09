@@ -2,7 +2,7 @@
 // de `astro preview` mediante `page.route`, sin instalar wrangler.
 import { readFileSync } from "node:fs";
 import { expect, test } from "@playwright/test";
-import { conTactil, datosFin, DIA, empezarHoy, jugarHastaElFin, preparar } from "./ayudas.ts";
+import { conTactil, datosFin, DIA, empezarHoy, esperarFinListo, jugarHastaElFin, preparar } from "./ayudas.ts";
 
 function cabecerasDeDist(): Record<string, string> {
   const texto = readFileSync(new URL("../dist/_headers", import.meta.url), "utf8");
@@ -36,6 +36,8 @@ test("la partida completa pasa con la CSP sin errores de CSP", async ({ page, co
   await empezarHoy(page);
   await jugarHastaElFin(page, conTactil(testInfo), { conRetraso: 3, retrasoMs: 1600 });
   await datosFin(page);
+  // «Copiar» ignora los primeros 700 ms del fin.
+  await esperarFinListo(page);
   await page.getByRole("button", { name: "Copiar" }).click();
   await expect(page.locator("#mensaje")).toHaveText("Copiado");
   expect(await page.evaluate(() => navigator.clipboard.readText())).toContain(`Torre Diaria #${DIA}`);
