@@ -117,7 +117,7 @@ En este equipo Windows con Node 24.18.0 y Chromium de Playwright. Las cifras cad
 
 ### 2026-11-09 (bloques E a H)
 
-- **Pruebas:** `npm test`, 282 pruebas en 24 archivos, todas pasan. `npm run e2e`, 159 pasan y 31 se saltan (capturas, pruebas de un solo proyecto y de teclado), en unos 13 a 17 minutos con 2 hilos; dos ejecuciones seguidas en verde.
+- **Pruebas:** `npm test`, 282 pruebas en 24 archivos, todas pasan. `npm run e2e`, 160 pasan y 32 se saltan (capturas, pruebas de un solo proyecto y de teclado), en unos 14 a 15 minutos con 2 hilos; dos ejecuciones seguidas en verde.
 - **Tamaño (`npm run build`, y `gzip -9 -c` de cada archivo):** el JavaScript de `dist/` ocupa 311.902 bytes y **79.718 bytes con `gzip -9`** (presupuesto: 150 KB); el CSS, 17.841 bytes (4.865 con gzip); fuentes sin cambios (60.012 bytes). Sin imágenes ni audio.
 - **Fotogramas (A2, `npm run e2e`, proyectos `rendimiento-*`, 20 s jugando sola):** escritorio 1280×800, mediana 16 ms y p95 de 17 a 18 ms (límites 17,5 y 25); móvil (Pixel 7) con la CPU 4 veces más lenta, mediana de 16 a 20 ms y **p95 de 26 a 31 ms** en cinco ejecuciones con el lienzo a 1,5 píxeles por píxel CSS (objetivo 33 ms). Con 2, el mismo móvil daba 35 ms (medido el 2026-11-08 por el coordinador), por eso en táctil se limita a 1,5. **Sin medir en un móvil real.**
 - **Imagen para compartir (F1, `e2e/compartir.spec.ts`):** PNG de 1080×1350 de unos 215 KB (217.767 y 219.376 bytes en las dos capturas de `docs/proceso/segunda-version/capturas/`) (límite 600 KB).
