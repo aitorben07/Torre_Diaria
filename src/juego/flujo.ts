@@ -3,7 +3,7 @@
 // ejecuta la orden que recibe. Así las transiciones se prueban con Vitest.
 // Retos, Niveles y Colección (C3, D2, E3) se abren encima de la pantalla que
 // hubiera; si era una partida, queda en pausa y al cerrar sigue.
-import type { Reto } from "../logica/reto.ts";
+import type { Libre, Reto } from "../logica/reto.ts";
 
 /** En la pantalla de fin se ignoran toques y teclas durante este tiempo (impacto, 2.5). */
 export const ESPERA_FIN_MS = 700;
@@ -32,8 +32,8 @@ export type Flujo = {
 
 /** Lo que la página tiene que hacer tras la acción. */
 export type Orden =
-  /** `nivel` solo en el modo `nivel`. */
-  | { tipo: "jugar"; modo: Modo; dia: number; nivel?: number }
+  /** `nivel` solo en el modo `nivel`; `codigo`, en la partida libre del enlace de un amigo (F2). */
+  | { tipo: "jugar"; modo: Modo; dia: number; nivel?: number; codigo?: string }
   | { tipo: "resultado"; dia: number }
   | { tipo: "reto" }
   | { tipo: "panel"; panel: Panel }
@@ -44,8 +44,8 @@ export type Orden =
 export type Accion =
   /** La partida en marcha ha terminado. */
   | { tipo: "terminar" }
-  /** «Otra vez» o «Partida libre». */
-  | { tipo: "libre" }
+  /** «Otra vez» o «Partida libre»; con `codigo`, la partida libre del enlace de un amigo (F2). */
+  | { tipo: "libre"; codigo?: string }
   /** «Jugar» en la ficha de un día: el oficial si no se ha jugado, o su resultado si ya se jugó. */
   | { tipo: "jugarDia"; dia: number }
   /** «Jugar otra vez (no cuenta)»: las piezas de un día ya jugado. */
@@ -69,8 +69,12 @@ export type Contexto = {
 
 const NADA: Orden = { tipo: "nada" };
 
-/** Al abrir la página: con un reto válido, su aviso; sin él, la partida libre ya en marcha. */
-export function abrir(reto: Reto | null, hoy: number): { flujo: Flujo; orden: Orden } {
+/**
+ * Al abrir la página: con un reto válido o el enlace de una partida libre
+ * (F2), su aviso; sin ellos, la partida libre ya en marcha. El reto manda.
+ */
+export function abrir(reto: Reto | null, hoy: number, libre: Libre | null = null): { flujo: Flujo; orden: Orden } {
+  if (!reto && libre) return { flujo: { pantalla: "reto", modo: "libre", dia: hoy, nivel: 0, finDesde: -Infinity, debajo: null }, orden: { tipo: "reto" } };
   if (reto) return { flujo: { pantalla: "reto", modo: "oficial", dia: reto.dia, nivel: 0, finDesde: -Infinity, debajo: null }, orden: { tipo: "reto" } };
   return { flujo: empezar("libre", hoy), orden: { tipo: "jugar", modo: "libre", dia: hoy } };
 }
@@ -119,6 +123,7 @@ export function transicion(flujo: Flujo, accion: Accion, { ahora, hoy, jugado, n
   };
   switch (accion.tipo) {
     case "libre":
+      if (accion.codigo) return { flujo: empezar("libre", hoy), orden: { tipo: "jugar", modo: "libre", dia: hoy, codigo: accion.codigo } };
       return { flujo: empezar("libre", hoy), orden: { tipo: "jugar", modo: "libre", dia: hoy } };
     case "jugarDia":
       return jugarDia(accion.dia);

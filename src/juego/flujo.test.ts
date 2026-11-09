@@ -12,6 +12,15 @@ describe("flujo de pantallas (B5)", () => {
     });
   });
 
+  it("al abrir con el enlace de una partida libre se ve su aviso; jugarla usa su código (F2)", () => {
+    const { flujo, orden } = abrir(null, HOY, { semilla: "a1b2c3", puntos: 300 });
+    expect(flujo).toMatchObject({ pantalla: "reto", modo: "libre" });
+    expect(orden).toEqual({ tipo: "reto" });
+    expect(transicion(flujo, { tipo: "libre", codigo: "a1b2c3" }, contexto(0)).orden).toEqual({ tipo: "jugar", modo: "libre", dia: HOY, codigo: "a1b2c3" });
+    // Con los dos enlaces, manda el reto.
+    expect(abrir({ dia: 1, puntos: 5 }, HOY, { semilla: "a", puntos: 1 }).flujo.modo).toBe("oficial");
+  });
+
   it("al abrir con un reto válido se ve su aviso y no empieza ninguna partida", () => {
     const { flujo, orden } = abrir({ dia: 1, puntos: 5 }, HOY);
     expect(flujo.pantalla).toBe("reto");

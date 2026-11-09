@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { crearReto, leerReto } from "./reto.ts";
+import { crearLibre, crearReto, leerLibre, leerReto } from "./reto.ts";
 
 const HOY = 100;
 
@@ -47,5 +47,27 @@ describe("reto", () => {
 
   it("rechaza más de 20 caracteres aunque el formato encaje", () => {
     expect(leerReto(`?reto=${"1".repeat(18)}.5`, 10 ** 20)).toBeNull();
+  });
+});
+
+describe("enlace de partida libre (F2)", () => {
+  it("leerLibre(crearLibre(\"a1b2c3\", 1240)) devuelve la misma partida", () => {
+    expect(crearLibre("a1b2c3", 1240)).toBe("?libre=a1b2c3.1240");
+    expect(leerLibre(crearLibre("a1b2c3", 1240))).toEqual({ semilla: "a1b2c3", puntos: 1240 });
+    expect(leerLibre("https://torre.example/?libre=z.0")).toEqual({ semilla: "z", puntos: 0 });
+    expect(leerLibre("?libre=1z141z3.999999")).toEqual({ semilla: "1z141z3", puntos: 999999 });
+  });
+
+  it.each(["ABC.1", "a1b2c3d4.1", "a.1000000", "a.", ".5", "a.01", "a-b.5", "<script>", "a.5<img src=x onerror=alert(1)>", " a.5"])(
+    "devuelve null con %j",
+    (valor) => {
+      expect(leerLibre(`?libre=${encodeURIComponent(valor)}`)).toBeNull();
+    },
+  );
+
+  it("devuelve null sin parámetro o con más de 20 caracteres", () => {
+    expect(leerLibre("")).toBeNull();
+    expect(leerLibre("?reto=3.5")).toBeNull();
+    expect(leerLibre(`?libre=abc.${"1".repeat(18)}`)).toBeNull();
   });
 });

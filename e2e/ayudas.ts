@@ -112,13 +112,20 @@ export async function esperarFinListo(page: Page): Promise<void> {
 /**
  * Toca cada pieza hasta que acaba la partida. Las `centradas` primeras se
  * tocan cuando pasan cerca del objetivo (`data-x` y `data-objetivo`); las
- * `conRetraso` siguientes, `retrasoMs` después de aparecer; las demás, en
- * cuanto aparecen (en el extremo: caen y cuestan una vida).
+ * `conRetraso` siguientes, `retrasoMs` después de aparecer; las demás, en el
+ * extremo (caen y cuestan una vida). Esas últimas se sueltan dentro de la
+ * página, salvo con `real`, que usa un toque o clic de Playwright: con carga,
+ * ese toque puede llegar tarde, la pieza ya no cae y la partida se alarga.
  */
 export async function jugarHastaElFin(
   page: Page,
   tactil: boolean,
-  { centradas = 0, conRetraso = 0, retrasoMs = 0 }: { centradas?: number; conRetraso?: number; retrasoMs?: number } = {},
+  {
+    centradas = 0,
+    conRetraso = 0,
+    retrasoMs = 0,
+    real = false,
+  }: { centradas?: number; conRetraso?: number; retrasoMs?: number; real?: boolean } = {},
 ): Promise<void> {
   const contenedor = juego(page);
   for (let pieza = 0; pieza < 200; pieza++) {
@@ -145,9 +152,13 @@ export async function jugarHastaElFin(
             mirar();
           }),
       );
-    } else {
-      if (pieza < centradas + conRetraso) await page.waitForTimeout(retrasoMs);
+    } else if (pieza < centradas + conRetraso) {
+      await page.waitForTimeout(retrasoMs);
       await tocar(page, tactil);
+    } else if (real) {
+      await tocar(page, tactil);
+    } else {
+      await soltarEnExtremo(page);
     }
     await page.waitForFunction(() => {
       const el = document.getElementById("juego")!;
@@ -176,4 +187,33 @@ export async function datosFin(page: Page): Promise<DatosFin> {
     semilla: (await contenedor.getAttribute("data-semilla")) ?? "",
     opciones: JSON.parse((await contenedor.getAttribute("data-opciones")) ?? "{}") as OpcionesPartida,
   };
+}
+
+/**
+ * Suelta la pieza dentro de la página mientras sigue lejos de la plataforma
+ * (con el centro a más de 2,6 m, así que cae). Un toque desde Playwright puede
+ * llegar cientos de ms tarde con carga, y para entonces la pieza ya está sobre
+ * la torre. El margen de 2,6 a 3,4 m deja casi un segundo aunque los
+ * fotogramas vayan lentos.
+ */
+export async function soltarEnExtremo(page: Page): Promise<void> {
+  await page.waitForFunction(() => {
+    const el = document.getElementById("juego")!;
+    return el.dataset.estado === "fin" || el.dataset.fase === "apuntando";
+  });
+  await page.evaluate(
+    () =>
+      new Promise<void>((listo) => {
+        const mirar = () => {
+          const el = document.getElementById("juego")!;
+          if (el.dataset.estado === "fin") return listo();
+          if (el.dataset.fase === "apuntando" && Math.abs(Number(el.dataset.x || "0")) >= 2.6) {
+            document.getElementById("zona")!.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true }));
+            return listo();
+          }
+          requestAnimationFrame(mirar);
+        };
+        mirar();
+      }),
+  );
 }

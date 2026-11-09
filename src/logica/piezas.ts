@@ -32,15 +32,19 @@ export const VEL_MIN = 1.0;
 export const VEL_TOPE = 3.4;
 export const VEL_INCREMENTO = 0.03;
 
-/** Paleta fija: cada color va ligado al emoji de la tarjeta (como mucho 9). */
+/**
+ * Paleta fija de 7 colores: la pieza guarda el índice y cada tema lo pinta a
+ * su manera (`temas.ts`). Cambiar el número de colores cambia las piezas.
+ * Desde F2 la tarjeta de texto no lleva emojis (S18), así que ya no hay uno por color.
+ */
 export const PALETA = [
-  { relleno: "#e74c3c", emoji: "🟥" },
-  { relleno: "#f39c12", emoji: "🟧" },
-  { relleno: "#f4d03f", emoji: "🟨" },
-  { relleno: "#27ae60", emoji: "🟩" },
-  { relleno: "#2e86de", emoji: "🟦" },
-  { relleno: "#8e44ad", emoji: "🟪" },
-  { relleno: "#8d6e63", emoji: "🟫" },
+  { relleno: "#e74c3c" },
+  { relleno: "#f39c12" },
+  { relleno: "#f4d03f" },
+  { relleno: "#27ae60" },
+  { relleno: "#2e86de" },
+  { relleno: "#8e44ad" },
+  { relleno: "#8d6e63" },
 ] as const;
 
 export type Pieza = {

@@ -57,7 +57,21 @@ export function crearGenerador(semilla: string): () => number {
   return mulberry32(hashTexto(semilla));
 }
 
-/** Semilla aleatoria de partida libre. Es el único uso de `Math.random` en la lógica. */
-export function semillaLibre(): string {
-  return `libre-${Math.floor(Math.random() * 4_294_967_296).toString(36)}`;
+/** Código de una partida libre: de 1 a 7 caracteres `[0-9a-z]` (F2), el que va en `?libre=`. */
+export const FORMATO_CODIGO = /^[0-9a-z]{1,7}$/;
+
+/** Código aleatorio de partida libre (32 bits en base 36, hasta 7 caracteres). Único uso de `Math.random` en la lógica. */
+export function codigoLibre(): string {
+  return Math.floor(Math.random() * 4_294_967_296).toString(36);
+}
+
+/** Semilla de la partida libre de `codigo` (aleatorio si no se da): `libre-<código>`. */
+export function semillaLibre(codigo: string = codigoLibre()): string {
+  return `libre-${codigo}`;
+}
+
+/** El código de una semilla de partida libre, o `null` si no lo es. */
+export function codigoDeSemilla(semilla: string): string | null {
+  const codigo = semilla.startsWith("libre-") ? semilla.slice(6) : "";
+  return FORMATO_CODIGO.test(codigo) ? codigo : null;
 }

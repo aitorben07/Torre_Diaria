@@ -1,7 +1,7 @@
 // B5: partida libre al abrir, «Otra vez» con la espera de 700 ms, aviso del
 // primer toque, vidas en el HUD y sin la palabra «Práctica».
 import { expect, test, type Page } from "@playwright/test";
-import { conTactil, esperarFinListo, esperarLibre, juego, jugarHastaElFin, preparar, tocar } from "./ayudas.ts";
+import { conTactil, esperarFinListo, esperarLibre, juego, jugarHastaElFin, preparar, soltarEnExtremo, tocar } from "./ayudas.ts";
 
 /**
  * Dentro de la página: en cuanto se muestra el fin (un `MutationObserver` lo ve
@@ -117,8 +117,8 @@ test("el HUD muestra las vidas que quedan tras una caída", async ({ page }, tes
   await page.goto("/");
   await esperarLibre(page);
   await expect(page.locator("#vidas .vida:not(.perdida)")).toHaveCount(3);
-  // La pieza aparece en el extremo, fuera de la plataforma: tocar en seguida la tira.
-  await tocar(page, conTactil(testInfo));
+  // La pieza aparece en el extremo, fuera de la plataforma: soltarla ahí la tira.
+  await soltarEnExtremo(page);
   await expect(juego(page)).toHaveAttribute("data-vidas", "2");
   await expect(page.locator("#vidas .vida")).toHaveCount(3);
   await expect(page.locator("#vidas .vida.perdida")).toHaveCount(1);
@@ -132,7 +132,7 @@ test("ningún botón ni texto de la interfaz dice «Práctica»", async ({ page 
   const textos = async () => (await page.locator("body").innerText()) + (await page.locator("button").allTextContents()).join(" ");
   expect(await textos()).not.toMatch(/pr[aá]ctica/i);
   await jugarHastaElFin(page, conTactil(testInfo));
-  await expect(page.locator("#tarjeta")).toContainText("Partida libre");
+  await expect(page.locator("#tarjeta")).toContainText("en partida libre.");
   expect(await textos()).not.toMatch(/pr[aá]ctica/i);
   await page.goto("/?reto=1.5");
   expect(await textos()).not.toMatch(/pr[aá]ctica/i);

@@ -135,10 +135,8 @@ describe("curva de dificultad (B3)", () => {
 });
 
 describe("PALETA", () => {
-  it("cada color tiene un emoji cuadrado distinto y no hay más de 9", () => {
-    const cuadrados = ["🟥", "🟧", "🟨", "🟩", "🟦", "🟪", "🟫", "⬛", "⬜"];
-    expect(PALETA.length).toBeLessThanOrEqual(9);
-    for (const color of PALETA) expect(cuadrados).toContain(color.emoji);
-    expect(new Set(PALETA.map((color) => color.emoji)).size).toBe(PALETA.length);
+  it("tiene 7 colores distintos: cada tema pinta uno por índice (sin emojis desde F2)", () => {
+    expect(PALETA).toHaveLength(7);
+    expect(new Set(PALETA.map((color) => color.relleno)).size).toBe(PALETA.length);
   });
 });

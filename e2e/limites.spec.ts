@@ -106,3 +106,27 @@ test("un enlace de reto inválido o con HTML se ignora sin inyectar nada", async
   expect(dialogos).toBe(0);
   expect(errores).toEqual([]);
 });
+
+const LIBRES_INVALIDOS = ["ABC.1", "a1b2c3d4.1", "a.1000000", "a.", "<script>", "a.5<img src=x onerror=alert(1)>", 'a.5"><script>alert(1)</script>'];
+
+test("un enlace de partida libre inválido o con HTML se ignora sin inyectar nada (G5, F2)", async ({ page }) => {
+  let dialogos = 0;
+  page.on("dialog", async (dialogo) => {
+    dialogos++;
+    await dialogo.dismiss();
+  });
+  const { errores } = await preparar(page);
+  await page.goto("/");
+  const scripts = await page.locator("script").count();
+  for (const libre of LIBRES_INVALIDOS) {
+    await page.goto(`/?libre=${encodeURIComponent(libre)}`);
+    await expect(page.locator("#aviso-reto"), libre).toBeHidden();
+    await expect(juego(page), libre).toHaveAttribute("data-estado", "jugando");
+    await expect(juego(page), libre).toHaveAttribute("data-modo", "libre");
+    await expect(page.locator('img, svg:not([aria-hidden="true"]), b'), libre).toHaveCount(0);
+    expect(await page.locator("script").count(), libre).toBe(scripts);
+    expect(await page.locator("body").innerHTML(), libre).not.toContain("alert(1)");
+  }
+  expect(dialogos).toBe(0);
+  expect(errores).toEqual([]);
+});

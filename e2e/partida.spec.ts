@@ -12,7 +12,8 @@ test("partida completa del reto de hoy tocando cada pieza en cuanto aparece", as
   await page.goto("/");
   const inicio = Date.now();
   await empezarHoy(page);
-  await jugarHastaElFin(page, conTactil(testInfo));
+  // Con toques de verdad (tap o clic), no soltados dentro de la página.
+  await jugarHastaElFin(page, conTactil(testInfo), { real: true });
   const fin = await datosFin(page);
   expect(Date.now() - inicio).toBeLessThan(60_000);
   expect(fin.semilla).toBe(SEMILLA);

@@ -44,8 +44,9 @@ test("una partida libre tras la oficial no cambia el resultado guardado", async 
   await page.getByRole("button", { name: "Partida libre" }).click();
   await expect(juego(page)).toHaveAttribute("data-modo", "libre");
   await jugarHastaElFin(page, conTactil(testInfo), { conRetraso: 1, retrasoMs: 1600 });
-  await expect(page.locator("#tarjeta")).toContainText("Partida libre");
+  await expect(page.locator("#tarjeta")).toContainText("en partida libre.");
   await expect(page.locator("#tarjeta")).not.toContainText("reto=");
+  await expect(page.locator("#tarjeta")).toContainText("?libre=");
   expect(await leerDia(page)).toBe(antes);
 });
 

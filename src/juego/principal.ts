@@ -7,16 +7,16 @@ import { comprar, equipado, equipar, nuevosEscenarios, siguienteObjetivo } from 
 import { actualizarRacha, medallaDe, medallaDePuntos, rachaDeHoy, registrarOficial, UMBRAL_BRONCE, UMBRAL_ORO, UMBRAL_PLATA, type Oficial } from "../logica/diarios.ts";
 import { cobrarLibre, hitosDeAltura, monedasDePartida, sumarEstadisticas, type Medalla, type PartidaAcabada } from "../logica/economia.ts";
 import { estrellasDe, nivelDisponible, nivelPorNumero, opcionesDeNivel, registrarNivel, textoMeta, textoObjetivo, totalEstrellas, type NivelRegistrado } from "../logica/niveles.ts";
-import { leerReto } from "../logica/reto.ts";
+import { leerLibre, leerReto } from "../logica/reto.ts";
 import { almacenDelNavegador } from "../logica/registro.ts";
 import { deTramos, Guardado, type DiaJugado } from "../logica/progreso.ts";
 import { generarSecuencia } from "../logica/piezas.ts";
 import { VIDAS_INICIALES, VIDAS_MAX } from "../logica/puntuacion.ts";
-import { fechaDeDia, fechaUTC, numeroDia, semillaLibre } from "../logica/semilla.ts";
+import { codigoDeSemilla, fechaDeDia, fechaUTC, numeroDia, semillaLibre } from "../logica/semilla.ts";
 import type { Pieza } from "../logica/piezas.ts";
 import type { Calidad } from "../logica/puntuacion.ts";
 import { Partida, REGLAS, type EstadoPartida, type Evento, type OpcionesPartida } from "../logica/simulacion.ts";
-import { formatearAltura, formatearNumero, formatearPuntos, generarTarjeta } from "../logica/tarjeta.ts";
+import { formatearAltura, formatearNumero, formatearPuntos, generarTarjeta, type DatosTarjeta } from "../logica/tarjeta.ts";
 import { Bucle, PASO_MS } from "./bucle.ts";
 import { PanelColeccion } from "./coleccion.ts";
 import { PanelNiveles } from "./mapa.ts";
@@ -26,7 +26,7 @@ import { Haptica, puedeVibrar } from "./haptica.ts";
 import { pintarMuestra } from "./muestras.ts";
 import { Sonido } from "./sonido.ts";
 import { abrir, transicion, type Accion, type Flujo, type Modo, type Orden, type Panel, type Pantalla } from "./flujo.ts";
-import { cambiarEstado, compartir, copiar, mostrarTexto, NOMBRE_MEDALLA, pintarBarra, pintarFin, pintarHud, pintarReto, ui, type DatosFin as DatosPantallaFin } from "./pantallas.ts";
+import { cambiarEstado, compartir, copiar, mostrarTexto, NOMBRE_MEDALLA, pintarBarra, pintarFin, pintarHud, pintarLibreAmigo, pintarReto, ui, type DatosFin as DatosPantallaFin } from "./pantallas.ts";
 import { PanelRetos } from "./retos.ts";
 import { escenarioPorId, temaPorId } from "./temas.ts";
 
@@ -39,6 +39,8 @@ const ESTRELLA_MS = 380;
 let hoy = numeroDia(fechaUTC(new Date()));
 const almacen = almacenDelNavegador();
 const reto = leerReto(location.search, hoy);
+/** Partida libre del enlace de un amigo (F2); si hay reto, manda el reto. */
+const libreAmigo = reto ? null : leerLibre(location.search);
 /** Progreso guardado (C1): una sola clave; si el almacenamiento falla, queda en memoria. */
 const guardado = new Guardado(almacen);
 
@@ -137,7 +139,7 @@ function actuar(accion: Accion): void {
 }
 
 function ejecutar(orden: Orden): void {
-  if (orden.tipo === "jugar") empezar(orden.modo, orden.dia, orden.nivel);
+  if (orden.tipo === "jugar") empezar(orden.modo, orden.dia, orden.nivel, orden.codigo);
   else if (orden.tipo === "resultado") verGuardado(orden.dia);
   else if (orden.tipo === "reto") mostrarReto();
   else if (orden.tipo === "panel") mostrarPanel(orden.panel);
@@ -145,11 +147,15 @@ function ejecutar(orden: Orden): void {
 }
 
 function mostrarReto(): void {
-  if (!reto) return;
+  if (!reto && !libreAmigo) return;
   partida = null;
   escena = null;
-  const jugado = resultadoDe(reto.dia);
-  pintarReto({ hoy, reto, jugado: jugado !== null, puntosDia: jugado && jugado.reglas === REGLAS ? jugado.puntos : null });
+  if (reto) {
+    const jugado = resultadoDe(reto.dia);
+    pintarReto({ hoy, reto, jugado: jugado !== null, puntosDia: jugado && jugado.reglas === REGLAS ? jugado.puntos : null });
+  } else if (libreAmigo) {
+    pintarLibreAmigo(libreAmigo.puntos);
+  }
   pintarHud({ puntos: 0, vidas: VIDAS_INICIALES, vidasMax: VIDAS_MAX, combo: 0, record: null });
   cambiarEstado("reto");
   actualizarBotones();
@@ -192,9 +198,9 @@ function actualizarBotones(): void {
   ui.botonColeccion().hidden = ocultar;
 }
 
-function empezar(modo: Modo, dia: number, numeroNivel: number = 0): void {
+function empezar(modo: Modo, dia: number, numeroNivel: number = 0, codigo?: string): void {
   const nivel = modo === "nivel" ? nivelPorNumero(numeroNivel) : null;
-  const semilla = nivel ? nivel.semilla : modo === "libre" ? semillaLibre() : fechaDeDia(dia);
+  const semilla = nivel ? nivel.semilla : modo === "libre" ? semillaLibre(codigo) : fechaDeDia(dia);
   const opciones = nivel ? opcionesDeNivel(nivel) : OPCIONES;
   partida = new Partida(semilla, opciones);
   pararEstrellas();
@@ -231,10 +237,29 @@ function empezar(modo: Modo, dia: number, numeroNivel: number = 0): void {
   actualizarHud();
 }
 
-/** Puntos del amigo si la partida (o el resultado) responde a su reto. */
+/** Puntos del amigo si la partida (o el resultado) responde a su reto o a su partida libre. */
 function puntosAmigo(modoPartida: Modo, diaPartida: number): number | null {
-  if (!reto || modoPartida === "libre" || reto.dia !== diaPartida) return null;
+  if (modoPartida === "libre") {
+    const codigo = codigoDeSemilla(ui.juego().dataset.semilla ?? "");
+    return libreAmigo && codigo === libreAmigo.semilla ? libreAmigo.puntos : null;
+  }
+  if (!reto || modoPartida === "nivel" || reto.dia !== diaPartida) return null;
   return reto.puntos;
+}
+
+/** Datos de la tarjeta de texto (F2) para lo que muestra el fin. */
+function datosTarjeta(datos: DatosFin, modoPartida: Modo, premios: Premios): DatosTarjeta {
+  const origen = location.origin;
+  if (modoPartida === "nivel") {
+    return { modo: "nivel", nivel: flujo.nivel, estrellas: premios.nivel?.estrellas ?? 0, victoria: premios.nivel?.victoria ?? false, origen };
+  }
+  if (modoPartida === "libre") {
+    return { modo: "libre", codigo: codigoDeSemilla(ui.juego().dataset.semilla ?? ""), puntos: datos.puntos, altura: datos.altura, origen };
+  }
+  const enPiezas = datos.reglas === 1;
+  // La racha solo se escribe en el oficial de hoy jugado en su día (recién acabado o visto después).
+  const racha = modoPartida === "oficial" && datos.dia === hoy && resultadoDe(datos.dia)?.enSuDia ? rachaDeHoy(guardado.actual, hoy) : 0;
+  return { modo: "diario", dia: datos.dia, puntos: enPiezas ? datos.piezas : datos.puntos, altura: datos.altura, enPiezas, racha, origen };
 }
 
 type Premios = Pick<DatosPantallaFin, "nuevoRecord" | "diario" | "monedas" | "desbloqueo" | "siguiente" | "nivel">;
@@ -282,14 +307,7 @@ function mostrarFin(datos: DatosFin, modoPartida: Modo, premios: Premios = {}): 
   const enPiezas = datos.reglas === 1;
   modoFin = modoPartida;
   finNivel = modoPartida === "nivel" && premios.nivel ? { victoria: premios.nivel.victoria, haySiguiente: premios.nivel.haySiguiente } : null;
-  textoTarjeta = generarTarjeta({
-    modo: libre ? "libre" : "diario",
-    dia: datos.dia,
-    puntos: enPiezas ? datos.piezas : datos.puntos,
-    altura: datos.altura,
-    formas: datos.formas,
-    origen: location.origin,
-  });
+  textoTarjeta = generarTarjeta(datosTarjeta(datos, modoPartida, premios));
   pintarFin({
     titulo: tituloFin(modoPartida, datos.dia),
     puntos: enPiezas ? datos.piezas : datos.puntos,
@@ -472,15 +490,8 @@ const panelColeccion = new PanelColeccion(
 async function compartirDia(dia: number): Promise<string> {
   const jugado = resultadoDe(dia);
   if (!jugado) return "";
-  const datos = datosDeDia(dia, jugado);
-  const texto = generarTarjeta({
-    modo: "diario",
-    dia,
-    puntos: jugado.reglas === 1 ? jugado.piezas : jugado.puntos,
-    altura: datos.altura,
-    formas: datos.formas,
-    origen: location.origin,
-  });
+  const enPiezas = jugado.reglas === 1;
+  const texto = generarTarjeta({ modo: "diario", dia, puntos: enPiezas ? jugado.piezas : jugado.puntos, altura: jugado.altura, enPiezas, origen: location.origin });
   if (typeof navigator.share === "function") {
     const resultado = await compartir(texto);
     return resultado === "error" ? "No se ha podido compartir." : "";
@@ -736,6 +747,7 @@ ui.botonCerrarNiveles().addEventListener("click", () => actuar({ tipo: "cerrar" 
 ui.botonCerrarColeccion().addEventListener("click", () => actuar({ tipo: "cerrar" }));
 ui.botonReto().addEventListener("click", () => {
   if (reto) actuar({ tipo: "jugarReto", reto });
+  else if (libreAmigo) actuar({ tipo: "libre", codigo: libreAmigo.semilla });
 });
 ui.botonRepetirReto().addEventListener("click", () => {
   if (reto) actuar({ tipo: "repetirDia", dia: reto.dia });
@@ -778,7 +790,7 @@ observador.observe(ui.lienzo());
 observador.observe(ui.hud());
 aplicarEquipado();
 revisarRacha();
-const inicio = abrir(reto, hoy);
+const inicio = abrir(reto, hoy, libreAmigo);
 flujo = inicio.flujo;
 ejecutar(inicio.orden);
 ajustarLienzo();

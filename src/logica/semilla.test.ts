@@ -1,6 +1,6 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { crearGenerador, DIA_1, fechaDeDia, fechaUTC, numeroDia, semillaLibre } from "./semilla.ts";
+import { codigoDeSemilla, codigoLibre, crearGenerador, DIA_1, fechaDeDia, fechaUTC, numeroDia, semillaLibre } from "./semilla.ts";
 
 function extraer(semilla: string, n: number): number[] {
   const azar = crearGenerador(semilla);
@@ -57,10 +57,21 @@ describe("generador", () => {
   it("la semilla libre cambia en cada llamada", () => {
     expect(semillaLibre()).not.toBe(semillaLibre());
   });
+
+  it("el código libre tiene de 1 a 7 caracteres [0-9a-z] y la semilla lo contiene (F2)", () => {
+    for (let i = 0; i < 200; i++) expect(codigoLibre()).toMatch(/^[0-9a-z]{1,7}$/);
+    expect((4_294_967_295).toString(36)).toHaveLength(7);
+    expect(semillaLibre("a1b2c3")).toBe("libre-a1b2c3");
+    expect(codigoDeSemilla("libre-a1b2c3")).toBe("a1b2c3");
+    expect(codigoDeSemilla(semillaLibre())).toMatch(/^[0-9a-z]{1,7}$/);
+    expect(codigoDeSemilla("2026-11-20")).toBeNull();
+    expect(codigoDeSemilla("libre-ABC")).toBeNull();
+    expect(codigoDeSemilla("libre-a1b2c3d4")).toBeNull();
+  });
 });
 
 describe("src/logica", () => {
-  it("solo usa Math.random en semillaLibre", () => {
+  it("solo usa Math.random en codigoLibre (la semilla de la partida libre)", () => {
     const carpeta = new URL("./", import.meta.url);
     const usos = readdirSync(carpeta)
       .filter((archivo) => archivo.endsWith(".ts") && !archivo.endsWith(".test.ts"))
@@ -71,7 +82,7 @@ describe("src/logica", () => {
           .map((linea) => `${archivo}: ${linea.trim()}`),
       );
     expect(usos).toEqual([
-      "semilla.ts: return `libre-${Math.floor(Math.random() * 4_294_967_296).toString(36)}`;",
+      "semilla.ts: return Math.floor(Math.random() * 4_294_967_296).toString(36);",
     ]);
   });
 });

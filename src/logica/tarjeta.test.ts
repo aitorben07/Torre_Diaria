@@ -1,75 +1,93 @@
 import { describe, expect, it } from "vitest";
-import { PALETA } from "./piezas.ts";
+import { leerLibre, leerReto } from "./reto.ts";
 import { formatearNumero, formatearPuntos, generarTarjeta, type DatosTarjeta } from "./tarjeta.ts";
 
 const ORIGEN = "https://torre-diaria.pages.dev";
 
-function datos(cambios: Partial<DatosTarjeta> = {}): DatosTarjeta {
-  return {
-    modo: "diario",
-    dia: 12,
-    puntos: 3,
-    altura: 3.42,
-    formas: [{ color: 0 }, { color: 4 }, { color: 2 }],
-    origen: ORIGEN,
-    ...cambios,
-  };
-}
+const diario = (cambios: Partial<Extract<DatosTarjeta, { modo: "diario" }>> = {}): DatosTarjeta => ({
+  modo: "diario",
+  dia: 16,
+  puntos: 1240,
+  altura: 18.42,
+  racha: 5,
+  origen: ORIGEN,
+  ...cambios,
+});
+const libre = (cambios: Partial<Extract<DatosTarjeta, { modo: "libre" }>> = {}): DatosTarjeta => ({
+  modo: "libre",
+  codigo: "a1b2c3",
+  puntos: 2310,
+  altura: 27.1,
+  origen: ORIGEN,
+  ...cambios,
+});
+const nivel = (cambios: Partial<Extract<DatosTarjeta, { modo: "nivel" }>> = {}): DatosTarjeta => ({
+  modo: "nivel",
+  nivel: 12,
+  estrellas: 3,
+  victoria: true,
+  origen: ORIGEN,
+  ...cambios,
+});
 
-function piezas(n: number): Array<{ color: number }> {
-  return Array.from({ length: n }, (_, i) => ({ color: i % PALETA.length }));
-}
-
-describe("generarTarjeta", () => {
-  it("la del reto diario lleva día, puntos, altura con coma y enlace de reto", () => {
-    const texto = generarTarjeta(datos());
-    expect(texto).toBe(
-      ["Torre Diaria #12 🏗️", "🟥🟦🟨", "3 puntos · 3,4 m", `¿Me superas? ${ORIGEN}/?reto=12.3`].join("\n"),
-    );
+describe("generarTarjeta (F2)", () => {
+  it("la del reto diario lleva día, puntos, altura, racha y el enlace de reto (Anexo 1, 7.2)", () => {
+    expect(generarTarjeta(diario())).toBe(`Torre Diaria #16: 1.240 puntos, 18,4 m, racha de 5 días.\n¿Me superas? ${ORIGEN}/?reto=16.1240`);
+    expect(generarTarjeta(diario({ racha: 1 }))).toContain("racha de 1 día.");
+    // Sin racha (un día pasado) no se escribe.
+    expect(generarTarjeta(diario({ racha: 0 })).split("\n")[0]).toBe("Torre Diaria #16: 1.240 puntos y 18,4 m.");
+    expect(leerReto(generarTarjeta(diario()).split(" ").at(-1)!, 16)).toEqual({ dia: 16, puntos: 1240 });
   });
 
-  it("la de partida libre no lleva número de día ni reto", () => {
-    const texto = generarTarjeta(datos({ modo: "libre" }));
-    expect(texto).toContain("Partida libre");
+  it("un día de la v1 se cuenta en piezas", () => {
+    expect(generarTarjeta(diario({ enPiezas: true, puntos: 12, racha: 0 })).split("\n")[0]).toBe("Torre Diaria #16: 12 piezas y 18,4 m.");
+  });
+
+  it("la de partida libre enlaza su código con ?libre=", () => {
+    const texto = generarTarjeta(libre());
+    expect(texto).toBe(`Torre Diaria: 2.310 puntos y 27,1 m en partida libre.\n¿Me superas? ${ORIGEN}/?libre=a1b2c3.2310`);
     expect(texto).not.toContain("Práctica");
-    expect(texto).not.toMatch(/#\d/);
-    expect(texto).not.toContain("reto=");
-    expect(texto).toContain(`${ORIGEN}/`);
+    expect(leerLibre(texto.split(" ").at(-1)!)).toEqual({ semilla: "a1b2c3", puntos: 2310 });
+    expect(generarTarjeta(libre({ codigo: null })).split("\n")[1]).toBe(`¿Me superas? ${ORIGEN}/`);
   });
 
-  it("con 0 puntos no deja una fila vacía ni NaN", () => {
-    const texto = generarTarjeta(datos({ puntos: 0, altura: 0, formas: [] }));
-    expect(texto).not.toContain("NaN");
-    expect(texto).not.toContain("\n\n");
-    expect(texto.split("\n").every((linea) => linea.trim().length > 0)).toBe(true);
-    expect(texto).toContain("0 puntos · 0,0 m");
+  it("la de nivel lleva las estrellas y enlaza la página principal (S19)", () => {
+    expect(generarTarjeta(nivel())).toBe(`Torre Diaria: nivel 12 con 3 estrellas.\nJuega en ${ORIGEN}/`);
+    expect(generarTarjeta(nivel({ estrellas: 1 }))).toContain("con 1 estrella.");
+    expect(generarTarjeta(nivel({ victoria: false, estrellas: 0 })).split("\n")[0]).toBe("Torre Diaria: nivel 12 sin superar todavía.");
   });
 
-  it("con 100 piezas muestra 24 emojis y +76", () => {
-    const fila = generarTarjeta(datos({ puntos: 100, formas: piezas(100) })).split("\n")[1]!;
-    const emojis = [...fila.replace(/ \+\d+$/, "")];
-    expect(emojis).toHaveLength(24);
-    expect(fila.endsWith(" +76")).toBe(true);
+  it("ninguna tarjeta lleva emojis ni caracteres fuera del plano básico, en los tres modos", () => {
+    const todas = [diario(), diario({ racha: 0 }), diario({ enPiezas: true }), libre(), libre({ codigo: null }), nivel(), nivel({ victoria: false, estrellas: 0 })];
+    for (const datos of todas) {
+      const texto = generarTarjeta(datos);
+      expect(texto, texto).not.toMatch(/\p{Extended_Pictographic}/u);
+      expect([...texto].every((c) => c.codePointAt(0)! <= 0xffff), texto).toBe(true);
+      expect(texto).not.toMatch(/[★☆♥→]/);
+    }
   });
 
-  it("ninguna tarjeta con hasta 999 puntos supera 280 caracteres", () => {
-    for (const puntos of [0, 1, 24, 25, 100, 999]) {
-      for (const modo of ["diario", "libre"] as const) {
-        const texto = generarTarjeta(datos({ modo, dia: 99_999, puntos, altura: 999.9, formas: piezas(puntos) }));
-        // En UTF-16 cada emoji cuadrado ocupa 2 unidades.
-        expect(texto.length).toBeLessThanOrEqual(280);
-      }
+  it("con 0 puntos no deja líneas vacías ni NaN", () => {
+    for (const datos of [diario({ puntos: 0, altura: 0 }), libre({ puntos: 0, altura: Number.NaN })]) {
+      const texto = generarTarjeta(datos);
+      expect(texto).not.toContain("NaN");
+      expect(texto.split("\n")).toHaveLength(2);
+      expect(texto.split("\n").every((linea) => linea.trim().length > 0)).toBe(true);
+    }
+  });
+
+  it("todas miden 200 caracteres o menos con puntos de 999.999", () => {
+    for (const datos of [
+      diario({ dia: 999_999, puntos: 999_999, altura: 999.9, racha: 9999 }),
+      libre({ codigo: "1z141z3", puntos: 999_999, altura: 999.9 }),
+      nivel({ nivel: 999 }),
+    ]) {
+      expect(generarTarjeta(datos).length).toBeLessThanOrEqual(200);
     }
   });
 
   it("mismos datos, mismo texto", () => {
-    expect(generarTarjeta(datos())).toBe(generarTarjeta(datos()));
-  });
-
-  it("cada emoji de la fila es el de la paleta para el color de esa pieza", () => {
-    const formas = piezas(PALETA.length);
-    const fila = generarTarjeta(datos({ puntos: formas.length, formas })).split("\n")[1]!;
-    expect([...fila]).toEqual(formas.map(({ color }) => PALETA[color]!.emoji));
+    expect(generarTarjeta(libre())).toBe(generarTarjeta(libre()));
   });
 });
 

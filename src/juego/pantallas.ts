@@ -181,6 +181,14 @@ export function pintarReto({ hoy, reto, jugado, puntosDia }: DatosReto): void {
   ui.botonRepetirReto().hidden = !jugado;
 }
 
+/** Aviso del enlace de una partida libre de un amigo (F2): su marca y «Jugar esta partida». */
+export function pintarLibreAmigo(puntos: number): void {
+  ui.avisoReto().textContent = `Tu amigo hizo ${formatearPuntos(puntos)} en esta partida. ¿Le superas?`;
+  mostrarTexto(ui.comparacion(), null);
+  ui.botonReto().textContent = "Jugar esta partida";
+  ui.botonRepetirReto().hidden = true;
+}
+
 export const NOMBRE_MEDALLA: Record<Medalla, string> = { bronce: "Bronce", plata: "Plata", oro: "Oro" };
 
 /** Icono de medalla dibujado con CSS (G11): el metal, o «ninguna» (marca de jugado sin medalla). */
