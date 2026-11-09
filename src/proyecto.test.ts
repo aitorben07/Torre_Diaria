@@ -50,7 +50,7 @@ describe("README y CI (H1, H2)", () => {
     expect(ci).toMatch(/push:\n\s+branches: \[main\]/);
     expect(ci).toMatch(/\n\s+pull_request:/);
     expect(ci).toMatch(/concurrency:[\s\S]*cancel-in-progress: true/);
-    expect(ci).toContain("timeout-minutes: 20");
+    expect(ci).toContain("timeout-minutes: 30");
     expect(ci).toContain("if: ${{ !github.event.repository.private }}");
     for (const paso of ["npm ci", "npm run check", "npm test", "npm run build", "npm run e2e"]) expect(ci).toContain(`run: ${paso}`);
   });

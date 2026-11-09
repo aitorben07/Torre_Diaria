@@ -104,7 +104,7 @@ No hay anuncios. `src/juego/anuncios.ts` define la interfaz `Anuncios` y `anunci
 - **Igualdad entre pantalla y Node** solo en el mismo navegador y con partidas cortas: planck usa `Math.sin`, `Math.cos` y `Math.atan2`, que pueden diferir en el último decimal entre motores (y entre Chrome y Node). Por eso las pruebas comparan la altura con 9 decimales. En otros navegadores la misma secuencia de toques puede dar otra puntuación.
 - **En el nivel 8 («Consigue 600 puntos»)** ganar ya supera el umbral de 3 estrellas: los puntos son el propio objetivo. En los niveles 1, 2, 3 y 5 (lentos y cortos) el medio simulado también saca 3 estrellas siempre.
 - **Los navegadores integrados de WhatsApp o Instagram guardan su propio progreso**; al borrar los datos del sitio se pierde todo (sin servidor no se puede evitar).
-- **Sin comprobar:** Firefox (Windows no deja ejecutarlo en este equipo), Safari en iPhone y navegadores Android reales; el CI en GitHub (aún no se ha subido la rama, así que no se ha medido cuánto tarda; estimación de 7 a 13 minutos por ejecución).
+- **Sin comprobar:** Firefox (Windows no deja ejecutarlo en este equipo), Safari en iPhone y navegadores Android reales; el CI en GitHub (aún no se ha subido la rama, así que no se ha medido cuánto tarda; en este equipo, solo las e2e tardan de 12,6 a 14 minutos con 2 hilos, y el tiempo máximo del CI es de 30 minutos; la cifra real se anotará tras la primera ejecución en GitHub).
 - Sin ranking, sin servidor, sin `og:image` y sin misiones diarias (aplazadas). Toda la interfaz va en español.
 
 ## Segunda fase: ranking compartido
