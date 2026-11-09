@@ -66,3 +66,11 @@ test("el JavaScript de dist/ ocupa menos de 150 KB con gzip", () => {
   test.info().annotations.push({ type: "gzip", description: `${(bytes / 1024).toFixed(1)} KB en ${js.length} archivo(s)` });
   expect(bytes).toBeLessThan(150 * 1024);
 });
+
+test("dist/ no lleva direcciones de SDK de anuncios (G1)", () => {
+  const textos = archivos().filter((ruta) => /\.(html|js|css|txt)$|_headers$/.test(ruta));
+  expect(textos.length).toBeGreaterThan(0);
+  for (const ruta of textos) {
+    expect(readFileSync(new URL(ruta, DIST), "utf8"), ruta).not.toMatch(/crazygames|poki|googlesyndication|adsbygoogle/i);
+  }
+});

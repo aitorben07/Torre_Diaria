@@ -26,6 +26,7 @@ import { Haptica, puedeVibrar } from "./haptica.ts";
 import { pintarMuestra } from "./muestras.ts";
 import { Sonido } from "./sonido.ts";
 import { abrir, transicion, type Accion, type Flujo, type Modo, type Orden, type Panel, type Pantalla } from "./flujo.ts";
+import { anunciosDePlataforma, aplicarLlamadas, llamadasAlAbrir, llamadasDeTransicion } from "./anuncios.ts";
 import { compartir, descargar, ImagenCompartida, puedeCompartirArchivos } from "./compartir.ts";
 import type { DatosImagen } from "./imagen.ts";
 import { cambiarEstado, copiar, mostrarTexto, NOMBRE_MEDALLA, pintarBarra, pintarFin, pintarHud, pintarLibreAmigo, pintarReto, ui, type DatosFin as DatosPantallaFin } from "./pantallas.ts";
@@ -40,6 +41,8 @@ const ESTRELLA_MS = 380;
 /** Día de hoy en UTC. Se recalcula en cada acción y al volver a la pestaña. */
 let hoy = numeroDia(fechaUTC(new Date()));
 const almacen = almacenDelNavegador();
+/** Anuncios de esta compilación (G1): en la web, ninguno (`anunciosNulos`). */
+const anuncios = anunciosDePlataforma(import.meta.env.PUBLIC_PLATAFORMA);
 const reto = leerReto(location.search, hoy);
 /** Partida libre del enlace de un amigo (F2); si hay reto, manda el reto. */
 const libreAmigo = reto ? null : leerLibre(location.search);
@@ -152,8 +155,10 @@ function actuar(accion: Accion): void {
     jugado: (dia) => resultadoDe(dia) !== null,
     nivelDisponible: (nivel) => nivelDisponible(guardado.actual, nivel),
   });
+  const antes = flujo;
   flujo = siguiente.flujo;
-  ejecutar(siguiente.orden);
+  // Huecos de anuncios (G1): avisos de partida y el intersticial de «Otra vez» o «Siguiente nivel».
+  aplicarLlamadas(anuncios, llamadasDeTransicion(antes, flujo, accion, siguiente.orden), () => ejecutar(siguiente.orden));
 }
 
 function ejecutar(orden: Orden): void {
@@ -882,6 +887,6 @@ aplicarEquipado();
 revisarRacha();
 const inicio = abrir(reto, hoy, libreAmigo);
 flujo = inicio.flujo;
-ejecutar(inicio.orden);
+aplicarLlamadas(anuncios, llamadasAlAbrir(inicio.orden), () => ejecutar(inicio.orden));
 ajustarLienzo();
 bucle.iniciar();
