@@ -6,6 +6,8 @@ import { abrirRetos, CLAVE_PROGRESO, conTactil, DIA, empezarHoy, esperarFinListo
 async function jugarOficialRapida(page: Page, tactil: boolean): Promise<void> {
   await empezarHoy(page);
   await jugarHastaElFin(page, tactil);
+  // Copiar, Compartir y Descargar también ignoran los primeros 700 ms del fin.
+  await esperarFinListo(page);
 }
 
 /** El día `dia` guardado en el progreso, como texto, para compararlo tal cual. */
@@ -40,7 +42,6 @@ test("una partida libre tras la oficial no cambia el resultado guardado", async 
   const antes = await leerDia(page);
   expect(antes).not.toBe("null");
 
-  await esperarFinListo(page);
   await page.getByRole("button", { name: "Partida libre" }).click();
   await expect(juego(page)).toHaveAttribute("data-modo", "libre");
   await jugarHastaElFin(page, conTactil(testInfo), { conRetraso: 1, retrasoMs: 1600 });

@@ -69,6 +69,7 @@ test("la imagen de la partida libre es un PNG de 1080×1350 de 600 KB como mucho
   await page.goto("/");
   await esperarLibre(page);
   await jugarHastaElFin(page, conTactil(testInfo), { centradas: 3 });
+  await esperarFinListo(page);
   const { png, nombre } = await descargarCon(page, "#boton-descargar");
   comprobarPNG(png);
   expect(nombre).toBe("torre-diaria-libre.png");
@@ -98,6 +99,7 @@ test("la imagen de un nivel es un PNG de 1080×1350 de 600 KB como mucho (F1)", 
   await page.getByRole("button", { name: /^Niveles/ }).click();
   await page.getByRole("button", { name: "Jugar el nivel 1" }).click();
   await jugarHastaElFin(page, conTactil(testInfo), { centradas: 10 });
+  await esperarFinListo(page);
   const { png, nombre } = await descargarCon(page, "#boton-descargar");
   comprobarPNG(png);
   expect(nombre).toBe("torre-diaria-nivel.png");
@@ -185,6 +187,7 @@ test("con canShare y share que aceptan archivos, Compartir llama una vez a share
   await page.goto("/");
   await esperarLibre(page);
   await jugarHastaElFin(page, conTactil(testInfo));
+  await esperarFinListo(page);
   // Con archivos en share no hace falta «Descargar imagen».
   await expect(page.locator("#boton-descargar")).toBeHidden();
   await page.getByRole("button", { name: "Compartir" }).click();
@@ -211,6 +214,7 @@ test("sin archivos pero con share, se comparte solo el texto y se ofrece «Desca
   await page.goto("/");
   await esperarLibre(page);
   await jugarHastaElFin(page, conTactil(testInfo));
+  await esperarFinListo(page);
   await expect(page.locator("#boton-descargar")).toBeVisible();
   await page.getByRole("button", { name: "Compartir" }).click();
   await expect.poll(() => page.evaluate(() => (window as unknown as { __compartido: unknown[] }).__compartido)).toEqual([["text"]]);
@@ -223,6 +227,7 @@ test("sin navigator.share, «Descargar imagen» descarga un .png y «Copiar text
   await page.goto("/");
   await esperarLibre(page);
   await jugarHastaElFin(page, conTactil(testInfo));
+  await esperarFinListo(page);
   await expect(page.locator("#boton-compartir")).toBeHidden();
   const { png, nombre } = await descargarCon(page, "#boton-descargar");
   expect(nombre).toMatch(/\.png$/);
@@ -267,6 +272,7 @@ test("un share que rechaza con NotAllowedError muestra «Descargar imagen» sin 
   await page.goto("/");
   await esperarLibre(page);
   await jugarHastaElFin(page, conTactil(testInfo));
+  await esperarFinListo(page);
   await expect(page.locator("#boton-descargar")).toBeHidden();
   await page.getByRole("button", { name: "Compartir" }).click();
   await expect(page.locator("#boton-descargar")).toBeVisible();

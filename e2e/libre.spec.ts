@@ -79,6 +79,60 @@ test("tras el fin, un toque a los 300 ms no reinicia; a los 800 ms, «Otra vez»
   expect(await juego(page).getAttribute("data-semilla")).not.toBe(segunda);
 });
 
+test("tras el fin, Copiar, Compartir, Descargar y Usar también ignoran un toque a los 300 ms", async ({ page }, testInfo) => {
+  await page.addInitScript(() => {
+    const llamadas: unknown[] = [];
+    (window as unknown as { __compartido: unknown[] }).__compartido = llamadas;
+    delete (Navigator.prototype as { canShare?: unknown }).canShare;
+    delete (navigator as { canShare?: unknown }).canShare;
+    Object.defineProperty(navigator, "share", { configurable: true, value: async (datos: unknown) => void llamadas.push(datos) });
+  });
+  await preparar(page);
+  await page.goto("/");
+  await esperarLibre(page);
+  let descargas = 0;
+  page.on("download", () => descargas++);
+  const botones = ["boton-copiar", "boton-compartir", "boton-descargar", "boton-equipar-nuevo"];
+  const fin = page.evaluate(
+    (ids) =>
+      new Promise<number>((listo) => {
+        const el = document.getElementById("juego")!;
+        const pulsar = () => {
+          const desde = performance.now();
+          setTimeout(() => {
+            const pasados = performance.now() - desde;
+            for (const id of ids) document.getElementById(id)!.click();
+            listo(pasados);
+          }, 300);
+        };
+        const observador = new MutationObserver(() => {
+          if (el.dataset.estado !== "fin") return;
+          observador.disconnect();
+          pulsar();
+        });
+        observador.observe(el, { attributes: true, attributeFilter: ["data-estado"] });
+      }),
+    botones,
+  );
+  await jugarHastaElFin(page, conTactil(testInfo));
+  // Si el equipo va tan cargado que el temporizador llega pasados 700 ms, la prueba no vale.
+  expect(await fin).toBeLessThan(700);
+  await page.waitForTimeout(800);
+  await expect(page.locator("#mensaje")).toHaveText("");
+  await expect(page.locator("#fin-desbloqueo-texto")).not.toContainText("en uso");
+  expect(await page.evaluate(() => (window as unknown as { __compartido: unknown[] }).__compartido)).toEqual([]);
+  expect(descargas).toBe(0);
+
+  // Pasados los 700 ms, los mismos botones funcionan.
+  await page.getByRole("button", { name: "Compartir" }).click();
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __compartido: unknown[] }).__compartido.length)).toBe(1);
+  const descarga = page.waitForEvent("download");
+  await page.locator("#boton-descargar").click();
+  await descarga;
+  await page.getByRole("button", { name: "Copiar texto" }).click();
+  await expect(page.locator("#mensaje")).not.toHaveText("");
+});
+
 test("en escritorio, Espacio en el fin empieza otra partida", async ({ page }, testInfo) => {
   test.skip(conTactil(testInfo), "Solo en escritorio");
   await preparar(page);

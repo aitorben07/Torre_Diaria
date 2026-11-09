@@ -25,7 +25,7 @@ import { Caidas, Efectos } from "./efectos.ts";
 import { Haptica, puedeVibrar } from "./haptica.ts";
 import { pintarMuestra } from "./muestras.ts";
 import { Sonido } from "./sonido.ts";
-import { abrir, transicion, type Accion, type Flujo, type Modo, type Orden, type Panel, type Pantalla } from "./flujo.ts";
+import { abrir, aceptaEntrada, transicion, type Accion, type Flujo, type Modo, type Orden, type Panel, type Pantalla } from "./flujo.ts";
 import { anunciosDePlataforma, aplicarLlamadas, llamadasAlAbrir, llamadasDeTransicion } from "./anuncios.ts";
 import { compartir, descargar, ImagenCompartida, puedeCompartirArchivos } from "./compartir.ts";
 import type { DatosImagen } from "./imagen.ts";
@@ -846,16 +846,23 @@ ui.botonReto().addEventListener("click", () => {
 ui.botonRepetirReto().addEventListener("click", () => {
   if (reto) actuar({ tipo: "repetirDia", dia: reto.dia });
 });
+/** Los botones del fin ignoran los toques de los primeros 700 ms, como el principal (impacto, 2.5). */
+function finListo(): boolean {
+  return aceptaEntrada(flujo, performance.now());
+}
 ui.botonEquiparNuevo().addEventListener("click", () => {
+  if (!finListo()) return;
   const id = ui.botonEquiparNuevo().dataset.articulo ?? "";
   cambiarColeccion((p) => equipar(p, id), "");
   ui.finDesbloqueoTexto().textContent = `${escenarioPorId(id).nombre}: en uso`;
   ui.botonEquiparNuevo().hidden = true;
 });
 ui.botonCopiar().addEventListener("click", async () => {
+  if (!finListo()) return;
   ui.mensaje().textContent = (await copiar(textoTarjeta)) ? "Copiado" : "No se ha podido copiar: selecciona el texto.";
 });
 ui.botonCompartir().addEventListener("click", async () => {
+  if (!finListo()) return;
   // Sin esperas: la imagen ya está hecha desde que se mostró el fin (si aún no, se comparte cuando esté).
   let archivo = imagenFin.archivo;
   if (!archivo && puedeCompartirArchivos()) {
@@ -868,6 +875,7 @@ ui.botonCompartir().addEventListener("click", async () => {
   ui.mensaje().textContent = resultado === "error" ? "No se ha podido compartir." : "";
 });
 ui.botonDescargar().addEventListener("click", async () => {
+  if (!finListo()) return;
   const blob = await imagenFin.blob();
   if (!blob) {
     ui.mensaje().textContent = "No se ha podido crear la imagen.";
