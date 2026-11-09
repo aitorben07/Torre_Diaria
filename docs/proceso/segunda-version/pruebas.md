@@ -94,3 +94,32 @@ Notas, sin fallo:
 - El nivel 10 con el jugador medio simulado gana 6 de 10 veces. Es difícil pero ganable.
 - Los niveles 6 y siguientes salvo el 8 no los gana el novato simulado. Es intencionado.
 - Procesos: Playwright abrió y cerró sus servidores y navegadores. No lancé nada propio, no queda ningún proceso mío ni puerto ocupado por mí (4329 lo usa solo `npm run e2e`).
+
+## Vuelta 3
+
+**Veredicto: APROBADO.** Los 6 arreglos del revisor hacen lo que dicen, sin relajar pruebas ni seguridad. No hay fallos.
+
+| Arreglo | Cómo se comprobó | Resultado |
+|---|---|---|
+| Cobro de partida libre repetida | Diff desde 4625a73: `id` = semilla + nº de partida + código al azar; `cobrarLibre` devuelve `{progreso, monedas, nuevoRecord, nuevo}` y el fin muestra solo lo guardado. En navegador: `?libre=a1b2c3.1` jugada 3 veces (con recarga y con «Otra vez»): partidas 1, 2, 3 y monedas 4, 8, 12, cada una cobrada. Con récord sembrado en 10 y la misma semilla repetida: el récord pasa a 50 y se guarda, la repetición suma partida y monedas | Cumplido |
+| CI a 30 min | `.github/workflows/pruebas.yml` y README | Cumplido |
+| «Usar» reaparece | `pintarFin` pone `hidden = false`; prueba e2e nueva (Ciudad, luego Nubes) en verde | Cumplido |
+| 700 ms en todos los botones del fin | `finListo()` en Copiar, Compartir, Descargar y Usar. En navegador: toque a ~150 ms en Compartir, 0 llamadas a `navigator.share`; pasados 700 ms, 1 llamada. Prueba e2e nueva con los 4 botones (300 ms) en verde | Cumplido |
+| Reto que cruza la medianoche UTC y racha | `diaEmpezada` se usa en `registrarOficial`, `rachaDeHoy` y la cola de la tarjeta; la racha se difiere (`rachaPendiente`) con un reto oficial en marcha y se revisa al acabar o al empezar otra. Pruebas e2e nuevas en verde | Cumplido |
+| Tarjeta de v1 y repeticiones sin `?reto=` | `enlace()` en `tarjeta.ts` enlaza solo el origen si `enPiezas` o `repeticion`; pruebas unitarias y e2e nuevas en verde | Cumplido |
+| Código muerto e imagen de la ficha con el tema | Quita `generarPNG`, `leerResultado`, `enPausa` (sin usos restantes: compila y `check` limpio); la clave de imagen es día+tema+escenario; e2e de cambio de tema genera PNG distinto | Cumplido |
+| Seguridad intacta | `src/logica/reto.ts` y `semilla.ts` no aparecen en el diff: el validador de `?reto=` y `?libre=` no cambió | Cumplido |
+
+Comprobaciones completas:
+- `npm test`: 284 de 284 (24 archivos).
+- `npm run check`: 0 errores y 0 avisos (2 hints).
+- `npm run build`: bien.
+- `npm run e2e` completo en primer plano: 169 superadas, 33 omitidas, 0 fallos (14,0 min). Coincide con el README (169 y 33), sin diferencia. Rendimiento: escritorio mediana 16,0 ms y p95 19,0 ms; móvil p95 28,0 ms.
+
+Notas, sin fallo:
+- En el fin, el texto accesible de las monedas se lee «+44 monedas» porque se concatenan el número visible («+4») y el texto para lectores («4 monedas»); es solo cómo lo junta `textContent`, no un error de cobro.
+- La misma semilla jugada igual da el mismo récord (50); por eso para ver «superar» sembré un récord previo de 10.
+
+Sin comprobar: igual que en vueltas anteriores (móvil real, sonido real, `navigator.share` real, Firefox y WebKit). El cruce real de la medianoche UTC solo se cubre con la prueba e2e simulada.
+
+Procesos: mis dos scripts temporales (`e2e/tmp-vuelta3.spec.ts`) se borraron. Playwright abrió y cerró sus propios servidores y navegadores; no lancé nada propio, no queda ningún proceso mío ni puerto ocupado por mí.
