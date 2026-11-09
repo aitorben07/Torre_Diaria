@@ -71,3 +71,26 @@ El resto de requisitos revisados se cumplen o están cubiertos por las pruebas a
 ## Procesos
 
 Los dos servidores de vista previa que lancé (PIDs 11748 y 15484, puertos 4411 y 4412) los cerré por PID desde el propio script. Al terminar no hay procesos `node` ni de Chromium míos vivos y los puertos 4329, 4411 y 4412 no tienen ningún proceso escuchando (solo conexiones en TIME_WAIT). Mis scripts temporales están en el directorio temporal de la sesión, fuera del proyecto.
+
+## Vuelta 2
+
+**Veredicto: APROBADO.** G1 queda resuelto; no hay fallos ni requisitos sin comprobar.
+
+| Corrección | Cómo se comprobó | Resultado |
+|---|---|---|
+| G1: prueba de efectos A3 | Diff desde 2fe8dc8: mismos 9 eventos exigidos más `sacudidaMax`, sin bajar ninguna comprobación; cada pieza se suelta a por el efecto que falta. Repetida 10 veces (5 en escritorio y 5 en móvil) | Cumplido, 10/10 |
+| F3: foco tras «Descargar imagen» | Una línea en `principal.ts` (`botonOtraVez().focus()`) y prueba nueva: foco en `#boton-otra-vez`, Espacio empieza otra partida, 0 descargas extra. Repetida 4 veces en escritorio | Cumplido, 4/4 (se omite en móvil por diseño) |
+| E2: niveles 4 y 6-10 | Diff de `niveles.ts`, `niveles.test.ts` y `niveles.spec.ts` (actualizados al cambio, sin relajar). `medir:niveles`: el medio gana 6/10 o más en todos (nivel 10: 6/10), mediana 30,7 s, 0 umbrales iguales, 0 fallos | Cumplido |
+
+Comprobaciones completas:
+- `npm test`: 282 de 282.
+- `npm run check`: 0 errores y 0 avisos (2 hints).
+- `npm run build`: bien.
+- `npm run e2e`: 160 superadas, 32 omitidas, 0 fallos (14 min). Rendimiento: escritorio mediana 16,0 ms y p95 18,0 ms; móvil p95 27,0 ms.
+
+Juego real en el navegador (escritorio, Chromium, script temporal ya borrado): el nivel 7 (12 piezas con 1 vida) y el nivel 10 (14 m con 2 vidas) se ganaron soltando a ≤0,12 m del objetivo. La pantalla muestra «Meta: 14 m» y las vidas, y el fin dice «Superado: …». El nivel 8 da 3 estrellas siempre al ganar, como anota el código (los puntos son el objetivo).
+
+Notas, sin fallo:
+- El nivel 10 con el jugador medio simulado gana 6 de 10 veces. Es difícil pero ganable.
+- Los niveles 6 y siguientes salvo el 8 no los gana el novato simulado. Es intencionado.
+- Procesos: Playwright abrió y cerró sus servidores y navegadores. No lancé nada propio, no queda ningún proceso mío ni puerto ocupado por mí (4329 lo usa solo `npm run e2e`).
