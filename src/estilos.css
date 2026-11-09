@@ -1412,3 +1412,61 @@ svg.candado {
     animation: none;
   }
 }
+
+/* Compartir (F1, F3): miniatura de la imagen (canvas 4:5), el texto y los botones debajo. */
+.compartir {
+  display: grid;
+  grid-template-columns: 4.2rem 1fr;
+  align-items: center;
+  gap: 0.5rem 0.7rem;
+}
+
+.vista-imagen {
+  display: block;
+  width: 4.2rem;
+  aspect-ratio: 4 / 5;
+  border: 2px solid var(--tinta);
+  border-radius: 6px;
+  background: var(--papel-oscuro);
+  box-shadow: 3px 3px 0 var(--tinta);
+}
+
+.compartir #tarjeta {
+  font-size: 0.8rem;
+  line-height: 1.3;
+}
+
+.compartir-botones {
+  grid-column: 1 / -1;
+}
+
+.compartir-botones button {
+  padding: 0.5rem 0.6rem;
+  font-size: 0.95rem;
+  white-space: nowrap;
+}
+
+/* En pantallas bajas (un móvil de 844 px, un portátil de 800) la tarjeta de
+   fin no puede crecer: deja libre la parte baja para ver la cima. El texto se
+   ve en la imagen y se copia con «Copiar texto»; queda para lectores. */
+@media (max-height: 57.5rem) {
+  .compartir #tarjeta {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .compartir-botones {
+    grid-column: 2;
+    flex-direction: column;
+  }
+
+  .compartir-botones button {
+    flex: none;
+  }
+}

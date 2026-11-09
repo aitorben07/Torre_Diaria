@@ -239,3 +239,43 @@ for (const [nombre, ancho, alto] of [
     await contexto.close();
   });
 }
+
+for (const [nombre, ancho, alto] of [
+  ["movil", 390, 844],
+  ["escritorio", 1280, 800],
+] as const) {
+  test(`capturas de F ${nombre} ${ancho}x${alto}`, async ({ browser }, testInfo) => {
+    test.skip(testInfo.project.name !== "escritorio", "Una vez basta");
+    test.setTimeout(240_000);
+    mkdirSync(CARPETA, { recursive: true });
+    const contexto = await browser.newContext({
+      viewport: { width: ancho, height: alto },
+      deviceScaleFactor: nombre === "movil" ? 2 : 1,
+      hasTouch: nombre === "movil",
+      acceptDownloads: true,
+    });
+    const ruta = (archivo: string) => fileURLToPath(new URL(archivo, CARPETA));
+    const page = await contexto.newPage();
+    // Sin Web Share, como un navegador de escritorio: se ve «Descargar imagen».
+    await page.addInitScript(() => {
+      delete (Navigator.prototype as { share?: unknown }).share;
+      delete (navigator as { share?: unknown }).share;
+    });
+    await page.addInitScript((valor) => localStorage.setItem("torre-diaria:progreso", valor), JSON.stringify(progresoDeMuestra("puerto", 2)));
+    await preparar(page);
+    await page.goto("/");
+    await esperarLibre(page);
+    await page.evaluate(() => document.fonts.ready);
+    for (let i = 0; i < 9; i++) await soltarCentrada(page);
+    while ((await juego(page).getAttribute("data-estado")) !== "fin") {
+      await soltarEnExtremo(page).catch(() => undefined);
+      await page.waitForTimeout(100);
+    }
+    await page.waitForTimeout(1500);
+    await page.screenshot({ path: ruta(`${nombre}-15-fin-imagen.png`) });
+    const descarga = page.waitForEvent("download");
+    await page.locator("#boton-descargar").click();
+    await (await descarga).saveAs(ruta(`${nombre}-16-imagen-libre.png`));
+    await contexto.close();
+  });
+}

@@ -88,14 +88,21 @@ const favicon =
           </div>
           <p id="fin-reto" class="destacado" hidden></p>
           <p id="fin-siguiente" class="siguiente" hidden></p>
-          <pre id="tarjeta" aria-label="Vista previa de la tarjeta"></pre>
           <div class="acciones">
             <button id="boton-otra-vez" type="button" class="principal">Otra vez</button>
             <button id="boton-repetir-nivel" type="button" hidden>Repetir</button>
             <button id="boton-mapa" type="button" hidden>Mapa</button>
             <button id="boton-libre-nivel" type="button" hidden>Partida libre</button>
-            <button id="boton-copiar" type="button">Copiar</button>
-            <button id="boton-compartir" type="button" hidden>Compartir</button>
+          </div>
+          {/* Compartir (F1, F3): vista previa de la imagen en un canvas (no <img>, S17), el texto y sus botones. */}
+          <div class="compartir">
+            <canvas id="fin-imagen" class="vista-imagen" role="img" aria-label="Vista previa de la imagen para compartir"></canvas>
+            <pre id="tarjeta" aria-label="Vista previa de la tarjeta"></pre>
+            <div class="acciones compartir-botones">
+              <button id="boton-compartir" type="button" hidden>Compartir</button>
+              <button id="boton-descargar" type="button">Descargar imagen</button>
+              <button id="boton-copiar" type="button">Copiar texto</button>
+            </div>
           </div>
           <p id="mensaje" role="status"></p>
         </section>
@@ -125,6 +132,7 @@ const favicon =
             <div class="acciones">
               <button id="ficha-jugar" type="button" class="principal">Jugar</button>
               <button id="ficha-compartir" type="button">Compartir</button>
+              <button id="ficha-descargar" type="button">Descargar imagen</button>
               <button id="ficha-repetir" type="button">Jugar otra vez (no cuenta)</button>
             </div>
             <p id="ficha-mensaje" role="status"></p>

@@ -26,7 +26,9 @@ import { Haptica, puedeVibrar } from "./haptica.ts";
 import { pintarMuestra } from "./muestras.ts";
 import { Sonido } from "./sonido.ts";
 import { abrir, transicion, type Accion, type Flujo, type Modo, type Orden, type Panel, type Pantalla } from "./flujo.ts";
-import { cambiarEstado, compartir, copiar, mostrarTexto, NOMBRE_MEDALLA, pintarBarra, pintarFin, pintarHud, pintarLibreAmigo, pintarReto, ui, type DatosFin as DatosPantallaFin } from "./pantallas.ts";
+import { compartir, descargar, ImagenCompartida, puedeCompartirArchivos } from "./compartir.ts";
+import type { DatosImagen } from "./imagen.ts";
+import { cambiarEstado, copiar, mostrarTexto, NOMBRE_MEDALLA, pintarBarra, pintarFin, pintarHud, pintarLibreAmigo, pintarReto, ui, type DatosFin as DatosPantallaFin } from "./pantallas.ts";
 import { PanelRetos } from "./retos.ts";
 import { escenarioPorId, temaPorId } from "./temas.ts";
 
@@ -81,6 +83,10 @@ let hudPintado = "";
 let modoFin: Modo = "libre";
 /** Fin de un nivel: si se ganó y si ya se puede jugar el siguiente (para el botón principal). */
 let finNivel: { victoria: boolean; haySiguiente: boolean } | null = null;
+/** Imagen del fin y de la ficha del día en Retos, generadas de antemano (F3). */
+const imagenFin = new ImagenCompartida();
+const imagenDia = new ImagenCompartida();
+let diaImagen = 0;
 let temporizadoresEstrellas: number[] = [];
 
 /** Recalcula `hoy`, por si ha pasado la medianoche UTC. Devuelve si ha cambiado. */
@@ -108,7 +114,18 @@ function revisarRacha(): void {
 }
 
 /** Lo que se muestra en el fin: una partida recién acabada o un día guardado. */
-type DatosFin = { dia: number; puntos: number; altura: number; piezas: number; formas: Array<{ color: number }>; reglas: number };
+type DatosFin = {
+  dia: number;
+  puntos: number;
+  altura: number;
+  piezas: number;
+  /** Piezas colocadas, de abajo arriba, para la imagen (F1). */
+  formas: Array<Pick<Pieza, "forma" | "ancho" | "alto" | "color">>;
+  reglas: number;
+  /** Para la fila de datos de la imagen; `null` si no se guardó. */
+  perfectos: number | null;
+  comboMax: number | null;
+};
 
 function resultadoDe(dia: number): DiaJugado | null {
   return guardado.actual.diarios[dia] ?? null;
@@ -119,7 +136,8 @@ function datosDeDia(dia: number, jugado: DiaJugado): DatosFin {
   const indices = deTramos(jugado.colocadas) ?? [];
   const secuencia = indices.length > 0 ? generarSecuencia(fechaDeDia(dia), indices[indices.length - 1]! + 1) : [];
   const formas = indices.map((i) => secuencia[i]!).filter(Boolean);
-  return { dia, puntos: jugado.puntos, altura: jugado.altura, piezas: jugado.piezas, formas, reglas: jugado.reglas };
+  const v2 = jugado.reglas === REGLAS;
+  return { dia, puntos: jugado.puntos, altura: jugado.altura, piezas: jugado.piezas, formas, reglas: jugado.reglas, perfectos: v2 ? jugado.perfectos : null, comboMax: null };
 }
 
 /** Aplica una acción de la interfaz: el flujo decide y aquí se ejecuta la orden. */
@@ -247,6 +265,38 @@ function puntosAmigo(modoPartida: Modo, diaPartida: number): number | null {
   return reto.puntos;
 }
 
+/** Racha que se escribe en la tarjeta y la imagen: solo en el oficial de hoy jugado en su día. */
+function rachaDelDia(dia: number): number {
+  return dia === hoy && resultadoDe(dia)?.enSuDia ? rachaDeHoy(guardado.actual, hoy) : 0;
+}
+
+/** Datos de la imagen (F1) de lo que muestra el fin o la ficha de un día, con el tema y el escenario equipados. */
+function datosImagen(datos: DatosFin, modoPartida: Modo, premios: Premios): DatosImagen {
+  const { tema, escenario } = equipado(guardado.actual);
+  const enPiezas = datos.reglas === 1;
+  return {
+    modo: modoPartida === "nivel" ? "nivel" : modoPartida === "libre" ? "libre" : "diario",
+    dia: datos.dia,
+    nivel: flujo.nivel,
+    estrellas: premios.nivel?.estrellas ?? 0,
+    puntos: enPiezas ? datos.piezas : datos.puntos,
+    enPiezas,
+    altura: datos.altura,
+    perfectos: datos.perfectos,
+    comboMax: datos.comboMax,
+    racha: modoPartida === "oficial" ? rachaDelDia(datos.dia) : 0,
+    formas: datos.formas,
+    tema: temaPorId(tema),
+    escenario: escenarioPorId(escenario),
+    host: location.host,
+  };
+}
+
+/** Nombre del PNG descargado: `torre-diaria-<modo>.png`. */
+function nombreImagen(modoPartida: Modo): string {
+  return `torre-diaria-${modoPartida === "nivel" ? "nivel" : modoPartida === "libre" ? "libre" : "reto"}.png`;
+}
+
 /** Datos de la tarjeta de texto (F2) para lo que muestra el fin. */
 function datosTarjeta(datos: DatosFin, modoPartida: Modo, premios: Premios): DatosTarjeta {
   const origen = location.origin;
@@ -258,7 +308,7 @@ function datosTarjeta(datos: DatosFin, modoPartida: Modo, premios: Premios): Dat
   }
   const enPiezas = datos.reglas === 1;
   // La racha solo se escribe en el oficial de hoy jugado en su día (recién acabado o visto después).
-  const racha = modoPartida === "oficial" && datos.dia === hoy && resultadoDe(datos.dia)?.enSuDia ? rachaDeHoy(guardado.actual, hoy) : 0;
+  const racha = modoPartida === "oficial" ? rachaDelDia(datos.dia) : 0;
   return { modo: "diario", dia: datos.dia, puntos: enPiezas ? datos.piezas : datos.puntos, altura: datos.altura, enPiezas, racha, origen };
 }
 
@@ -327,6 +377,8 @@ function mostrarFin(datos: DatosFin, modoPartida: Modo, premios: Premios = {}): 
   actualizarBotones();
   pintarBarraActual();
   if (premios.nivel) celebrarEstrellas(premios.nivel.estrellas);
+  // La imagen se genera ya, con el panel visible, para que «Compartir» no tenga que esperar (impacto, F3).
+  imagenFin.preparar(datosImagen(datos, modoPartida, premios), nombreImagen(modoPartida), ui.finImagen());
   if (premios.desbloqueo) pintarMuestra(ui.finDesbloqueoMuestra(), temaPorId(equipado(guardado.actual).tema), escenarioPorId(premios.desbloqueo.id));
   lienzo.ponerRecord(null);
   reservarTarjeta();
@@ -421,7 +473,7 @@ function cobrarNivel(actual: Partida, numero: number): Premios {
 }
 
 function terminar(actual: Partida): void {
-  const { puntos, altura, formas, piezas } = actual.resultado();
+  const { puntos, altura, formas, piezas, perfectos, comboMax } = actual.resultado();
   const { modo, dia } = flujo;
   const premios = modo === "nivel" ? cobrarNivel(actual, flujo.nivel) : cobrar(actual, modo, dia);
   ui.juego().dataset.toques = JSON.stringify(toques);
@@ -433,7 +485,7 @@ function terminar(actual: Partida): void {
   actuar({ tipo: "terminar" });
   ui.contador().textContent = `${formatearPuntos(puntos)} · ${formatearAltura(altura)}`;
   hudPintado = "";
-  mostrarFin({ dia, puntos, altura, piezas, formas, reglas: REGLAS }, modo, premios);
+  mostrarFin({ dia, puntos, altura, piezas, formas, reglas: REGLAS, perfectos, comboMax }, modo, premios);
 }
 
 /** Abre Retos, Niveles o Colección encima de la pantalla que hubiera (si era una partida, queda en pausa). */
@@ -486,14 +538,33 @@ const panelColeccion = new PanelColeccion(
   () => guardado.actual,
 );
 
-/** Texto de un día guardado para compartir desde su ficha: con `navigator.share` o copiado. */
+/** Prepara la imagen de un día jugado al pintar su ficha en Retos (F3). */
+function prepararDia(dia: number): void {
+  const jugado = resultadoDe(dia);
+  if (!jugado || (dia === diaImagen && imagenDia.archivo)) return;
+  diaImagen = dia;
+  imagenDia.preparar(datosImagen(datosDeDia(dia, jugado), "oficial", {}), nombreImagen("oficial"));
+}
+
+/** Descarga la imagen de un día desde su ficha. */
+async function descargarDia(dia: number): Promise<string> {
+  prepararDia(dia);
+  const blob = await imagenDia.blob();
+  if (!blob) return "No se ha podido crear la imagen.";
+  descargar(blob, nombreImagen("oficial"));
+  return "";
+}
+
+/** Un día guardado desde su ficha: con `navigator.share` (con la imagen si se admite) o el texto copiado. */
 async function compartirDia(dia: number): Promise<string> {
   const jugado = resultadoDe(dia);
   if (!jugado) return "";
+  prepararDia(dia);
   const enPiezas = jugado.reglas === 1;
   const texto = generarTarjeta({ modo: "diario", dia, puntos: enPiezas ? jugado.piezas : jugado.puntos, altura: jugado.altura, enPiezas, origen: location.origin });
   if (typeof navigator.share === "function") {
-    const resultado = await compartir(texto);
+    const resultado = await compartir(texto, puedeCompartirArchivos() ? imagenDia.archivo : null);
+    if (resultado === "sinPermiso") ui.fichaDescargar().hidden = false;
     return resultado === "error" ? "No se ha podido compartir." : "";
   }
   return (await copiar(texto)) ? "Copiado" : "No se ha podido copiar.";
@@ -504,6 +575,8 @@ const panelRetos = new PanelRetos(
     jugar: (dia) => actuar({ tipo: "jugarDia", dia }),
     repetir: (dia) => actuar({ tipo: "repetirDia", dia }),
     compartir: compartirDia,
+    preparar: prepararDia,
+    descargar: descargarDia,
     comprarCongelador: () => cambiarColeccion((p) => comprar(p, "congelador"), ""),
   },
   () => ({ progreso: guardado.actual, hoy }),
@@ -762,8 +835,25 @@ ui.botonCopiar().addEventListener("click", async () => {
   ui.mensaje().textContent = (await copiar(textoTarjeta)) ? "Copiado" : "No se ha podido copiar: selecciona el texto.";
 });
 ui.botonCompartir().addEventListener("click", async () => {
-  const resultado = await compartir(textoTarjeta);
+  // Sin esperas: la imagen ya está hecha desde que se mostró el fin (si aún no, se comparte cuando esté).
+  let archivo = imagenFin.archivo;
+  if (!archivo && puedeCompartirArchivos()) {
+    await imagenFin.blob();
+    archivo = imagenFin.archivo;
+  }
+  const resultado = await compartir(textoTarjeta, puedeCompartirArchivos() ? archivo : null);
+  // Sin permiso (el toque ya no cuenta, Safari): se ofrece descargar la imagen, sin mensaje de error.
+  if (resultado === "sinPermiso") ui.botonDescargar().hidden = false;
   ui.mensaje().textContent = resultado === "error" ? "No se ha podido compartir." : "";
+});
+ui.botonDescargar().addEventListener("click", async () => {
+  const blob = await imagenFin.blob();
+  if (!blob) {
+    ui.mensaje().textContent = "No se ha podido crear la imagen.";
+    return;
+  }
+  descargar(blob, imagenFin.nombre ?? nombreImagen(modoFin));
+  ui.mensaje().textContent = "";
 });
 
 document.addEventListener("visibilitychange", () => {

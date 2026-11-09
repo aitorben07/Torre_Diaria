@@ -1,6 +1,7 @@
 // Pantalla Retos (D2): racha, mejor racha y congeladores arriba, con el botón
 // de comprar congelador y el siguiente desbloqueo por racha; el calendario del
-// mes (lunes primero) con el estado de cada día; y la ficha del día elegido.
+// mes (lunes primero) con el estado de cada día; y la ficha del día elegido,
+// que prepara la imagen del día al pintarse para compartirla sin esperas (F3).
 // Todo el DOM se crea con `createElement` y `textContent`.
 import { CONGELADOR, siguienteDesbloqueoRacha } from "../logica/catalogo.ts";
 import { cuadriculaMes, estadoDia, MAX_CONGELADORES, medallaDe, mesVisible, rachaDeHoy } from "../logica/diarios.ts";
@@ -8,6 +9,7 @@ import type { Progreso } from "../logica/progreso.ts";
 import { fechaDeDia } from "../logica/semilla.ts";
 import { formatearAltura, formatearNumero, formatearPiezas, formatearPuntos } from "../logica/tarjeta.ts";
 import { iconoMoneda } from "./coleccion.ts";
+import { puedeCompartirArchivos } from "./compartir.ts";
 import { mostrarTexto, NOMBRE_MEDALLA, pintarMedalla } from "./pantallas.ts";
 
 export const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
@@ -22,6 +24,9 @@ export type AccionesRetos = {
   jugar(dia: number): void;
   repetir(dia: number): void;
   compartir(dia: number): Promise<string>;
+  /** Prepara la imagen del día jugado (al pintar su ficha). */
+  preparar(dia: number): void;
+  descargar(dia: number): Promise<string>;
   comprarCongelador(): void;
 };
 
@@ -42,6 +47,9 @@ export class PanelRetos {
     porId("ficha-repetir").addEventListener("click", () => this.acciones.repetir(this.elegido));
     porId("ficha-compartir").addEventListener("click", async () => {
       porId("ficha-mensaje").textContent = await this.acciones.compartir(this.elegido);
+    });
+    porId("ficha-descargar").addEventListener("click", async () => {
+      porId("ficha-mensaje").textContent = await this.acciones.descargar(this.elegido);
     });
     porId("comprar-congelador").addEventListener("click", () => this.acciones.comprarCongelador());
   }
@@ -150,6 +158,9 @@ export class PanelRetos {
     jugar.hidden = !!jugado;
     jugar.textContent = dia === hoy ? "Jugar el reto de hoy" : `Jugar el día #${dia}`;
     porId("ficha-compartir").hidden = !jugado;
+    // Con archivos en `share`, «Compartir» ya lleva la imagen; si no, se ofrece descargarla.
+    porId("ficha-descargar").hidden = !jugado || puedeCompartirArchivos();
     porId("ficha-repetir").hidden = !jugado;
+    if (jugado) this.acciones.preparar(dia);
   }
 }

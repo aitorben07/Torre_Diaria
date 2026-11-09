@@ -1,10 +1,11 @@
-// HUD, barra de abajo, aviso del reto de un amigo, pantalla de fin, copiar y
-// compartir. Todo texto que viene del enlace o del almacenamiento se escribe
+// HUD, barra de abajo, aviso del reto de un amigo, pantalla de fin y copiar
+// (compartir y descargar la imagen, en `compartir.ts`). Todo texto que viene del enlace o del almacenamiento se escribe
 // con `textContent`, nunca como HTML.
 import type { Medalla } from "../logica/economia.ts";
 import { formatearAltura, formatearNumero, formatearPiezas, formatearPuntos } from "../logica/tarjeta.ts";
 import type { Reto } from "../logica/reto.ts";
 import type { Pantalla } from "./flujo.ts";
+import { puedeCompartirArchivos } from "./compartir.ts";
 import { pintarEstrellas } from "./mapa.ts";
 
 function elemento<T extends HTMLElement = HTMLElement>(id: string): T {
@@ -69,6 +70,9 @@ export const ui = {
   tarjeta: () => elemento("tarjeta"),
   botonCopiar: () => elemento<HTMLButtonElement>("boton-copiar"),
   botonCompartir: () => elemento<HTMLButtonElement>("boton-compartir"),
+  botonDescargar: () => elemento<HTMLButtonElement>("boton-descargar"),
+  fichaDescargar: () => elemento<HTMLButtonElement>("ficha-descargar"),
+  finImagen: () => elemento<HTMLCanvasElement>("fin-imagen"),
   mensaje: () => elemento("mensaje"),
   botonOtraVez: () => elemento<HTMLButtonElement>("boton-otra-vez"),
   retos: () => elemento("retos"),
@@ -271,7 +275,9 @@ export function pintarFin(datos: DatosFin): void {
   }
   ui.tarjeta().textContent = datos.tarjeta;
   ui.mensaje().textContent = "";
+  // F3: con archivos en `share`, «Compartir» lleva la imagen; si no, se ofrece «Descargar imagen».
   ui.botonCompartir().hidden = typeof navigator.share !== "function";
+  ui.botonDescargar().hidden = puedeCompartirArchivos();
   ui.botonOtraVez().textContent = datos.principal;
 }
 
@@ -327,17 +333,4 @@ export async function copiar(texto: string): Promise<boolean> {
   }
   area.remove();
   return copiado;
-}
-
-/**
- * Comparte solo con `text`, que ya lleva el enlace: con `text` y `url` a la vez
- * algunas apps se quedan con uno de los dos. Cancelar no es un error.
- */
-export async function compartir(texto: string): Promise<"compartido" | "cancelado" | "error"> {
-  try {
-    await navigator.share({ text: texto });
-    return "compartido";
-  } catch (error) {
-    return error instanceof DOMException && error.name === "AbortError" ? "cancelado" : "error";
-  }
 }
