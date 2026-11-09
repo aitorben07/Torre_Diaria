@@ -54,23 +54,21 @@ test("cada evento lanza su efecto: colocada de cada calidad, caída, vida extra 
   const { errores } = await preparar(page);
   await page.goto("/");
   await esperarLibre(page);
-  // Una caída (con el centro a más de 2,6 m, cae seguro; quedan 2 vidas), 6 perfectos (vida extra en el quinto), un bueno y normales.
+  // Las 5 primeras piezas son de formas anchas (bloque, tablón o cuadrado, de 0,7 m
+  // o más). Un normal con la torre vacía cae sobre los 4 m de plataforma; un bueno
+  // (a 0,3 m o menos) se sostiene sobre esa pieza; luego una caída (con el centro
+  // a más de 2,6 m, cae seguro; quedan 2 vidas) y perfectos (vida extra en el
+  // quinto seguido) hasta el hito de 5 m. Si con el equipo cargado una ventana
+  // estrecha se salta, la pieza vuelve a pasar.
+  await soltarA(page, 0.38, 0.45);
+  await soltarA(page, 0.22, 0.3);
   await soltarA(page, 0, 0, true);
-  for (let i = 0; i < 6; i++) await soltarA(page, 0, 0.05);
-  // Con el equipo cargado, una ventana estrecha puede saltarse y la pieza cae en otro sitio: se reintenta.
-  for (let intento = 0; intento < 14; intento++) {
-    const c = await contadores(page);
-    if (!c.caida) await soltarA(page, 0, 0, true);
-    else if (!c["colocada-bueno"]) await soltarA(page, 0.22, 0.3);
-    else if (!c["colocada-normal"]) await soltarA(page, 0.38, 0.45);
-    else if (!c.hito) await soltarA(page, 0, 0.05);
-    else break;
-    // Que dé tiempo a que aparezca la siguiente pieza y la anterior cuente como colocada.
-    await page.waitForFunction(() => {
-      const el = document.getElementById("juego")!;
-      return el.dataset.estado === "fin" || el.dataset.fase === "apuntando";
-    });
-  }
+  await page.waitForFunction(() => document.getElementById("juego")!.dataset.vidas === "2");
+  for (let intento = 0; intento < 20 && !(await contadores(page)).hito; intento++) await soltarA(page, 0, 0.05);
+  await page.waitForFunction(() => {
+    const el = document.getElementById("juego")!;
+    return el.dataset.estado === "fin" || el.dataset.fase === "apuntando";
+  });
   const c = await contadores(page);
   for (const tipo of ["soltada", "aterrizaje", "colocada-perfecto", "colocada-bueno", "colocada-normal", "caida", "vidaExtra", "hito", "confeti"]) {
     expect(c[tipo], tipo).toBeGreaterThan(0);

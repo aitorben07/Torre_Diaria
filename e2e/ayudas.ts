@@ -194,7 +194,7 @@ export async function datosFin(page: Page): Promise<DatosFin> {
  * (con el centro a más de 2,6 m, así que cae). Un toque desde Playwright puede
  * llegar cientos de ms tarde con carga, y para entonces la pieza ya está sobre
  * la torre. El margen de 2,6 a 3,4 m deja casi un segundo aunque los
- * fotogramas vayan lentos.
+ * fotogramas vayan lentos. Espera a que la pieza deje de colgar.
  */
 export async function soltarEnExtremo(page: Page): Promise<void> {
   await page.waitForFunction(() => {
@@ -207,12 +207,17 @@ export async function soltarEnExtremo(page: Page): Promise<void> {
         const mirar = () => {
           const el = document.getElementById("juego")!;
           if (el.dataset.estado === "fin") return listo();
-          if (el.dataset.fase === "apuntando" && Math.abs(Number(el.dataset.x || "0")) >= 2.6) {
+          if (soltadaEn !== null && el.dataset.fase !== "apuntando") return listo();
+          // Si 4 s después la pieza sigue colgando (visto dos veces con el equipo muy cargado, sin
+          // explicar), se vuelve a soltar cuando está lejos de la plataforma.
+          const tocaSoltar = soltadaEn === null || performance.now() - soltadaEn > 4000;
+          if (tocaSoltar && el.dataset.fase === "apuntando" && Math.abs(Number(el.dataset.x || "0")) >= 2.6) {
             document.getElementById("zona")!.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true }));
-            return listo();
+            soltadaEn = performance.now();
           }
           requestAnimationFrame(mirar);
         };
+        let soltadaEn: number | null = null;
         mirar();
       }),
   );
