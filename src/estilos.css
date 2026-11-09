@@ -318,12 +318,12 @@ body {
 }
 
 /* Aviso de la primera pieza especial de cada tipo (H3): 2,5 s, sin pausa y
-   sin recoger toques. Abajo, sobre la barra: arriba taparía la pieza que
-   cuelga, que la cámara deja siempre en la parte alta. */
+   sin recoger toques. Abajo, sobre el borde de la pantalla (y su zona segura):
+   arriba taparía la pieza que cuelga, que la cámara deja siempre en la parte alta. */
 .aviso-especial {
   position: absolute;
   left: 50%;
-  bottom: 5.4rem;
+  bottom: max(1.2rem, calc(env(safe-area-inset-bottom) + 0.8rem));
   width: max-content;
   max-width: calc(100% - 2rem);
   margin: 0;
@@ -363,7 +363,8 @@ body {
 /* Paneles de papel: reto de un amigo y fin de partida. */
 .panel {
   top: calc(var(--alto-hud) + 0.8rem);
-  max-height: calc(100% - var(--alto-hud) - 5.6rem);
+  /* Bajo el HUD y hasta el borde de abajo, con su margen y la zona segura: ya no hay barra debajo (E2). */
+  max-height: calc(100% - var(--alto-hud) - 0.8rem - max(0.8rem, env(safe-area-inset-bottom)));
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -1125,7 +1126,7 @@ svg.estrella.llena path {
 #niveles {
   margin: 0 0.5rem;
   width: calc(var(--columna) - 1rem);
-  height: calc(100% - var(--alto-hud) - 5.6rem);
+  height: calc(100% - var(--alto-hud) - 0.8rem - max(0.8rem, env(safe-area-inset-bottom)));
   padding: 0.8rem 0.7rem 0.7rem;
   gap: 0.55rem;
   overflow: hidden;
