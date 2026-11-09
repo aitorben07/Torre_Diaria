@@ -1,14 +1,34 @@
-// Progreso guardado v2 (C1): todo lo que el juego recuerda en el navegador va
-// en una sola clave, `torre-diaria:progreso`, con su versión. Al leer se valida
-// campo a campo, como en `registro.ts`: lo que no se entiende se ignora y, si
-// nada se entiende, se empieza de cero sin borrar la clave hasta el primer
-// guardado. Si el almacenamiento falla, el juego sigue con lo que tiene en
-// memoria (G10). Cada guardado relee la clave y aplica el cambio sobre lo leído,
-// así dos pestañas no se pisan las monedas (impacto, 2.4).
+// Progreso guardado v2 (C1) y v3 (C1 de la tercera versión): todo lo que el
+// juego recuerda en el navegador va en una sola clave, `torre-diaria:progreso`,
+// con su versión. Al leer se valida campo a campo, como en `registro.ts`: lo
+// que no se entiende se ignora y, si nada se entiende, se empieza de cero sin
+// borrar la clave hasta el primer guardado. Si el almacenamiento falla, el
+// juego sigue con lo que tiene en memoria (G10). Cada guardado relee la clave y
+// aplica el cambio sobre lo leído, así dos pestañas no se pisan las monedas
+// (impacto, 2.4). La v3 solo añade campos: ninguno de la v2 cambia de nombre
+// ni de tipo, así que el código de la v2 aún lee un guardado v3 (Decisión
+// T31), aunque al guardar borra lo nuevo.
 import { leerRegistroLibre, leerResultadoV1, type Almacen } from "./registro.ts";
 
 export const CLAVE_PROGRESO = "torre-diaria:progreso";
-export const VERSION_PROGRESO = 2;
+export const VERSION_PROGRESO = 3;
+
+/** Objetos de ayuda (Anexo H): como mucho `MAX_OBJETO` de cada uno. */
+export const OBJETOS = ["reloj", "cemento", "corazon"] as const;
+export type Objeto = (typeof OBJETOS)[number];
+export const MAX_OBJETO = 9;
+/** Compras acreditadas que se recuerdan (las más recientes). */
+export const MAX_TRANSACCIONES = 50;
+/** Avisos de piezas especiales ya vistos: hay 3 tipos; el tope es contra datos raros. */
+const MAX_VISTOS = 16;
+/** 2100-01-01 en ms: una fecha mayor no es real (vídeos y compras). */
+const FECHA_MAXIMA = 4_102_444_800_000;
+
+/**
+ * Compra con dinero ya acreditada (C1, impacto: con producto y monedas, para
+ * saber cuántas monedas compradas quedan sin gastar). `fecha` en ms.
+ */
+export type Transaccion = { id: string; producto: string; monedas: number; fecha: number };
 
 /** Un día del reto ya jugado: su intento oficial (D1). */
 export type DiaJugado = {
@@ -20,7 +40,7 @@ export type DiaJugado = {
   colocadas: string;
   /** Jugado el mismo día UTC: cuenta para la racha. */
   enSuDia: boolean;
-  /** 1: jugado con la v1 (sin puntos de la v2, sin medalla); 2: reglas actuales (`REGLAS`). */
+  /** 1: jugado con la v1 (sin puntos de la v2, sin medalla); 2 o más: versión de las reglas con que se jugó (`REGLAS` en las nuevas). */
   reglas: number;
 };
 
@@ -34,10 +54,20 @@ export type Progreso = {
   racha: { actual: number; mejor: number; ultimoDia: number; congeladores: number };
   /** Estrellas por nivel (bloque E). */
   niveles: Record<number, number>;
-  ajustes: { sonido: boolean; vibracion: boolean; tutorialVisto: boolean };
-  estadisticas: { piezas: number; perfectos: number; comboMax: number; alturaMax: number };
+  /** `sonido` son los efectos; desde la v3 la música va aparte (Decisión T7). */
+  ajustes: { sonido: boolean; vibracion: boolean; tutorialVisto: boolean; musica: boolean };
+  /** `partidas` (v3): libres, oficiales y de nivel terminadas; desbloquea objetos. */
+  estadisticas: { piezas: number; perfectos: number; comboMax: number; alturaMax: number; partidas: number };
   /** Identificador (`PartidaAcabada.id`) de la última partida libre cobrada: la misma partida no se cobra dos veces (C2). */
   ultimaCobrada: string;
+  /** Inventario de objetos de ayuda y los ya desbloqueados (v3). */
+  objetos: Record<Objeto, number> & { desbloqueados: Objeto[] };
+  /** Vídeos con premio (v3): ms del último de monedas, día del último objeto por vídeo y cuántos ese día. */
+  recompensas: { ultimoVideoMonedas: number; diaObjetoVideo: number; objetosVideo: number };
+  /** Compras con dinero acreditadas (v3), como mucho `MAX_TRANSACCIONES`, la más reciente al final. */
+  compras: { transacciones: Transaccion[] };
+  /** Piezas especiales cuyo aviso ya se ha visto en este navegador (v3). */
+  vistos: string[];
 };
 
 export function progresoVacio(): Progreso {
@@ -49,9 +79,13 @@ export function progresoVacio(): Progreso {
     diarios: {},
     racha: { actual: 0, mejor: 0, ultimoDia: 0, congeladores: 0 },
     niveles: {},
-    ajustes: { sonido: true, vibracion: true, tutorialVisto: false },
-    estadisticas: { piezas: 0, perfectos: 0, comboMax: 0, alturaMax: 0 },
+    ajustes: { sonido: true, vibracion: true, tutorialVisto: false, musica: true },
+    estadisticas: { piezas: 0, perfectos: 0, comboMax: 0, alturaMax: 0, partidas: 0 },
     ultimaCobrada: "",
+    objetos: { reloj: 0, cemento: 0, corazon: 0, desbloqueados: [] },
+    recompensas: { ultimoVideoMonedas: 0, diaObjetoVideo: 0, objetosVideo: 0 },
+    compras: { transacciones: [] },
+    vistos: [],
   };
 }
 
@@ -109,6 +143,23 @@ function booleano(valor: unknown, porDefecto: boolean): boolean {
 /** Ids del catálogo: letras minúsculas, cifras y guiones, cortos. */
 function esId(valor: unknown): valor is string {
   return typeof valor === "string" && /^[a-z0-9-]{1,24}$/.test(valor);
+}
+
+function esObjetoDeAyuda(valor: unknown): valor is Objeto {
+  return typeof valor === "string" && (OBJETOS as readonly string[]).includes(valor);
+}
+
+/** Id de transacción del proveedor: corto y sin caracteres raros. */
+function esIdTransaccion(valor: unknown): valor is string {
+  return typeof valor === "string" && /^[A-Za-z0-9_.:-]{1,64}$/.test(valor);
+}
+
+function leerTransaccion(valor: unknown): Transaccion | null {
+  if (!esObjeto(valor) || !esIdTransaccion(valor.id) || !esId(valor.producto)) return null;
+  const monedas = entero(valor.monedas, -1);
+  const fecha = entero(valor.fecha, -1);
+  if (monedas < 0 || fecha < 0 || fecha > FECHA_MAXIMA) return null;
+  return { id: valor.id, producto: valor.producto, monedas, fecha };
 }
 
 function leerDia(valor: unknown): DiaJugado | null {
@@ -174,12 +225,18 @@ export function normalizar(valor: unknown): Progreso | null {
   }
   if (esObjeto(valor.ajustes)) {
     const a = valor.ajustes;
+    const sonido = booleano(a.sonido, true);
     p.ajustes = {
-      sonido: booleano(a.sonido, true),
+      sonido,
       vibracion: booleano(a.vibracion, true),
       tutorialVisto: booleano(a.tutorialVisto, false),
+      // Sin música guardada (la v2), la del sonido: quien lo silenció no oye música de repente.
+      musica: booleano(a.musica, sonido),
     };
   }
+  // Sin partidas guardadas (la v2): libres, días jugados y niveles con estrellas.
+  const partidasV2 = p.libre.partidas + Object.keys(p.diarios).length + Object.values(p.niveles).filter((n) => n > 0).length;
+  p.estadisticas.partidas = partidasV2;
   if (esObjeto(valor.estadisticas)) {
     const e = valor.estadisticas;
     p.estadisticas = {
@@ -187,15 +244,46 @@ export function normalizar(valor: unknown): Progreso | null {
       perfectos: entero(e.perfectos, 0),
       comboMax: entero(e.comboMax, 0),
       alturaMax: real(e.alturaMax, 0),
+      partidas: entero(e.partidas, partidasV2),
     };
   }
   if (typeof valor.ultimaCobrada === "string" && valor.ultimaCobrada.length <= 64) p.ultimaCobrada = valor.ultimaCobrada;
+  if (esObjeto(valor.objetos)) {
+    const o = valor.objetos;
+    for (const objeto of OBJETOS) p.objetos[objeto] = Math.min(MAX_OBJETO, entero(o[objeto], 0));
+    if (Array.isArray(o.desbloqueados)) p.objetos.desbloqueados = [...new Set(o.desbloqueados.filter(esObjetoDeAyuda))];
+  }
+  if (esObjeto(valor.recompensas)) {
+    const r = valor.recompensas;
+    // Una fecha posterior a 2100 no es real. Una solo futura se queda: la
+    // política de vídeos (K2) la trata con la hora de ese momento.
+    const ultimo = entero(r.ultimoVideoMonedas, 0);
+    const dia = entero(r.diaObjetoVideo, 0);
+    p.recompensas = {
+      ultimoVideoMonedas: ultimo <= FECHA_MAXIMA ? ultimo : 0,
+      diaObjetoVideo: dia <= 999_999 ? dia : 0,
+      objetosVideo: Math.min(MAX_OBJETO, entero(r.objetosVideo, 0)),
+    };
+  }
+  if (esObjeto(valor.compras) && Array.isArray(valor.compras.transacciones)) {
+    const ids = new Set<string>();
+    const transacciones: Transaccion[] = [];
+    for (const t of valor.compras.transacciones) {
+      const leida = leerTransaccion(t);
+      if (!leida || ids.has(leida.id)) continue;
+      ids.add(leida.id);
+      transacciones.push(leida);
+    }
+    // Las más recientes van al final: si sobran, se quitan las primeras.
+    p.compras.transacciones = transacciones.slice(-MAX_TRANSACCIONES);
+  }
+  if (Array.isArray(valor.vistos)) p.vistos = [...new Set(valor.vistos.filter(esId))].slice(0, MAX_VISTOS);
   return p;
 }
 
 // --- Lectura, migración y escritura -----------------------------------------
 
-/** Lo que hay en la clave v2: el progreso, `"falta"` si no existe o `"ilegible"` si falla o está corrupta. */
+/** Lo que hay en la clave (v2 o v3): el progreso, `"falta"` si no existe o `"ilegible"` si falla o está corrupta. */
 function leerClave(almacen: Almacen | null): Progreso | "falta" | "ilegible" {
   try {
     const texto = almacen?.getItem(CLAVE_PROGRESO);

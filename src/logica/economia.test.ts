@@ -41,7 +41,7 @@ describe("cobrar la partida libre (C2)", () => {
     expect(nuevoRecord).toBe(true);
     expect(nuevo).toBe(true);
     expect(p.libre).toEqual({ record: 610, alturaRecord: 8.6, partidas: 1 });
-    expect(p.estadisticas).toEqual({ piezas: 12, perfectos: 11, comboMax: 11, alturaMax: 8.6 });
+    expect(p.estadisticas).toEqual({ piezas: 12, perfectos: 11, comboMax: 11, alturaMax: 8.6, partidas: 0 });
   });
 
   it("la misma partida no se cobra dos veces (dos pestañas): ni monedas ni récord", () => {

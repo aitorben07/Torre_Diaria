@@ -54,6 +54,7 @@ export function sumarEstadisticas(p: Progreso, partida: PartidaAcabada): Progres
   return {
     ...p,
     estadisticas: {
+      ...e,
       piezas: e.piezas + partida.piezas,
       perfectos: e.perfectos + partida.perfectos,
       comboMax: Math.max(e.comboMax, partida.comboMax),
