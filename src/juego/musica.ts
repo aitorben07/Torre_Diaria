@@ -49,7 +49,7 @@ export function capaMusical({ combo, altura, velocidad, caidaReciente }: { combo
 export type SalidaAudio = { ctx: BaseAudioContext; destino: AudioNode };
 
 /** Volumen de cada instrumento dentro de la salida de la música. */
-const VOLUMEN: Record<Instrumento, number> = { marimba: 0.55, bajo: 0.5, colchon: 0.085, bombo: 0.55, cepillo: 0.1 };
+const VOLUMEN: Record<Instrumento, number> = { marimba: 0.7, bajo: 0.65, colchon: 0.11, bombo: 0.7, cepillo: 0.12 };
 
 type Sesion = {
   salida: GainNode;

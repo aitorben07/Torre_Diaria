@@ -47,6 +47,7 @@ export const ui = {
   pausaAjustes: () => elemento<HTMLButtonElement>("pausa-ajustes"),
   pausaInicio: () => elemento<HTMLButtonElement>("pausa-inicio"),
   ajustes: () => elemento("ajustes"),
+  ajusteMusica: () => elemento<HTMLButtonElement>("ajuste-musica"),
   ajusteSonidos: () => elemento<HTMLButtonElement>("ajuste-sonidos"),
   ajusteVibracion: () => elemento<HTMLButtonElement>("ajuste-vibracion"),
   botonCreditos: () => elemento<HTMLButtonElement>("boton-creditos"),

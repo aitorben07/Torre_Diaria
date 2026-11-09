@@ -25,6 +25,7 @@ import { Lienzo, NIVEL_AGUA, ratioDePantalla } from "./dibujo.ts";
 import { Caidas, Efectos } from "./efectos.ts";
 import { Haptica, puedeVibrar } from "./haptica.ts";
 import { pintarMuestra } from "./muestras.ts";
+import { Musica } from "./musica.ts";
 import { Sonido } from "./sonido.ts";
 import { abrir, aceptaEntrada, sinSalida, transicion, type Accion, type Flujo, type Modo, type Orden, type Panel, type Pantalla } from "./flujo.ts";
 import { estadoDeInicio } from "./inicio.ts";
@@ -58,11 +59,17 @@ const libreAmigo = reto ? null : leerLibre(location.search);
 const guardado = new Guardado(almacen);
 
 const lienzo = new Lienzo(ui.lienzo(), ui.grano());
-// Sonido y vibración (A4): encendidos por defecto y guardados en `ajustes` (C1).
+// Sonido, música y vibración (A4, D1): encendidos por defecto y guardados en `ajustes` (C1).
 const sonido = new Sonido();
+// La música va por su rama del mismo `AudioContext` (D1): un solo contexto en la página.
+const musica = new Musica(() => sonido.paraMusica());
 const haptica = new Haptica();
 // Encender el sonido despierta el AudioContext, que no se crea hasta el primer gesto: solo se aplica si está apagado.
 if (!guardado.actual.ajustes.sonido) sonido.cambiar(false);
+if (!guardado.actual.ajustes.musica) {
+  sonido.cambiarMusica(false);
+  musica.cambiar(false);
+}
 haptica.cambiar(guardado.actual.ajustes.vibracion);
 const movimientoReducido = window.matchMedia?.("(prefers-reduced-motion: reduce)") ?? null;
 const efectos = new Efectos({
@@ -75,6 +82,10 @@ lienzo.usarEfectos(efectos);
 const caidas = new Caidas(NIVEL_AGUA, (x, ahora) => efectos.chapuzon(x, NIVEL_AGUA, ahora));
 let ultimoFotograma = performance.now();
 let efectosPintados = -1;
+/** Lo último escrito en `data-musica` y `data-notas`, para escribirlos solo cuando cambian. */
+let musicaPintada = "";
+/** Velocidad de la última pieza que colgó, para la capa de la música mientras la siguiente cae (D3). */
+let velocidadMusica = 0;
 /** Piezas soltadas en esta partida, por índice, para situar sus efectos. */
 let soltadas = new Map<number, Pieza>();
 /** Pieza recién soltada que aún no ha tocado nada, con su calidad (A3). */
@@ -247,6 +258,7 @@ function mostrarReto(): void {
     pintarLibreAmigo(libreAmigo.puntos);
   }
   pintarHud({ puntos: 0, vidas: VIDAS_INICIALES, vidasMax: VIDAS_MAX, combo: 0, record: null });
+  musica.poner("inicio");
   cambiarEstado("reto");
   lienzo.reservarArriba(0);
   lienzo.ponerRecord(null);
@@ -270,6 +282,8 @@ function mostrarInicio(): void {
   lienzo.reiniciarCamara();
   lienzo.reservarArriba(0);
   inicioDesde = performance.now();
+  // La música del inicio; en la primera visita no suena hasta el primer toque (autoplay, impacto §5).
+  musica.poner("inicio");
   pintarInicioActual();
   inicioVisto = true;
   cambiarEstado("inicio");
@@ -337,6 +351,9 @@ function empezar(modo: Modo, dia: number, numeroNivel: number = 0, codigo?: stri
   recordCelebrado = false;
   efectos.reiniciar();
   caidas.reiniciar();
+  // La de la partida entra al empezar el compás siguiente, o enseguida si no sonaba nada (D3).
+  velocidadMusica = 0;
+  musica.poner("partida");
   const juego = ui.juego();
   juego.dataset.modo = modo;
   juego.dataset.semilla = semilla;
@@ -593,6 +610,13 @@ function terminar(actual: Partida): void {
   const { puntos, altura, formas, piezas, perfectos, comboMax } = actual.resultado();
   const { modo, dia } = flujo;
   const premios = modo === "nivel" ? cobrarNivel(actual, flujo.nivel) : cobrar(actual, modo, dia);
+  // Al acabar, el motivo de fin en el pulso siguiente; con un nivel ganado, la música calla y suena el récord (impacto §5).
+  if (premios.nivel?.victoria) {
+    musica.poner("silencio");
+    sonido.record();
+  } else {
+    musica.poner("fin");
+  }
   if (rachaPendiente) {
     rachaPendiente = false;
     revisarRacha();
@@ -757,6 +781,9 @@ function avanzar(pasos: number): void {
   juego.dataset.objetivo = objetivo.toFixed(2);
   // Velocidad de la pieza que cuelga (B1, reglas 3): la calcula la partida con el ritmo.
   juego.dataset.velocidad = colgada ? String(colgada.velocidad) : "";
+  // La capa de la música sigue al combo, la altura y la velocidad (D3); cambia al empezar el compás.
+  if (colgada) velocidadMusica = colgada.velocidad;
+  musica.pedirCapa({ combo: estado.combo, altura: estado.altura, velocidad: velocidadMusica });
   juego.dataset.pasos = String(actual.pasos);
   // Especial de la pieza que cuelga (H3), para las pruebas; la primera de cada tipo, con aviso.
   if (colgada?.especial) {
@@ -824,6 +851,7 @@ function reaccionar(actual: Partida, eventos: Evento[]): void {
     } else if (evento.tipo === "caida") {
       efectos.caida(ahora);
       sonido.caida();
+      musica.caida();
       haptica.vibrar("caida");
       enCaida = null;
     } else if (evento.tipo === "vidaExtra") {
@@ -895,6 +923,31 @@ function aterrizar(estado: EstadoPartida, ahora: number): void {
   }
 }
 
+/**
+ * Música en cada fotograma (D1): se para en la pausa o con un panel sobre la
+ * partida, y programa las notas de los próximos 0,2 s. `data-musica` (pista y
+ * capa) y `data-notas` (notas programadas) son para las pruebas. Con
+ * `window.__costeMusica`, que solo pone la prueba de rendimiento, se anota lo
+ * que tarda cada vuelta (D4).
+ */
+function sonarMusica(): void {
+  musica.pausar(partida !== null && flujo.pantalla !== "jugando");
+  const coste = (window as { __costeMusica?: number[] }).__costeMusica;
+  if (coste) {
+    const desde = performance.now();
+    musica.programar();
+    coste.push(performance.now() - desde);
+  } else {
+    musica.programar();
+  }
+  const pintada = `${musica.etiqueta}|${musica.notas}`;
+  if (pintada === musicaPintada) return;
+  musicaPintada = pintada;
+  const juego = ui.juego();
+  juego.dataset.musica = musica.etiqueta;
+  juego.dataset.notas = String(musica.notas);
+}
+
 /** Contadores de efectos en `data-efectos`, solo para las pruebas; se escriben cuando cambian. */
 function pintarEfectos(): void {
   if (efectos.version === efectosPintados) return;
@@ -924,6 +977,7 @@ const bucle = new Bucle(avanzar, () => {
   ultimoFotograma = ahora;
   lienzo.dibujar(escena?.estado() ?? escenaInicio(ahora), ahora, sueltas);
   pintarEfectos();
+  sonarMusica();
 });
 
 /** ¿Tiene el foco un control que ya responde a Espacio e Intro por sí mismo? */
@@ -936,13 +990,21 @@ function focoEnControl(): boolean {
 document.addEventListener("pointerdown", () => sonido.despertar(), { capture: true });
 document.addEventListener("keydown", () => sonido.despertar(), { capture: true });
 
-/** Ajustes (C2): Sonidos y Vibración (si el navegador vibra), créditos y la versión de las reglas. */
+/** Ajustes (C2): Música, Sonidos y Vibración (si el navegador vibra), créditos y la versión de las reglas. */
 function pintarAjustes(): void {
+  pintarInterruptor(ui.ajusteMusica(), musica.activa);
   pintarInterruptor(ui.ajusteSonidos(), sonido.activo);
   pintarInterruptor(ui.ajusteVibracion(), haptica.activa);
   ui.ajusteVibracion().hidden = !puedeVibrar();
 }
 ui.ajustesVersion().textContent = `Torre Diaria · reglas ${REGLAS}`;
+ui.ajusteMusica().addEventListener("click", () => {
+  const activa = !musica.activa;
+  musica.cambiar(activa);
+  sonido.cambiarMusica(activa);
+  guardado.cambiar((p) => ({ ...p, ajustes: { ...p.ajustes, musica: activa } }));
+  pintarAjustes();
+});
 ui.ajusteSonidos().addEventListener("click", () => {
   sonido.cambiar(!sonido.activo);
   const activo = sonido.activo;
@@ -1072,6 +1134,7 @@ ui.botonDescargar().addEventListener("click", async () => {
 
 document.addEventListener("visibilitychange", () => {
   sonido.visibilidad(document.hidden);
+  musica.ocultar(document.hidden);
   // Al ocultar la pestaña, la partida queda en pausa con su panel: al volver no sigue sola (E3, T29).
   if (document.hidden && flujo.pantalla === "jugando") actuar({ tipo: "pausar" });
   if (document.visibilityState !== "visible") return;

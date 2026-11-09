@@ -47,7 +47,7 @@ export type Pista = {
 
 const NOMBRES: Record<string, number> = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
 
-/** «E5» → 76. */
+/** Altura MIDI de un nombre de nota: «E5» es 76. */
 export function midiDe(nombre: string): number {
   const m = /^([A-G])(\d)$/.exec(nombre);
   if (!m) throw new Error(`Nota no válida: ${nombre}`);

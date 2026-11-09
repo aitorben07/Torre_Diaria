@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { PATRONES } from "./haptica.ts";
-import { NOTAS_PERFECTO, notaPerfecto, VOLUMEN } from "./sonido.ts";
+import { NOTAS_ESTRELLA, NOTAS_PERFECTO, notaPerfecto, VOLUMEN } from "./sonido.ts";
 
 describe("nota del perfecto (A4)", () => {
   it("sube con el combo por la pentatónica de Do: 523, 587, 659, 784, 880 y 1047 Hz", () => {
@@ -16,6 +16,11 @@ describe("nota del perfecto (A4)", () => {
   it("volumen general 0,5 y 6 notas", () => {
     expect(VOLUMEN).toBe(0.5);
     expect(NOTAS_PERFECTO).toHaveLength(6);
+  });
+
+  it("las estrellas de nivel suenan en Sol, La y Do (784, 880 y 1047 Hz), no en Si (impacto §5)", () => {
+    expect(NOTAS_ESTRELLA).toEqual([784, 880, 1047]);
+    for (const f of NOTAS_ESTRELLA) expect(NOTAS_PERFECTO).toContain(f);
   });
 });
 
