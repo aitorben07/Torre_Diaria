@@ -1,6 +1,6 @@
 Estado: en curso
-Actualizado: 2026-11-09T15:44:56+01:00
+Actualizado: 2026-11-09T16:13:00+01:00
 Rama: tercera-version
-Paso actual: analista-impacto
-Siguiente paso: analista-impacto revisa tareas.md y escribe impacto.md; el coordinador incorpora sus cambios al plan; luego desarrollador por bloques (0, A, C1, B, H, I1, E, C2-C3, D, F, G, I2-I4, J, K, L)
-Decisiones tomadas: plan T1-T35 en tareas.md: reglas v3 conservando resultados v2 ya jugados; pantalla de inicio siempre; una sola moneda sin ruleta ni cofres; música sintetizada por capas; ajustes música/sonido separados; 3 piezas especiales de la semilla (dorada, pegajosa, cemento); 3 objetos (reloj, cemento, corazón) prohibidos en el reto diario; pagos y vídeos solo como interfaz nula; velocidad dinámica con arranque más rápido; Tienda sustituye a Colección
+Paso actual: desarrollador, bloques 0, A, C1 y B
+Siguiente paso: desarrollador implementa por tandas (0+A+C1+B; H+I1; E+C2; D; F+G; I2-I4+J; K+L) según tareas.md con impacto.md §5 como prevalente; después probador
+Decisiones tomadas: plan T1-T35 en tareas.md: reglas v3 conservando resultados v2 ya jugados; pantalla de inicio siempre; una sola moneda sin ruleta ni cofres; música sintetizada por capas; ajustes música/sonido separados; 3 piezas especiales de la semilla (dorada, pegajosa, cemento); 3 objetos (reloj, cemento, corazón) prohibidos en el reto diario; pagos y vídeos solo como interfaz nula; velocidad dinámica con arranque más rápido; Tienda sustituye a Colección; impacto aceptado entero (velocidad 1,3 +0,025, AMPLITUD 2,6, HUECO 1,8; medallas por versión de reglas; recortes R-1 a R-10; música programada desde el bucle; pagos con datos para desistimiento)

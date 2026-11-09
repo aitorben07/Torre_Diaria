@@ -2,6 +2,18 @@
 
 Plan del 2026-11-09. Rama `tercera-version` (`.git/HEAD` apunta a ella). Base: el código de la rama leído hoy (`src/logica/*.ts`, `src/juego/sonido.ts`, `flujo.ts`, `anuncios.ts`, `pantallas.ts`, `src/pages/index.astro`, `src/estilos.css`, `public/_headers`, `scripts/duracion.ts`, `scripts/economia.ts`, `playwright.config.ts`, `package.json`), el `README.md`, `docs/diseno/diseno-juego.md`, `docs/diseno/anuncios.md`, `docs/proceso/segunda-version/` y las capturas de la v2.
 
+## Cambios [impacto] incorporados (prevalecen sobre el resto del plan)
+
+El coordinador incorpora **todos** los cambios del apartado 5 de `impacto.md` («Cambios al plan», líneas 371-526). Donde una tarea de abajo o un anexo contradiga ese apartado, manda `impacto.md` §5.
+
+- **Velocidad medida (B1/B2):** 1,3 m/s inicial, +0,025 por pieza, `AMPLITUD` 2,6, `HUECO_COLGADA` 1,8, sin `VEL_SUELO`; velocidad redondeada a centésimas tras multiplicadores; `soltarEnExtremo` con umbral 2,2 m. Se vuelve a medir en L1 con las especiales (novato queda a 2,4 s del mínimo de 60 s).
+- **Medallas por versión de reglas (R16 nuevo):** los días jugados con reglas 2 conservan medalla con sus umbrales; reglas 3 tiene los suyos.
+- **Recortes R-1 a R-10 aceptados:** sin «Efectos reducidos» propio (se sigue el sistema); música con tempo fijo y capas 0-2; pausa del reto oficial sin «Abandonar»; «¿Seguir?» solo en partida libre; sin premios de objetos en niveles; «+» con 0 unidades abre la Tienda sobre la partida en pausa; sin logo en canvas; «Pack de ayudas» repetible en vez de lote de inicio único; sin «Cómo se juega»; sin ficha «Monedas gratis» en el inicio. La compilación de demo (K3) se mantiene con `astro build --mode demo --outDir dist-demo`.
+- **Música (D1/D2):** sin temporizador propio, notas programadas desde el bucle de fotogramas con 0,2 s de anticipación; `AudioContext` falso que cuenta nodos en pruebas; nota de la estrella dentro de la escala.
+- **Marcador (A):** desde 1.000 el número no cabe; récord y meta bajo el número; caben 999.999 en 320 px.
+- **Pagos (C1, J1, K1, K3, K4):** compras guardadas con producto y monedas (desistimiento), precios en céntimos, nada pagado se recorta por topes, sin ofertas únicas ni textos que empujen a comprar; R14 busca textos visibles en `dist/`, no nombres de funciones.
+- **Resto:** H1 generador por tramo; H2 monedas de la dorada vía `PartidaAcabada.doradas` y pegajosa sin unirse a la plataforma; H3 especiales en la imagen solo con `reglas ≥ 3`; I1 distancia acumulada para que el reloj no haga saltar la pieza; E2 Espacio con «Jugar» enfocado no suelta pieza; R17 duración del e2e (CI ≤ 20 min, a medir); decisiones V1-V5 para la revisión final.
+
 ## Resumen
 
 Nueve pedidos del usuario en un solo cambio: música que acompañe al juego, ajustes con música y sonidos por separado, una pantalla de inicio desde la que se elige qué hacer, un mapa de niveles a pantalla completa, un logo propio, el marcador que se desborda desde 1.000 puntos, piezas especiales, tres objetos de ayuda con su tienda (monedas, vídeo o dinero) y un arranque más rápido. Los pagos y los vídeos quedan como interfaces probadas con implementaciones nulas y simuladas: no se cobra nada ni se integra ningún proveedor.
