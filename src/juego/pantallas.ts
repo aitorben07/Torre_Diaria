@@ -105,6 +105,25 @@ function reanimar(nodo: Element, clase: string): void {
   nodo.classList.add(clase);
 }
 
+const ESCALONES = ["cifras-5", "cifras-6", "cifras-7"] as const;
+
+/**
+ * Escalón de letra de unos puntos ya formateados (A1): desde «1.000» el número
+ * no cabía en la pegatina. 5, 6 y 7 o más caracteres; con menos, `null`.
+ */
+export function escalonCifras(texto: string): (typeof ESCALONES)[number] | null {
+  if (texto.length >= 7) return "cifras-7";
+  if (texto.length === 6) return "cifras-6";
+  if (texto.length === 5) return "cifras-5";
+  return null;
+}
+
+/** Pone en `nodo` la clase del escalón de `texto` y quita las demás (sin `style="`, CSP). */
+function ponerEscalon(nodo: HTMLElement, texto: string): void {
+  const escalon = escalonCifras(texto);
+  for (const clase of ESCALONES) nodo.classList.toggle(clase, clase === escalon);
+}
+
 export type DatosHud = {
   puntos: number;
   vidas: number;
@@ -120,7 +139,9 @@ export type DatosHud = {
 /** HUD de la partida: puntos, vidas como iconos (no caracteres, G11), combo si es 2 o más y récord. */
 export function pintarHud({ puntos, vidas, vidasMax, combo, record, meta = null }: DatosHud): void {
   ui.contador().textContent = formatearPuntos(puntos);
-  ui.hudPuntos().textContent = formatearNumero(puntos);
+  const texto = formatearNumero(puntos);
+  ui.hudPuntos().textContent = texto;
+  ponerEscalon(ui.hudPuntos(), texto);
   const iconos = ui.vidas();
   iconos.setAttribute("aria-label", vidas === 1 ? "1 vida" : `${vidas} vidas`);
   ui.juego().dataset.vidas = String(vidas);
@@ -237,6 +258,8 @@ export function pintarFin(datos: DatosFin): void {
   ui.finTitulo().textContent = datos.titulo;
   ui.finPuntos().textContent = datos.enPiezas ? formatearPiezas(datos.puntos) : formatearPuntos(datos.puntos);
   ui.finUnidad().textContent = datos.enPiezas ? (datos.puntos === 1 ? "pieza" : "piezas") : datos.puntos === 1 ? "punto" : "puntos";
+  // El escalón va por la cifra final, no por la del recuento.
+  ponerEscalon(ui.finNumero(), formatearNumero(datos.puntos));
   contar(ui.finNumero(), datos.puntos);
   ui.finAltura().textContent = formatearAltura(datos.altura);
   mostrarTexto(ui.finRecord(), datos.record === null ? null : `Récord ${formatearNumero(datos.record)}`);

@@ -2,7 +2,7 @@
 // 999.999 en todas las pantallas, con combo, récord y meta a la vista y el
 // hueco del botón de pausa (E3) ya reservado. Solo maquetación: va en escritorio (R17).
 import { expect, test, type Page } from "@playwright/test";
-import { conTactil, esperarLibre, juego, jugarHastaElFin, preparar } from "./ayudas.ts";
+import { conTactil, esperarFinListo, esperarLibre, juego, jugarHastaElFin, preparar } from "./ayudas.ts";
 
 const PANTALLAS = [
   { width: 320, height: 568 },
@@ -97,7 +97,8 @@ test("en 320×568 «999.999 puntos» cabe en el fin y el saldo de monedas, en su
   await page.goto("/");
   await esperarLibre(page);
   await jugarHastaElFin(page, false);
-  await expect(juego(page)).toHaveAttribute("data-estado", "fin");
+  // El fin ignora toques y clics los primeros 700 ms.
+  await esperarFinListo(page);
   const m = await page.evaluate((clase) => {
     const numero = document.getElementById("fin-numero")!;
     numero.textContent = "999.999";
