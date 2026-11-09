@@ -1,7 +1,7 @@
 // Niveles tipo saga (E1, Anexo 1, 6, con el recorte I1 de impacto): 10
 // niveles en un mundo, el Puerto, con semilla fija, objetivo corto y tres
 // estrellas. Los umbrales de estrellas `p2` y `p3` salen de `npm run
-// medir:niveles` (E2), no a ojo (S26). Todo es puro: la página aplica
+// medir:niveles` (E2, medido el 2026-11-09), no a ojo (S26). Todo es puro: la página aplica
 // `registrarNivel` al progreso con `Guardado.cambiar`.
 import { premioNivel } from "./economia.ts";
 import type { Progreso } from "./progreso.ts";
@@ -31,21 +31,23 @@ export const MUNDO = "Puerto";
 
 type Fila = Omit<Nivel, "numero" | "semilla" | "jefe">;
 
-// Anexo 1, 6: 1) coloca 5; 2) 3 m; 3) 2 perfectos; 4) coloca 10; 5) combo de 3;
+// Anexo 1, 6: 1) coloca 5; 2) 3 m; 3) 4 perfectos; 4) coloca 10; 5) combo de 4;
 // 6) 6 m con 2 vidas; 7) coloca 8 con 1 vida; 8) 400 puntos; 9) 8 m con como
 // mucho 12 piezas; 10) 12 m con 2 vidas (jefe). Los tres primeros, lentos y solo
-// con las formas estables.
+// con las formas estables. El 3 y el 5 piden 4 y no 2 o 3 (E2): con menos, los
+// puntos al ganar son siempre los mismos y no hay hueco para dos umbrales.
+// En el 8, ganar ya supera `p3` (los puntos son el objetivo): da 3 estrellas.
 const FILAS: Fila[] = [
-  { vidas: 3, velocidad: 0.9, formas: "faciles", objetivo: { tipo: "piezas", piezas: 5 }, p2: 100, p3: 150 },
-  { vidas: 3, velocidad: 0.9, formas: "faciles", objetivo: { tipo: "altura", metros: 3 }, p2: 100, p3: 150 },
-  { vidas: 3, velocidad: 0.9, formas: "faciles", objetivo: { tipo: "perfectos", perfectos: 2 }, p2: 100, p3: 150 },
-  { vidas: 3, velocidad: 1.0, formas: "todas", objetivo: { tipo: "piezas", piezas: 10 }, p2: 200, p3: 300 },
-  { vidas: 3, velocidad: 1.0, formas: "todas", objetivo: { tipo: "combo", combo: 3 }, p2: 150, p3: 250 },
-  { vidas: 2, velocidad: 1.0, formas: "todas", objetivo: { tipo: "altura", metros: 6 }, p2: 250, p3: 400 },
-  { vidas: 1, velocidad: 1.0, formas: "todas", objetivo: { tipo: "piezas", piezas: 8 }, p2: 150, p3: 250 },
-  { vidas: 3, velocidad: 1.1, formas: "todas", objetivo: { tipo: "puntos", puntos: 400 }, p2: 450, p3: 500 },
-  { vidas: 3, velocidad: 1.1, formas: "todas", objetivo: { tipo: "alturaConPiezas", metros: 8, piezas: 12 }, p2: 350, p3: 450 },
-  { vidas: 2, velocidad: 1.1, formas: "todas", objetivo: { tipo: "altura", metros: 12 }, p2: 600, p3: 800 },
+  { vidas: 3, velocidad: 0.9, formas: "faciles", objetivo: { tipo: "piezas", piezas: 5 }, p2: 150, p3: 200 },
+  { vidas: 3, velocidad: 0.9, formas: "faciles", objetivo: { tipo: "altura", metros: 3 }, p2: 50, p3: 100 },
+  { vidas: 3, velocidad: 0.9, formas: "faciles", objetivo: { tipo: "perfectos", perfectos: 4 }, p2: 50, p3: 100 },
+  { vidas: 3, velocidad: 1.0, formas: "todas", objetivo: { tipo: "piezas", piezas: 10 }, p2: 500, p3: 550 },
+  { vidas: 3, velocidad: 1.0, formas: "todas", objetivo: { tipo: "combo", combo: 4 }, p2: 50, p3: 100 },
+  { vidas: 2, velocidad: 1.0, formas: "todas", objetivo: { tipo: "altura", metros: 6 }, p2: 500, p3: 550 },
+  { vidas: 1, velocidad: 1.0, formas: "todas", objetivo: { tipo: "piezas", piezas: 8 }, p2: 350, p3: 400 },
+  { vidas: 3, velocidad: 1.1, formas: "todas", objetivo: { tipo: "puntos", puntos: 400 }, p2: 350, p3: 400 },
+  { vidas: 3, velocidad: 1.1, formas: "todas", objetivo: { tipo: "alturaConPiezas", metros: 8, piezas: 12 }, p2: 550, p3: 600 },
+  { vidas: 2, velocidad: 1.1, formas: "todas", objetivo: { tipo: "altura", metros: 12 }, p2: 950, p3: 1000 },
 ];
 
 export const NIVELES: readonly Nivel[] = FILAS.map((fila, i) => ({

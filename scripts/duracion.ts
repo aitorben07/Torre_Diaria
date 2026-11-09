@@ -34,6 +34,8 @@ export type Medida = {
   monedas: number;
   alturaMax: number;
   terminada: boolean;
+  /** Objetivo de nivel cumplido (E2); sin objetivo, `false`. */
+  victoria: boolean;
 };
 
 /** Pasos desde que aparece la pieza hasta que su centro pasa por `objetivo`. */
@@ -42,9 +44,12 @@ export function pasosHastaObjetivo(objetivo: number, velocidad: number, desdeDer
   return Math.round(distancia / (velocidad * PASO));
 }
 
-/** Juega una partida con el perfil dado. El azar del error depende solo de la semilla y del perfil. */
-export function jugarConPerfil(semilla: string, perfil: Perfil, opciones: OpcionesPartida = {}): Medida {
-  const azar = crearGenerador(`${semilla}|${perfil.nombre}`);
+/**
+ * Juega una partida con el perfil dado. El azar del error depende solo de la
+ * semilla, del perfil y del `intento` (E2 repite cada nivel con errores distintos).
+ */
+export function jugarConPerfil(semilla: string, perfil: Perfil, opciones: OpcionesPartida = {}, intento: number = 0): Medida {
+  const azar = crearGenerador(intento === 0 ? `${semilla}|${perfil.nombre}` : `${semilla}|${perfil.nombre}|${intento}`);
   const partida = new Partida(semilla, opciones);
   let soltadas = 0;
   let pasoToque: number | null = null;
@@ -62,8 +67,8 @@ export function jugarConPerfil(semilla: string, perfil: Perfil, opciones: Opcion
     partida.paso();
     partida.tomarEventos();
   }
-  const { puntos, pasos, terminada, piezas, perfectos, monedas, alturaMax } = partida.resultado();
-  return { semilla, segundos: pasos / 60, soltadas, piezas, puntos, perfectos, monedas, alturaMax, terminada };
+  const { puntos, pasos, terminada, piezas, perfectos, monedas, alturaMax, victoria } = partida.resultado();
+  return { semilla, segundos: pasos / 60, soltadas, piezas, puntos, perfectos, monedas, alturaMax, terminada, victoria };
 }
 
 export function mediana(valores: number[]): number {

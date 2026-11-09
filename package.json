@@ -13,7 +13,8 @@
     "e2e:motores": "playwright test --project=firefox --project=webkit",
     "medir": "node scripts/medir-jugar.ts",
     "medir:duracion": "node scripts/medir-duracion.ts",
-    "medir:economia": "node scripts/medir-economia.ts"
+    "medir:economia": "node scripts/medir-economia.ts",
+    "medir:niveles": "node scripts/medir-niveles.ts"
   },
   "dependencies": {
     "@fontsource-variable/bricolage-grotesque": "5.3.0",

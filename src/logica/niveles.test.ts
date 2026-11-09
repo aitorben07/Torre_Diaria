@@ -39,9 +39,9 @@ describe("tabla de niveles (E1)", () => {
     expect(NIVELES.map((n) => textoObjetivo(n))).toEqual([
       "Coloca 5 piezas",
       "Llega a 3 m",
-      "Haz 2 perfectos",
+      "Haz 4 perfectos",
       "Coloca 10 piezas",
-      "Haz un combo de 3",
+      "Haz un combo de 4",
       "Llega a 6 m con 2 vidas",
       "Coloca 8 piezas con 1 vida",
       "Consigue 400 puntos",
