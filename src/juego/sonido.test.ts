@@ -21,6 +21,6 @@ describe("nota del perfecto (A4)", () => {
 
 describe("patrones de vibración (A4)", () => {
   it("son los del Anexo 1, 1.6", () => {
-    expect(PATRONES).toEqual({ aterrizar: 8, perfecto: 15, vidaExtra: [15, 30, 15], caida: [30, 40, 30], record: 20 });
+    expect(PATRONES).toEqual({ aterrizar: 8, perfecto: 15, vidaExtra: [15, 30, 15], caida: [30, 40, 30], record: 20, estrella: 20 });
   });
 });

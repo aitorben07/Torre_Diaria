@@ -157,6 +157,13 @@ export class Sonido {
     this.tono("sine", 90, 70, 0, 0.4, 0.5);
   }
 
+  /** Estrella de nivel número `n` (1 a 3): cada una, una nota más alta del arpegio (E3). */
+  estrella(n: number): void {
+    const f = [784, 988, 1175][Math.min(2, Math.max(0, n - 1))]!;
+    this.tono("triangle", f, f, 0, 0.16, 0.32);
+    this.tono("sine", f * 2, f * 2, 0, 0.16, 0.12);
+  }
+
   /** Récord: arpegio ascendente. */
   record(): void {
     [523, 659, 784, 1047].forEach((f, i) => this.tono("triangle", f, f, i * 0.07, 0.16, 0.3));

@@ -19,6 +19,9 @@ export const COLORES = {
   /** Medallas del reto diario (D1). */
   plata: "#C3C7D4",
   bronce: "#D99A5E",
+  /** Cielo del Puerto a 0 y a 30 m (Anexo 1, 1.2), también en el mapa de niveles (E3). */
+  amanecer: "#FBD9C0",
+  tarde: "#9ED3E0",
 } as const;
 
 export type NombreColor = keyof typeof COLORES;

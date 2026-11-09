@@ -1,11 +1,12 @@
 // Punto de entrada de la página: une la simulación, el dibujo, la entrada de
 // un toque y las pantallas. Las transiciones entre pantallas las decide
 // `flujo.ts`; aquí solo se conectan con el DOM (B5). El progreso (monedas,
-// récord, retos diarios, colección, C y D) se cambia solo con funciones puras
-// de `src/logica/` aplicadas por `Guardado.cambiar`.
+// récord, retos diarios, niveles, colección, C, D y E) se cambia solo con
+// funciones puras de `src/logica/` aplicadas por `Guardado.cambiar`.
 import { comprar, equipado, equipar, nuevosEscenarios, siguienteObjetivo } from "../logica/catalogo.ts";
 import { actualizarRacha, medallaDe, medallaDePuntos, rachaDeHoy, registrarOficial, UMBRAL_BRONCE, UMBRAL_ORO, UMBRAL_PLATA, type Oficial } from "../logica/diarios.ts";
-import { cobrarLibre, hitosDeAltura, monedasDePartida, type Medalla, type PartidaAcabada } from "../logica/economia.ts";
+import { cobrarLibre, hitosDeAltura, monedasDePartida, sumarEstadisticas, type Medalla, type PartidaAcabada } from "../logica/economia.ts";
+import { estrellasDe, nivelDisponible, nivelPorNumero, opcionesDeNivel, registrarNivel, textoMeta, textoObjetivo, totalEstrellas, type NivelRegistrado } from "../logica/niveles.ts";
 import { leerReto } from "../logica/reto.ts";
 import { almacenDelNavegador } from "../logica/registro.ts";
 import { deTramos, Guardado, type DiaJugado } from "../logica/progreso.ts";
@@ -18,6 +19,7 @@ import { Partida, REGLAS, type EstadoPartida, type Evento, type OpcionesPartida 
 import { formatearAltura, formatearNumero, formatearPuntos, generarTarjeta } from "../logica/tarjeta.ts";
 import { Bucle, PASO_MS } from "./bucle.ts";
 import { PanelColeccion } from "./coleccion.ts";
+import { PanelNiveles } from "./mapa.ts";
 import { Lienzo, NIVEL_AGUA, ratioPixeles } from "./dibujo.ts";
 import { Caidas, Efectos } from "./efectos.ts";
 import { Haptica, puedeVibrar } from "./haptica.ts";
@@ -28,8 +30,10 @@ import { cambiarEstado, compartir, copiar, mostrarTexto, NOMBRE_MEDALLA, pintarB
 import { PanelRetos } from "./retos.ts";
 import { escenarioPorId, temaPorId } from "./temas.ts";
 
-/** Opciones de toda partida de esta página; van en `data-opciones` para reproducirla con `jugar` (G3). */
+/** Opciones de la partida libre y del reto diario; van en `data-opciones` para reproducirla con `jugar` (G3). */
 const OPCIONES: OpcionesPartida = { vidas: VIDAS_INICIALES };
+/** Pausa entre estrellas al acabar un nivel (E3). */
+const ESTRELLA_MS = 380;
 
 /** Día de hoy en UTC. Se recalcula en cada acción y al volver a la pestaña. */
 let hoy = numeroDia(fechaUTC(new Date()));
@@ -73,6 +77,9 @@ let textoTarjeta = "";
 let hudPintado = "";
 /** Modo de lo que muestra la pantalla de fin, para refrescar el siguiente objetivo al volver a ella. */
 let modoFin: Modo = "libre";
+/** Fin de un nivel: si se ganó y si ya se puede jugar el siguiente (para el botón principal). */
+let finNivel: { victoria: boolean; haySiguiente: boolean } | null = null;
+let temporizadoresEstrellas: number[] = [];
 
 /** Recalcula `hoy`, por si ha pasado la medianoche UTC. Devuelve si ha cambiado. */
 function actualizarHoy(): boolean {
@@ -89,7 +96,7 @@ function aplicarEquipado(): void {
 }
 
 function pintarBarraActual(): void {
-  pintarBarra({ racha: rachaDeHoy(guardado.actual, hoy), monedas: guardado.actual.monedas });
+  pintarBarra({ racha: rachaDeHoy(guardado.actual, hoy), monedas: guardado.actual.monedas, estrellas: totalEstrellas(guardado.actual) });
 }
 
 /** Al abrir y al cambiar de día: gasta congeladores o corta la racha (D1). Solo guarda si cambia algo. */
@@ -119,13 +126,18 @@ function actuar(accion: Accion): void {
     guardado.releer();
     if (actualizarHoy()) revisarRacha();
   }
-  const siguiente = transicion(flujo, accion, { ahora: performance.now(), hoy, jugado: (dia) => resultadoDe(dia) !== null });
+  const siguiente = transicion(flujo, accion, {
+    ahora: performance.now(),
+    hoy,
+    jugado: (dia) => resultadoDe(dia) !== null,
+    nivelDisponible: (nivel) => nivelDisponible(guardado.actual, nivel),
+  });
   flujo = siguiente.flujo;
   ejecutar(siguiente.orden);
 }
 
 function ejecutar(orden: Orden): void {
-  if (orden.tipo === "jugar") empezar(orden.modo, orden.dia);
+  if (orden.tipo === "jugar") empezar(orden.modo, orden.dia, orden.nivel);
   else if (orden.tipo === "resultado") verGuardado(orden.dia);
   else if (orden.tipo === "reto") mostrarReto();
   else if (orden.tipo === "panel") mostrarPanel(orden.panel);
@@ -172,16 +184,20 @@ function verGuardado(dia: number): void {
   mostrarFin(datosDeDia(dia, jugado), "oficial", { diario: { medalla, texto: textoDiario(medalla, cola) }, monedas: null });
 }
 
-/** Retos y Colección se ven siempre salvo mientras se juega un reto diario. */
+/** Retos, Niveles y Colección se ven siempre salvo mientras se juega un reto diario. */
 function actualizarBotones(): void {
-  const ocultar = flujo.pantalla === "jugando" && flujo.modo !== "libre";
+  const ocultar = flujo.pantalla === "jugando" && (flujo.modo === "oficial" || flujo.modo === "repeticion");
   ui.botonRetos().hidden = ocultar;
+  ui.botonNiveles().hidden = ocultar;
   ui.botonColeccion().hidden = ocultar;
 }
 
-function empezar(modo: Modo, dia: number): void {
-  const semilla = modo === "libre" ? semillaLibre() : fechaDeDia(dia);
-  partida = new Partida(semilla, OPCIONES);
+function empezar(modo: Modo, dia: number, numeroNivel: number = 0): void {
+  const nivel = modo === "nivel" ? nivelPorNumero(numeroNivel) : null;
+  const semilla = nivel ? nivel.semilla : modo === "libre" ? semillaLibre() : fechaDeDia(dia);
+  const opciones = nivel ? opcionesDeNivel(nivel) : OPCIONES;
+  partida = new Partida(semilla, opciones);
+  pararEstrellas();
   escena = partida;
   pendiente = false;
   toques = [];
@@ -194,11 +210,14 @@ function empezar(modo: Modo, dia: number): void {
   const juego = ui.juego();
   juego.dataset.modo = modo;
   juego.dataset.semilla = semilla;
-  juego.dataset.opciones = JSON.stringify(OPCIONES);
+  juego.dataset.opciones = JSON.stringify(opciones);
+  juego.dataset.nivel = String(nivel?.numero ?? 0);
   juego.dataset.fase = partida.fase;
   delete juego.dataset.toques;
   delete juego.dataset.puntos;
   delete juego.dataset.altura;
+  delete juego.dataset.victoria;
+  delete juego.dataset.estrellas;
   ui.avisoToque().hidden = guardado.actual.ajustes.tutorialVisto;
   aplicarEquipado();
   lienzo.ponerRecord(modo === "libre" ? guardado.actual.libre.alturaRecord : null);
@@ -218,12 +237,51 @@ function puntosAmigo(modoPartida: Modo, diaPartida: number): number | null {
   return reto.puntos;
 }
 
-type Premios = Pick<DatosPantallaFin, "nuevoRecord" | "diario" | "monedas" | "desbloqueo" | "siguiente">;
+type Premios = Pick<DatosPantallaFin, "nuevoRecord" | "diario" | "monedas" | "desbloqueo" | "siguiente" | "nivel">;
+
+/** Título del fin según el modo. */
+function tituloFin(modoPartida: Modo, dia: number): string {
+  if (modoPartida === "libre") return "Partida libre";
+  if (modoPartida === "nivel") return `Nivel ${flujo.nivel}`;
+  return modoPartida === "repeticion" ? `Reto del día #${dia} (no cuenta)` : `Reto del día #${dia}`;
+}
+
+/** Texto del botón principal del fin: en un nivel, «Siguiente nivel» si se ganó y hay otro; si no, «Repetir». */
+function textoPrincipal(modoPartida: Modo): string {
+  if (modoPartida === "libre") return "Otra vez";
+  if (modoPartida !== "nivel") return "Partida libre";
+  return finNivel?.victoria && finNivel.haySiguiente ? "Siguiente nivel" : "Repetir";
+}
+
+/** Lo que hace el botón principal del fin (y Espacio o Intro en el fin). */
+function accionPrincipal(): Accion {
+  if (flujo.modo !== "nivel") return { tipo: "libre" };
+  return finNivel?.victoria && finNivel.haySiguiente ? { tipo: "siguienteNivel" } : { tipo: "jugarNivel", nivel: flujo.nivel };
+}
+
+function pararEstrellas(): void {
+  for (const t of temporizadoresEstrellas) clearTimeout(t);
+  temporizadoresEstrellas = [];
+}
+
+/** Estrellas del fin de un nivel una a una, cada una con su nota y su vibración (E3, Anexo 1, 1.6). */
+function celebrarEstrellas(estrellas: number): void {
+  pararEstrellas();
+  for (let i = 1; i <= estrellas; i++) {
+    temporizadoresEstrellas.push(
+      window.setTimeout(() => {
+        sonido.estrella(i);
+        haptica.vibrar("estrella");
+      }, ESTRELLA_MS * i),
+    );
+  }
+}
 
 function mostrarFin(datos: DatosFin, modoPartida: Modo, premios: Premios = {}): void {
   const libre = modoPartida === "libre";
   const enPiezas = datos.reglas === 1;
   modoFin = modoPartida;
+  finNivel = modoPartida === "nivel" && premios.nivel ? { victoria: premios.nivel.victoria, haySiguiente: premios.nivel.haySiguiente } : null;
   textoTarjeta = generarTarjeta({
     modo: libre ? "libre" : "diario",
     dia: datos.dia,
@@ -233,14 +291,14 @@ function mostrarFin(datos: DatosFin, modoPartida: Modo, premios: Premios = {}): 
     origen: location.origin,
   });
   pintarFin({
-    titulo: libre ? "Partida libre" : modoPartida === "repeticion" ? `Reto del día #${datos.dia} (no cuenta)` : `Reto del día #${datos.dia}`,
+    titulo: tituloFin(modoPartida, datos.dia),
     puntos: enPiezas ? datos.piezas : datos.puntos,
     enPiezas,
     altura: datos.altura,
     tarjeta: textoTarjeta,
     record: libre ? guardado.actual.libre.record : null,
     puntosAmigo: puntosAmigo(modoPartida, datos.dia),
-    principal: libre ? "Otra vez" : "Partida libre",
+    principal: textoPrincipal(modoPartida),
     siguiente: libre ? siguienteObjetivo(guardado.actual) : null,
     ...premios,
   });
@@ -250,6 +308,7 @@ function mostrarFin(datos: DatosFin, modoPartida: Modo, premios: Premios = {}): 
   cambiarEstado("fin");
   actualizarBotones();
   pintarBarraActual();
+  if (premios.nivel) celebrarEstrellas(premios.nivel.estrellas);
   if (premios.desbloqueo) pintarMuestra(ui.finDesbloqueoMuestra(), temaPorId(equipado(guardado.actual).tema), escenarioPorId(premios.desbloqueo.id));
   lienzo.ponerRecord(null);
   reservarTarjeta();
@@ -310,13 +369,48 @@ function cobrar(actual: Partida, modo: Modo, dia: number): Premios {
   return premios;
 }
 
+/**
+ * Cobra un nivel acabado (E1): guarda la mejor marca de estrellas y da 20
+ * monedas por estrella nueva (y 200 al completar el mundo con 3 en todo).
+ */
+function cobrarNivel(actual: Partida, numero: number): Premios {
+  const nivel = nivelPorNumero(numero);
+  if (!nivel) return {};
+  const r = actual.resultado();
+  const estrellas = estrellasDe(nivel, r);
+  let registro: NivelRegistrado | null = null;
+  guardado.cambiar((p) => {
+    registro = registrarNivel(p, numero, estrellas);
+    return sumarEstadisticas(registro.progreso, {
+      semilla: nivel.semilla,
+      puntos: r.puntos,
+      piezas: r.piezas,
+      perfectos: r.perfectos,
+      comboMax: r.comboMax,
+      alturaMax: r.alturaMax,
+    });
+  });
+  const hecho = registro as NivelRegistrado | null;
+  const monedas = hecho?.monedas ?? 0;
+  const juego = ui.juego();
+  juego.dataset.victoria = String(r.victoria);
+  juego.dataset.estrellas = String(estrellas);
+  return {
+    monedas: monedas > 0 ? monedas : null,
+    nivel: { objetivo: textoObjetivo(nivel), estrellas, victoria: r.victoria, haySiguiente: nivelDisponible(guardado.actual, numero + 1) },
+    siguiente: hecho?.mundoCompletado ? "Puerto completado con 3 estrellas en todo" : null,
+  };
+}
+
 function terminar(actual: Partida): void {
   const { puntos, altura, formas, piezas } = actual.resultado();
   const { modo, dia } = flujo;
-  const premios = cobrar(actual, modo, dia);
+  const premios = modo === "nivel" ? cobrarNivel(actual, flujo.nivel) : cobrar(actual, modo, dia);
   ui.juego().dataset.toques = JSON.stringify(toques);
   // La última pieza caída sigue cayendo en pantalla aunque la partida ya la haya retirado.
   caidas.observar(actual.estado().cuerpos, 1, PASO_MS, performance.now());
+  // En un nivel, la última pieza suma y acaba en el mismo paso: el HUD se pone al día antes de cerrar.
+  actualizarHud();
   partida = null;
   actuar({ tipo: "terminar" });
   ui.contador().textContent = `${formatearPuntos(puntos)} · ${formatearAltura(altura)}`;
@@ -324,11 +418,12 @@ function terminar(actual: Partida): void {
   mostrarFin({ dia, puntos, altura, piezas, formas, reglas: REGLAS }, modo, premios);
 }
 
-/** Abre Retos o Colección encima de la pantalla que hubiera (si era una partida, queda en pausa). */
+/** Abre Retos, Niveles o Colección encima de la pantalla que hubiera (si era una partida, queda en pausa). */
 function mostrarPanel(panel: Panel): void {
   cambiarEstado(panel);
   ui.avisoToque().hidden = true;
   if (panel === "retos") panelRetos.abrir();
+  else if (panel === "niveles") panelNiveles.abrir();
   else panelColeccion.pintar(guardado.actual);
   pintarBarraActual();
 }
@@ -355,6 +450,8 @@ function cambiarColeccion(cambio: (p: typeof guardado.actual) => typeof guardado
   if (flujo.pantalla === "coleccion") panelColeccion.pintar(guardado.actual);
   if (flujo.pantalla === "retos") panelRetos.pintar();
 }
+
+const panelNiveles = new PanelNiveles({ jugar: (nivel) => actuar({ tipo: "jugarNivel", nivel }) }, () => guardado.actual);
 
 const panelColeccion = new PanelColeccion(
   {
@@ -405,10 +502,11 @@ function actualizarHud(): void {
   if (!partida) return;
   const { puntos, vidas, combo } = partida.estado();
   const record = flujo.modo === "libre" ? guardado.actual.libre.record : null;
-  const clave = `${puntos}|${vidas}|${combo}|${record}`;
+  const nivel = flujo.modo === "nivel" ? nivelPorNumero(flujo.nivel) : null;
+  const clave = `${puntos}|${vidas}|${combo}|${record}|${flujo.nivel}`;
   if (clave === hudPintado) return;
   hudPintado = clave;
-  pintarHud({ puntos, vidas, vidasMax: VIDAS_MAX, combo, record });
+  pintarHud({ puntos, vidas, vidasMax: VIDAS_MAX, combo, record, meta: nivel ? textoMeta(nivel) : null });
 }
 
 
@@ -606,7 +704,7 @@ ui.zona().addEventListener("pointerdown", (evento) => {
   pedirSoltar();
 });
 document.addEventListener("keydown", (evento) => {
-  if (evento.key === "Escape" && (flujo.pantalla === "retos" || flujo.pantalla === "coleccion")) {
+  if (evento.key === "Escape" && (flujo.pantalla === "retos" || flujo.pantalla === "niveles" || flujo.pantalla === "coleccion")) {
     actuar({ tipo: "cerrar" });
     return;
   }
@@ -615,21 +713,26 @@ document.addEventListener("keydown", (evento) => {
     evento.preventDefault();
     pedirSoltar();
   } else if (flujo.pantalla === "fin" && !focoEnControl()) {
-    // En el fin, Espacio o Intro equivalen a «Otra vez» (pasados 700 ms).
+    // En el fin, Espacio o Intro equivalen al botón principal (pasados 700 ms).
     evento.preventDefault();
-    actuar({ tipo: "libre" });
+    actuar(accionPrincipal());
   }
 });
 
-ui.botonOtraVez().addEventListener("click", () => actuar({ tipo: "libre" }));
+ui.botonOtraVez().addEventListener("click", () => actuar(accionPrincipal()));
+ui.botonRepetirNivel().addEventListener("click", () => actuar({ tipo: "jugarNivel", nivel: flujo.nivel }));
+ui.botonMapa().addEventListener("click", () => actuar({ tipo: "abrir", panel: "niveles" }));
+ui.botonLibreNivel().addEventListener("click", () => actuar({ tipo: "libre" }));
 ui.botonLibreReto().addEventListener("click", () => actuar({ tipo: "libre" }));
-/** Retos y Colección abren su panel; si ya está abierto, lo cierran. */
+/** Retos, Niveles y Colección abren su panel; si ya está abierto, lo cierran. */
 function alternarPanel(panel: Panel): void {
   actuar(flujo.pantalla === panel ? { tipo: "cerrar" } : { tipo: "abrir", panel });
 }
 ui.botonRetos().addEventListener("click", () => alternarPanel("retos"));
+ui.botonNiveles().addEventListener("click", () => alternarPanel("niveles"));
 ui.botonColeccion().addEventListener("click", () => alternarPanel("coleccion"));
 ui.botonCerrarRetos().addEventListener("click", () => actuar({ tipo: "cerrar" }));
+ui.botonCerrarNiveles().addEventListener("click", () => actuar({ tipo: "cerrar" }));
 ui.botonCerrarColeccion().addEventListener("click", () => actuar({ tipo: "cerrar" }));
 ui.botonReto().addEventListener("click", () => {
   if (reto) actuar({ tipo: "jugarReto", reto });

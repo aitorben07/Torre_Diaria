@@ -47,6 +47,7 @@ const favicon =
           <div class="lado">
             <p id="combo" class="combo" hidden></p>
             <p id="record" class="record" hidden></p>
+            <p id="hud-meta" class="record meta" hidden></p>
           </div>
         </header>
         <p id="aviso-toque" class="aviso-toque" hidden>Toca para soltar</p>
@@ -65,6 +66,11 @@ const favicon =
           <p class="marcador" aria-hidden="true"><span id="fin-numero" class="numero"></span> <span id="fin-unidad"></span></p>
           <p id="fin-puntos" class="solo-lectores"></p>
           <p class="datos"><span id="fin-altura"></span><span id="fin-record" hidden></span></p>
+          {/* Fin de un nivel (E3): objetivo y estrellas, que aparecen una a una. */}
+          <div id="fin-nivel" class="fin-nivel" hidden>
+            <p id="fin-objetivo" class="objetivo"></p>
+            <div id="fin-estrellas" class="estrellas grandes" role="img"></div>
+          </div>
           {/* Premios (C2, D1): sello de récord, medalla y racha, monedas ganadas, desbloqueo y siguiente objetivo. */}
           <div class="premios">
             <p id="fin-nuevo-record" class="sello" hidden>¡Nuevo récord!</p>
@@ -85,6 +91,9 @@ const favicon =
           <pre id="tarjeta" aria-label="Vista previa de la tarjeta"></pre>
           <div class="acciones">
             <button id="boton-otra-vez" type="button" class="principal">Otra vez</button>
+            <button id="boton-repetir-nivel" type="button" hidden>Repetir</button>
+            <button id="boton-mapa" type="button" hidden>Mapa</button>
+            <button id="boton-libre-nivel" type="button" hidden>Partida libre</button>
             <button id="boton-copiar" type="button">Copiar</button>
             <button id="boton-compartir" type="button" hidden>Compartir</button>
           </div>
@@ -133,6 +142,56 @@ const favicon =
           <div id="calendario" class="calendario"></div>
         </section>
 
+        {/* Niveles (E3): ficha del nivel elegido y mapa del Puerto, de abajo arriba, con el camino en zigzag. */}
+        <section id="niveles" class="panel columna" aria-labelledby="niveles-titulo" hidden>
+          <div class="cabecera">
+            <h2 id="niveles-titulo">Niveles · Puerto</h2>
+            <p class="saldo">
+              <svg class="estrella llena" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.6l2.8 5.9 6.5.8-4.8 4.5 1.2 6.4L12 17l-5.7 3.2 1.2-6.4-4.8-4.5 6.5-.8z" /></svg>
+              <span id="niveles-estrellas">0</span><span id="niveles-estrellas-total" class="suave"></span><span class="solo-lectores"> estrellas</span>
+            </p>
+            <button id="cerrar-niveles" type="button" class="icono" aria-label="Cerrar">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+            </button>
+          </div>
+          <div id="ficha-nivel" class="ficha ficha-nivel">
+            <div class="ficha-nivel-cabeza">
+              <h3 id="ficha-nivel-titulo"></h3>
+              <div id="ficha-nivel-estrellas" class="estrellas" role="img"></div>
+            </div>
+            <p id="ficha-nivel-objetivo" class="objetivo"></p>
+            <p id="ficha-nivel-detalle" class="suave"></p>
+            <button id="ficha-nivel-jugar" type="button" class="principal">Jugar</button>
+          </div>
+          <div id="mapa" class="mapa">
+            <div class="mapa-camino">
+              <div class="mapa-cielo" aria-hidden="true">
+                <svg class="nube n1" viewBox="0 0 48 24"><path d="M10 21a6 6 0 0 1 0-12 9 9 0 0 1 17-3 7 7 0 0 1 12 4 5.5 5.5 0 0 1 0 11z" /></svg>
+                <svg class="nube n2" viewBox="0 0 48 24"><path d="M10 21a6 6 0 0 1 0-12 9 9 0 0 1 17-3 7 7 0 0 1 12 4 5.5 5.5 0 0 1 0 11z" /></svg>
+                <svg class="nube n3" viewBox="0 0 48 24"><path d="M10 21a6 6 0 0 1 0-12 9 9 0 0 1 17-3 7 7 0 0 1 12 4 5.5 5.5 0 0 1 0 11z" /></svg>
+                <svg class="nube n4" viewBox="0 0 48 24"><path d="M10 21a6 6 0 0 1 0-12 9 9 0 0 1 17-3 7 7 0 0 1 12 4 5.5 5.5 0 0 1 0 11z" /></svg>
+                <svg class="gaviota g1" viewBox="0 0 24 10"><path d="M2 7q5-6 10 0q5-6 10 0" /></svg>
+                <svg class="gaviota g2" viewBox="0 0 24 10"><path d="M2 7q5-6 10 0q5-6 10 0" /></svg>
+                <svg class="gaviota g3" viewBox="0 0 24 10"><path d="M2 7q5-6 10 0q5-6 10 0" /></svg>
+                <svg class="globo b1" viewBox="0 0 24 34"><path class="tela" d="M12 2a10 10 0 0 0-10 10c0 6 6 10 8 14h4c2-4 8-8 8-14A10 10 0 0 0 12 2z" /><path class="franja" d="M12 2c-3 3-4 7-4 10s1 9 2 14h4c1-5 2-11 2-14s-1-7-4-10z" /><path d="M10 27h4v5h-4z" /></svg>
+                <svg class="globo b2" viewBox="0 0 24 34"><path class="tela" d="M12 2a10 10 0 0 0-10 10c0 6 6 10 8 14h4c2-4 8-8 8-14A10 10 0 0 0 12 2z" /><path class="franja" d="M12 2c-3 3-4 7-4 10s1 9 2 14h4c1-5 2-11 2-14s-1-7-4-10z" /><path d="M10 27h4v5h-4z" /></svg>
+              </div>
+              <svg id="mapa-sendero" class="sendero" aria-hidden="true" preserveAspectRatio="none"></svg>
+              <ol id="mapa-niveles" class="mapa-niveles" aria-label="Mapa de niveles"></ol>
+            </div>
+            {/* El Puerto al pie del mapa, dibujado en SVG (sin imágenes en dist/, G8). */}
+            <svg class="mapa-puerto" viewBox="0 0 120 44" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+              <circle class="sol" cx="30" cy="22" r="11" />
+              <circle class="sol-registro" cx="31.5" cy="21" r="11" />
+              <path class="siluetas" d="M6 30V12h2v-3h14v2H10v1h2v18zM84 30v-9l3-2 3 2v9zM92 30v-6h10v6zM104 30l2-10h2l2 10z" />
+              <path class="agua" d="M0 30q5-2 10 0t10 0 10 0 10 0 10 0 10 0 10 0 10 0 10 0 10 0 10 0 10 0V44H0z" />
+              <path class="espuma" d="M4 35q3-1.5 6 0M30 38q3-1.5 6 0M62 34q3-1.5 6 0M92 39q3-1.5 6 0" />
+              <rect class="muelle" x="38" y="27" width="44" height="4" rx="0.6" />
+              <path class="pilotes" d="M42 31v8M52 31v8M68 31v8M78 31v8" />
+            </svg>
+          </div>
+        </section>
+
         {/* Colección (C3): temas de piezas y escenarios, con muestra dibujada, precio o condición. */}
         <section id="coleccion" class="panel columna" aria-labelledby="coleccion-titulo" hidden>
           <div class="cabecera">
@@ -153,13 +212,18 @@ const favicon =
           <p id="coleccion-mensaje" role="status"></p>
         </section>
 
-        {/* Barra de abajo: retos (con la racha) y colección (con las monedas) a la izquierda; sonido y vibración a la derecha. */}
+        {/* Barra de abajo: retos (con la racha), niveles (con las estrellas) y colección (con las monedas) a la izquierda; sonido y vibración a la derecha. */}
         <nav class="abajo columna" aria-label="Juego">
           <div class="modos">
             <button id="boton-retos" type="button" class="con-icono" aria-label="Retos">
               <svg class="llama" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2c1 4 6 6 6 12a6 6 0 0 1-12 0c0-3 2-5 3-6 0 2 1 3 2 3 0-4-1-6 1-9z" /></svg>
-              <span aria-hidden="true">Retos</span>
+              <span class="etiqueta" aria-hidden="true">Retos</span>
               <span id="barra-racha" class="insignia" aria-hidden="true">0</span>
+            </button>
+            <button id="boton-niveles" type="button" class="con-icono" aria-label="Niveles">
+              <svg class="estrella llena" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.6l2.8 5.9 6.5.8-4.8 4.5 1.2 6.4L12 17l-5.7 3.2 1.2-6.4-4.8-4.5 6.5-.8z" /></svg>
+              <span class="etiqueta" aria-hidden="true">Niveles</span>
+              <span id="barra-estrellas" aria-hidden="true">0</span>
             </button>
             <button id="boton-coleccion" type="button" class="con-icono" aria-label="Colección">
               <svg class="moneda" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><circle class="canto" cx="12" cy="12" r="5.5" /></svg>

@@ -148,3 +148,14 @@ export function textoObjetivo(nivel: Pick<Nivel, "objetivo" | "vidas">): string 
   if (nivel.vidas < VIDAS_INICIALES) frase += ` con ${cuenta(nivel.vidas, "vida", "vidas")}`;
   return frase;
 }
+
+/** El objetivo en corto para el HUD (E3): «Meta: 5 piezas», «Meta: 8 m en 12». */
+export function textoMeta(nivel: Pick<Nivel, "objetivo">): string {
+  const o = nivel.objetivo;
+  if (o.tipo === "piezas") return `Meta: ${cuenta(o.piezas, "pieza", "piezas")}`;
+  if (o.tipo === "altura") return `Meta: ${metros(o.metros)}`;
+  if (o.tipo === "perfectos") return `Meta: ${cuenta(o.perfectos, "perfecto", "perfectos")}`;
+  if (o.tipo === "combo") return `Meta: combo ×${o.combo}`;
+  if (o.tipo === "puntos") return `Meta: ${cuenta(o.puntos, "punto", "puntos")}`;
+  return `Meta: ${metros(o.metros)} en ${o.piezas}`;
+}

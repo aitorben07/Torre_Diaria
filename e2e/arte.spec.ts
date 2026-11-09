@@ -280,7 +280,7 @@ test("en 1280×800 la columna de juego mide al menos 400 px y el escenario ocupa
   expect(lienzo!.width).toBe(1280);
 });
 
-test("todos los botones visibles miden al menos 44×44 px, jugando, en el fin, en el reto de un amigo, en Retos y en Colección (A5)", async ({ page }, testInfo) => {
+test("todos los botones visibles miden al menos 44×44 px, jugando, en el fin, en el reto de un amigo, en Retos, en Niveles y en Colección (A5, E3)", async ({ page }, testInfo) => {
   await preparar(page);
   await page.goto("/");
   await esperarLibre(page);
@@ -301,6 +301,9 @@ test("todos los botones visibles miden al menos 44×44 px, jugando, en el fin, e
   await page.getByRole("button", { name: /^Retos/ }).click();
   await expect(page.locator("#juego")).toHaveAttribute("data-estado", "retos");
   await comprobar("retos");
+  await page.getByRole("button", { name: /^Niveles/ }).click();
+  await expect(page.locator("#juego")).toHaveAttribute("data-estado", "niveles");
+  await comprobar("niveles");
   await page.getByRole("button", { name: /^Colección/ }).click();
   await expect(page.locator("#juego")).toHaveAttribute("data-estado", "coleccion");
   await comprobar("coleccion");

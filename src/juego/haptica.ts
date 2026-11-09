@@ -8,6 +8,8 @@ export const PATRONES = {
   vidaExtra: [15, 30, 15],
   caida: [30, 40, 30],
   record: 20,
+  /** 20 ms por estrella de nivel (Anexo 1, 1.6). */
+  estrella: 20,
 } as const satisfies Record<string, number | readonly number[]>;
 
 export type Vibracion = keyof typeof PATRONES;

@@ -7,7 +7,7 @@ const contexto = (ahora: number, jugados: number[] = []): Contexto => ({ ahora, 
 describe("flujo de pantallas (B5)", () => {
   it("al abrir sin reto, la partida libre ya está en marcha", () => {
     expect(abrir(null, HOY)).toEqual({
-      flujo: { pantalla: "jugando", modo: "libre", dia: HOY, finDesde: -Infinity, debajo: null },
+      flujo: { pantalla: "jugando", modo: "libre", dia: HOY, nivel: 0, finDesde: -Infinity, debajo: null },
       orden: { tipo: "jugar", modo: "libre", dia: HOY },
     });
   });
@@ -107,5 +107,40 @@ describe("paneles de Retos y Colección (C3, D2)", () => {
   it("cerrar sin panel abierto no hace nada", () => {
     const libre = empezar("libre", HOY);
     expect(transicion(libre, { tipo: "cerrar" }, contexto(0))).toEqual({ flujo: libre, orden: { tipo: "nada" } });
+  });
+});
+
+describe("niveles (E3)", () => {
+  const conNiveles = (ahora: number, disponibles: number[]): Contexto => ({ ...contexto(ahora), nivelDisponible: (n) => disponibles.includes(n) });
+
+  it("solo se juega un nivel disponible", () => {
+    const libre = empezar("libre", HOY);
+    expect(transicion(libre, { tipo: "jugarNivel", nivel: 1 }, conNiveles(0, [1]))).toEqual({
+      flujo: empezar("nivel", HOY, 1),
+      orden: { tipo: "jugar", modo: "nivel", dia: HOY, nivel: 1 },
+    });
+    expect(transicion(libre, { tipo: "jugarNivel", nivel: 2 }, conNiveles(0, [1])).orden).toEqual({ tipo: "nada" });
+    expect(transicion(libre, { tipo: "jugarNivel", nivel: 1 }, contexto(0)).orden).toEqual({ tipo: "nada" });
+  });
+
+  it("«Siguiente nivel» en el fin de un nivel juega el siguiente si ya está abierto", () => {
+    const fin = transicion(empezar("nivel", HOY, 3), { tipo: "terminar" }, contexto(0)).flujo;
+    expect(fin).toMatchObject({ pantalla: "fin", modo: "nivel", nivel: 3 });
+    expect(transicion(fin, { tipo: "siguienteNivel" }, conNiveles(1000, [1, 2, 3, 4])).orden).toEqual({ tipo: "jugar", modo: "nivel", dia: HOY, nivel: 4 });
+    expect(transicion(fin, { tipo: "siguienteNivel" }, conNiveles(1000, [1, 2, 3])).orden).toEqual({ tipo: "nada" });
+    // Fuera del fin de un nivel no hace nada.
+    expect(transicion(empezar("libre", HOY), { tipo: "siguienteNivel" }, conNiveles(0, [1, 2])).orden).toEqual({ tipo: "nada" });
+  });
+
+  it("un nivel en marcha se deja en pausa al abrir un panel, como la partida libre", () => {
+    const { flujo: panel, orden } = transicion(empezar("nivel", HOY, 2), { tipo: "abrir", panel: "niveles" }, contexto(0));
+    expect(orden).toEqual({ tipo: "panel", panel: "niveles" });
+    expect(enPausa(panel)).toBe(true);
+    expect(transicion(panel, { tipo: "cerrar" }, contexto(0)).flujo).toEqual(empezar("nivel", HOY, 2));
+  });
+
+  it("la repetición de un día tampoco se puede dejar a medias", () => {
+    const repeticion = empezar("repeticion", 3);
+    expect(transicion(repeticion, { tipo: "abrir", panel: "niveles" }, contexto(0)).orden).toEqual({ tipo: "nada" });
   });
 });

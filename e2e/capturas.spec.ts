@@ -199,3 +199,43 @@ for (const [nombre, ancho, alto] of [
     await contexto.close();
   });
 }
+
+for (const [nombre, ancho, alto] of [
+  ["movil", 390, 844],
+  ["escritorio", 1280, 800],
+] as const) {
+  test(`capturas de E ${nombre} ${ancho}x${alto}`, async ({ browser }, testInfo) => {
+    test.skip(testInfo.project.name !== "escritorio", "Una vez basta");
+    test.setTimeout(240_000);
+    mkdirSync(CARPETA, { recursive: true });
+    const contexto = await browser.newContext({
+      viewport: { width: ancho, height: alto },
+      deviceScaleFactor: nombre === "movil" ? 2 : 1,
+      hasTouch: nombre === "movil",
+    });
+    const guardarEn = (page: Page, paso: string) => page.screenshot({ path: fileURLToPath(new URL(`${nombre}-${paso}.png`, CARPETA)) });
+    const page = await contexto.newPage();
+    const progreso = { ...progresoDeMuestra("puerto", 2), niveles: { 1: 3, 2: 3, 3: 2, 4: 1, 5: 3, 6: 2, 7: 1 } };
+    await page.addInitScript((valor) => localStorage.setItem("torre-diaria:progreso", valor), JSON.stringify(progreso));
+    await preparar(page);
+    await page.goto("/");
+    await esperarLibre(page);
+    await page.evaluate(() => document.fonts.ready);
+
+    // Mapa con el nivel 8 disponible, centrado al abrir.
+    await page.getByRole("button", { name: /^Niveles/ }).click();
+    await page.waitForTimeout(400);
+    await guardarEn(page, "12-niveles");
+
+    // Fin de un nivel ganado: el 1, con todas las piezas sobre el objetivo.
+    await page.locator("#nivel-1").click();
+    await page.locator("#ficha-nivel-jugar").click();
+    await expect(juego(page)).toHaveAttribute("data-modo", "nivel");
+    await page.waitForTimeout(300);
+    await guardarEn(page, "13-nivel-jugando");
+    while ((await juego(page).getAttribute("data-estado")) !== "fin") await soltarCentrada(page).catch(() => undefined);
+    await page.waitForTimeout(2000);
+    await guardarEn(page, "14-fin-nivel");
+    await contexto.close();
+  });
+}

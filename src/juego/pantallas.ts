@@ -5,6 +5,7 @@ import type { Medalla } from "../logica/economia.ts";
 import { formatearAltura, formatearNumero, formatearPiezas, formatearPuntos } from "../logica/tarjeta.ts";
 import type { Reto } from "../logica/reto.ts";
 import type { Pantalla } from "./flujo.ts";
+import { pintarEstrellas } from "./mapa.ts";
 
 function elemento<T extends HTMLElement = HTMLElement>(id: string): T {
   const encontrado = document.getElementById(id);
@@ -23,7 +24,10 @@ export const ui = {
   vidas: () => elemento("vidas"),
   combo: () => elemento("combo"),
   record: () => elemento("record"),
+  meta: () => elemento("hud-meta"),
   botonRetos: () => elemento<HTMLButtonElement>("boton-retos"),
+  botonNiveles: () => elemento<HTMLButtonElement>("boton-niveles"),
+  barraEstrellas: () => elemento("barra-estrellas"),
   botonColeccion: () => elemento<HTMLButtonElement>("boton-coleccion"),
   barraRacha: () => elemento("barra-racha"),
   barraMonedas: () => elemento("barra-monedas"),
@@ -56,14 +60,22 @@ export const ui = {
   finDesbloqueoTexto: () => elemento("fin-desbloqueo-texto"),
   botonEquiparNuevo: () => elemento<HTMLButtonElement>("boton-equipar-nuevo"),
   finSiguiente: () => elemento("fin-siguiente"),
+  finNivel: () => elemento("fin-nivel"),
+  finObjetivo: () => elemento("fin-objetivo"),
+  finEstrellas: () => elemento("fin-estrellas"),
+  botonRepetirNivel: () => elemento<HTMLButtonElement>("boton-repetir-nivel"),
+  botonMapa: () => elemento<HTMLButtonElement>("boton-mapa"),
+  botonLibreNivel: () => elemento<HTMLButtonElement>("boton-libre-nivel"),
   tarjeta: () => elemento("tarjeta"),
   botonCopiar: () => elemento<HTMLButtonElement>("boton-copiar"),
   botonCompartir: () => elemento<HTMLButtonElement>("boton-compartir"),
   mensaje: () => elemento("mensaje"),
   botonOtraVez: () => elemento<HTMLButtonElement>("boton-otra-vez"),
   retos: () => elemento("retos"),
+  niveles: () => elemento("niveles"),
   coleccion: () => elemento("coleccion"),
   botonCerrarRetos: () => elemento<HTMLButtonElement>("cerrar-retos"),
+  botonCerrarNiveles: () => elemento<HTMLButtonElement>("cerrar-niveles"),
   botonCerrarColeccion: () => elemento<HTMLButtonElement>("cerrar-coleccion"),
   mensajeColeccion: () => elemento("coleccion-mensaje"),
 };
@@ -73,6 +85,7 @@ export function cambiarEstado(estado: Pantalla): void {
   ui.reto().hidden = estado !== "reto";
   ui.fin().hidden = estado !== "fin";
   ui.retos().hidden = estado !== "retos";
+  ui.niveles().hidden = estado !== "niveles";
   ui.coleccion().hidden = estado !== "coleccion";
 }
 
@@ -96,10 +109,12 @@ export type DatosHud = {
   combo: number;
   /** Récord de la partida libre, o `null` fuera de ella. */
   record: number | null;
+  /** Objetivo del nivel en marcha («Nivel 3 · Coloca 5 piezas»), o `null` fuera de los niveles (E3). */
+  meta?: string | null;
 };
 
 /** HUD de la partida: puntos, vidas como iconos (no caracteres, G11), combo si es 2 o más y récord. */
-export function pintarHud({ puntos, vidas, vidasMax, combo, record }: DatosHud): void {
+export function pintarHud({ puntos, vidas, vidasMax, combo, record, meta = null }: DatosHud): void {
   ui.contador().textContent = formatearPuntos(puntos);
   ui.hudPuntos().textContent = formatearNumero(puntos);
   const iconos = ui.vidas();
@@ -123,11 +138,14 @@ export function pintarHud({ puntos, vidas, vidasMax, combo, record }: DatosHud):
   if (combo >= 2 && combo > comboAntes) reanimar(ui.combo(), "late");
   // Con récord 0 (la primera partida) no hay nada que batir: no se muestra.
   mostrarTexto(ui.record(), record === null || record <= 0 ? null : `Récord ${formatearNumero(record)}`);
+  mostrarTexto(ui.meta(), meta);
 }
 
-/** Barra de abajo (C2, D2): racha en Retos y monedas en Colección, también para lectores. */
-export function pintarBarra({ racha, monedas }: { racha: number; monedas: number }): void {
+/** Barra de abajo (C2, D2, E3): racha en Retos, estrellas en Niveles y monedas en Colección, también para lectores. */
+export function pintarBarra({ racha, monedas, estrellas }: { racha: number; monedas: number; estrellas: number }): void {
   ui.barraRacha().textContent = String(racha);
+  ui.barraEstrellas().textContent = String(estrellas);
+  ui.botonNiveles().setAttribute("aria-label", `Niveles: ${estrellas} ${estrellas === 1 ? "estrella" : "estrellas"}`);
   ui.barraMonedas().textContent = formatearNumero(monedas);
   ui.botonRetos().setAttribute("aria-label", racha > 0 ? `Retos: racha de ${racha} ${racha === 1 ? "día" : "días"}` : "Retos");
   ui.botonColeccion().setAttribute("aria-label", `Colección: ${formatearNumero(monedas)} ${monedas === 1 ? "moneda" : "monedas"}`);
@@ -193,6 +211,8 @@ export type DatosFin = {
   desbloqueo?: { id: string; texto: string } | null;
   /** Siguiente objetivo («Te faltan 120 monedas para Madera», Anexo 1, 2.6). */
   siguiente?: string | null;
+  /** Fin de un nivel (E3): objetivo, estrellas de esta partida y botones de nivel. */
+  nivel?: { objetivo: string; estrellas: number; victoria: boolean; haySiguiente: boolean } | null;
 };
 
 export function textoComparacion(puntos: number, amigo: number): string {
@@ -228,6 +248,19 @@ export function pintarFin(datos: DatosFin): void {
     ui.botonEquiparNuevo().dataset.articulo = datos.desbloqueo.id;
   }
   mostrarTexto(ui.finSiguiente(), datos.siguiente ?? null);
+  const nivel = datos.nivel ?? null;
+  ui.finNivel().hidden = !nivel;
+  ui.botonRepetirNivel().hidden = !nivel || !nivel.victoria || !nivel.haySiguiente;
+  ui.botonMapa().hidden = !nivel;
+  ui.botonLibreNivel().hidden = !nivel;
+  if (nivel) {
+    ui.finObjetivo().textContent = `${nivel.victoria ? "Superado" : "Sin superar"}: ${nivel.objetivo}`;
+    pintarEstrellas(ui.finEstrellas(), nivel.estrellas);
+    // Las estrellas aparecen una a una (con movimiento reducido, todas a la vez).
+    ui.finEstrellas().classList.remove("aparecen");
+    void ui.finEstrellas().offsetWidth;
+    ui.finEstrellas().classList.add("aparecen");
+  }
   ui.tarjeta().textContent = datos.tarjeta;
   ui.mensaje().textContent = "";
   ui.botonCompartir().hidden = typeof navigator.share !== "function";
