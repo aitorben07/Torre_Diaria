@@ -134,6 +134,7 @@ export async function jugarHastaElFin(
       return el.dataset.estado === "fin" || el.dataset.fase === "apuntando";
     });
     if ((await contenedor.getAttribute("data-estado")) === "fin") return;
+    const antes = await soltadas(page);
     if (pieza < centradas) {
       // Dentro de la página, en el mismo fotograma en que la pieza pasa por el
       // centro: un toque desde Playwright llega cientos de ms tarde con carga.
@@ -160,10 +161,15 @@ export async function jugarHastaElFin(
     } else {
       await soltarEnExtremo(page);
     }
-    await page.waitForFunction(() => {
-      const el = document.getElementById("juego")!;
-      return el.dataset.estado === "fin" || el.dataset.fase !== "apuntando";
-    });
+    // Se espera a que la pieza cuente como soltada (contador de efectos), no a ver la
+    // fase cambiar: con carga, la caída entera puede pasar antes de que Playwright mire.
+    await page.waitForFunction(
+      (n) => {
+        const el = document.getElementById("juego")!;
+        return el.dataset.estado === "fin" || ((JSON.parse(el.dataset.efectos ?? "{}") as { soltada?: number }).soltada ?? 0) > n;
+      },
+      antes,
+    );
   }
   throw new Error("La partida no ha terminado en 200 piezas");
 }
@@ -187,6 +193,11 @@ export async function datosFin(page: Page): Promise<DatosFin> {
     semilla: (await contenedor.getAttribute("data-semilla")) ?? "",
     opciones: JSON.parse((await contenedor.getAttribute("data-opciones")) ?? "{}") as OpcionesPartida,
   };
+}
+
+/** Piezas soltadas en la partida en pantalla (contador de efectos de `data-efectos`). */
+async function soltadas(page: Page): Promise<number> {
+  return page.evaluate(() => (JSON.parse(document.getElementById("juego")!.dataset.efectos ?? "{}") as { soltada?: number }).soltada ?? 0);
 }
 
 /**
