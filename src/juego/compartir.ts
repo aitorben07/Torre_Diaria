@@ -56,8 +56,9 @@ export function descargar(blob: Blob, nombre: string): void {
   document.body.append(enlace);
   enlace.click();
   enlace.remove();
-  // Algunos navegadores leen la dirección después del clic: se revoca un poco más tarde.
-  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  // El navegador lee la dirección después del clic, y con el equipo cargado puede
+  // tardar: revocarla al segundo llegó a cancelar la descarga. Se revoca al minuto.
+  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
 /**
