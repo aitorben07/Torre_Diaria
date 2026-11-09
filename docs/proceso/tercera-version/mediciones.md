@@ -47,3 +47,18 @@ Constantes de B1 (`impacto.md` §5): 1,3 m/s, +0,025 por pieza soltada, tope 3,4
 | Rama tras A y B, al final de `npm run e2e` | 36 ms (falla, límite 33) | 19 ms | 8 |
 
 La subida viene sobre todo del ritmo: con la cadencia nueva caen 8 a 10 piezas en 20 s en lugar de 5, con sus efectos de perfecto. El HUD nuevo suma como mucho 1 ms. El límite de A2 (p95 ≤ 33 ms) queda justo y la prueba puede fallar con el equipo cargado. No se ha tocado ni el límite ni los efectos (fuera de los bloques A, C1 y B); escritorio sigue en mediana 16 ms y p95 18 ms.
+
+## Duración con las piezas especiales (H e I1, 2026-11-09)
+
+`npm run medir:duracion` tras los bloques H e I1: dorada, pegajosa y cemento de la semilla (una por tramo de 8 desde la pieza 8), sin objetos (los jugadores simulados no los usan).
+
+| Perfil | Primera | Cadencia | 10.ª | Duración | Puntos | Piezas |
+|---|---|---|---|---|---|---|
+| Novato (±180 ms) | 2,02 s | 2,63 s | 29,10 s | 60,1 s | 485 | 18 |
+| Medio (±90 ms) | 1,98 s | 2,48 s | 24,91 s | 145,1 s | 2.640 | 55 |
+| Experto (±40 ms) | 2,00 s | 2,45 s | 24,88 s | 261,8 s | 7.102,5 | 124,5 |
+
+- El novato sigue en 60,1 s (mínimo 60): no baja, así que no se ha tocado `RESPIRO_CAIDA`. Si L1 lo ve por debajo de 60, la opción recomendada sigue siendo subirlo.
+- El arranque no cambia (la primera especial es la pieza 8). El medio dura 10,5 s más (la pegajosa y el cemento sujetan la torre) y los puntos suben por las doradas: medio +248, experto +833.
+- Medallas con los umbrales provisionales: novato bronce o más el 47 % (antes 43 %), medio plata o más el 63 % (antes 50 %), experto oro el 100 % (antes 90 %). L1 recalcula `UMBRALES[3]` con estas reglas.
+- Tiempo de la medición: novato 17,3 s, medio 28,6 s y experto 48,4 s (con otras tareas a la vez en el equipo).
