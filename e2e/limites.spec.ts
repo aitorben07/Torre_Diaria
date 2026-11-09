@@ -59,10 +59,25 @@ test("con la pestaña oculta la simulación se para y al volver sigue", async ({
   expect(await juego(page).getAttribute("data-x")).toBe(xOculta);
   await expect(juego(page)).toHaveAttribute("data-estado", "jugando");
 
-  await ocultarPestana(page, false);
-  await expect(juego(page)).not.toHaveAttribute("data-x", xOculta!);
-  // Al volver no recupera de golpe el tiempo oculto: sigue cerca de donde estaba.
-  const xVuelta = Number(await juego(page).getAttribute("data-x"));
+  // Al volver no recupera de golpe el tiempo oculto: sigue cerca de donde
+  // estaba. Se lee la x en el primer fotograma en que cambia, dentro de la
+  // página: leerla después desde Playwright, con el equipo cargado, llegaba
+  // tarde (1,04 m a 1,3 m/s con las reglas 3).
+  const xVuelta = await page.evaluate(
+    (antes) =>
+      new Promise<number>((listo) => {
+        const mirar = () => {
+          const x = document.getElementById("juego")!.dataset.x;
+          if (x && x !== antes) return listo(Number(x));
+          requestAnimationFrame(mirar);
+        };
+        Object.defineProperty(document, "hidden", { configurable: true, get: () => false });
+        Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "visible" });
+        document.dispatchEvent(new Event("visibilitychange"));
+        mirar();
+      }),
+    xOculta,
+  );
   expect(Math.abs(xVuelta - Number(xOculta))).toBeLessThan(1);
   await expect(juego(page)).toHaveAttribute("data-estado", "jugando");
   expect(errores).toEqual([]);
