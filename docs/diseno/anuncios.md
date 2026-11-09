@@ -2,6 +2,8 @@
 
 Nada de esto se implementa en la segunda versión. El bloque G solo deja los huecos.
 
+**Estado en el código (2026-11-09):** no hay ningún anuncio activo, ni SDK, ni peticiones a otros orígenes, ni botones de anuncio. Existen solo los puntos de llamada de `src/juego/anuncios.ts`, que con `anunciosNulos` no hacen nada: `partidaEmpieza` y `partidaPara` (al empezar, seguir, acabar o pausar una partida) y el intersticial de los puntos 4 («Otra vez» desde el fin de una partida libre) y 5 («Siguiente nivel»). Los puntos 1 a 3 (recompensados: «Seguir con 1 vida», «×2 monedas», «Congelador gratis») solo tienen sus tipos en la interfaz (`recompensado`, `MotivoRecompensado`): no se llaman desde ninguna parte y no hay botones. Tampoco existe la política del apartado 3: las llamadas se hacen siempre y, si hubiera un anuncio listo, el juego lo espera. `anunciosDePlataforma` ignora `PUBLIC_PLATAFORMA` y devuelve siempre `anunciosNulos`; el reto diario no tiene ninguna llamada de intersticial.
+
 ## 1. Papel de los anuncios
 
 Pagar el juego sin estropearlo: anuncios **opcionales con premio** como fuente principal y un **intersticial** espaciado en transiciones naturales. El reto diario se mantiene limpio y justo: nadie gana puntos viendo anuncios.
@@ -53,7 +55,7 @@ Compra única (orientativo, 2,99 €) que quita los intersticiales y mantiene lo
 ## 7. Huecos en el código (bloque G)
 
 - `src/juego/anuncios.ts`: interfaz `Anuncios` (`disponible`, `intersticial`, `recompensado`, `partidaEmpieza`, `partidaPara`) y `anunciosNulos`, que no hace nada.
-- Llamadas ya puestas en los puntos 1 a 5 y al empezar y acabar cada partida; botones recompensados ocultos mientras `disponible` sea falso.
+- Llamadas puestas (probadas con Vitest en `src/juego/anuncios.test.ts`): `partidaEmpieza`, `partidaPara` e intersticial en los puntos 4 y 5. *Diferencia con el plan original:* los puntos 1 a 3 (recompensados) no tienen llamada ni botón todavía, porque un botón que no hace nada incumple el apartado 4; se añadirán con el primer adaptador real.
 - Para implementar más adelante: una política pura (`src/logica/politica-anuncios.ts`) con las reglas del apartado 3, probada con Vitest, y un adaptador por plataforma que cargue su SDK solo en esa compilación.
 
 ## 8. Lo que necesitará al usuario
