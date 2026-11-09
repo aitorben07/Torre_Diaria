@@ -455,6 +455,12 @@ body {
   flex-basis: 100%;
 }
 
+/* En el fin, «Inicio» (E3) cabe junto al botón principal: la tarjeta no crece
+   y deja libre la parte baja para ver la cima. */
+#fin .acciones .principal {
+  flex: 3 1 9rem;
+}
+
 /* Botones gruesos de tinta que bajan al pulsarlos. */
 button {
   min-width: 44px;
@@ -500,7 +506,7 @@ button:focus-visible {
   opacity: 0;
 }
 
-/* Sonido y vibración (A4): botones con icono dibujado en SVG (G11). */
+/* Botones con icono dibujado en SVG (G11): pausa, ajustes y cerrar. */
 button.icono {
   width: 48px;
   height: 48px;
@@ -521,15 +527,6 @@ button.icono svg {
 
 button.icono .cuerpo {
   fill: currentColor;
-}
-
-button.icono[aria-pressed="true"] .no,
-button.icono[aria-pressed="false"] .si {
-  display: none;
-}
-
-button.icono[aria-pressed="false"] {
-  background: var(--papel-oscuro);
 }
 
 /* Jugosidad del HUD (A3): la vida perdida se rompe, la que vuelve salta y el combo late. */
