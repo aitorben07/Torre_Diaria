@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { TOLERANCIA_PERFECTO } from "./puntuacion.ts";
+import { especialDe, MONEDAS_DORADA } from "./especiales.ts";
+import { puntosDeColocada, TOLERANCIA_PERFECTO } from "./puntuacion.ts";
 import {
   AMPLITUD,
   jugar,
@@ -297,10 +298,202 @@ describe("precisión, imán y combo (B2)", () => {
     seguir(partida, 300, eventos);
     const hitos = eventos.filter((e) => e.tipo === "hito");
     expect(hitos.map((e) => e.metros)).toEqual([5]);
-    const { piezas, perfectos, monedas, alturaMax } = partida.resultado();
+    const { piezas, perfectos, monedas, alturaMax, doradas } = partida.resultado();
     expect(alturaMax).toBeGreaterThanOrEqual(5);
-    expect(monedas).toBe(piezas + perfectos + 5);
+    // La pieza 11 del día 1 es dorada (H2): +10 monedas.
+    expect(doradas).toBe(1);
+    expect(monedas).toBe(piezas + perfectos + 5 + MONEDAS_DORADA);
   });
+});
+
+/** Juega `toques` y sigue `despues` pasos tras el último; devuelve la partida y todos los eventos. */
+function reproducir(semilla: string, toques: number[], despues: number, opciones: OpcionesPartida = {}): { partida: Partida; eventos: Evento[] } {
+  const partida = new Partida(semilla, opciones);
+  const pendientes = new Set(toques);
+  const eventos: Evento[] = [];
+  while (!partida.terminada && partida.pasos <= Math.max(...toques) + despues) {
+    if (pendientes.has(partida.pasos)) partida.soltar();
+    partida.paso();
+    eventos.push(...partida.tomarEventos());
+  }
+  return { partida, eventos };
+}
+
+describe("piezas especiales en la simulación (H2)", () => {
+  // Día 1: la pieza 11 es dorada. Perfectos hasta la 9, un bueno en la 10
+  // (combo a 0) y la dorada con un perfecto de combo 1 (toques buscados con
+  // `jugarCon` y fijados).
+  const TOQUES_DORADA = [120, 273, 426, 579, 732, 878, 1024, 1170, 1313, 1461, 1603, 1806];
+
+  it("dorada colocada con un perfecto de combo 1: el doble de puntos de colocada y 10 monedas más", () => {
+    expect(especialDe(SEMILLA, 11)).toBe("dorada");
+    const { eventos } = reproducir(SEMILLA, TOQUES_DORADA, 300);
+    expect(eventos.find((e) => e.tipo === "colocada" && e.indice === 11)).toMatchObject({ calidad: "perfecto", combo: 1, puntos: 2 * puntosDeColocada("perfecto", 1) });
+    expect(eventos.filter((e) => e.tipo === "especial")).toEqual([{ tipo: "especial", paso: 1926, especial: "dorada", indice: 11, efecto: MONEDAS_DORADA }]);
+    const con = jugar(SEMILLA, TOQUES_DORADA);
+    const sin = jugar(SEMILLA, TOQUES_DORADA, { especiales: false });
+    expect(con.piezas).toBe(12);
+    expect(con.puntos - sin.puntos).toBe(puntosDeColocada("perfecto", 1));
+    expect(con.monedas - sin.monedas).toBe(MONEDAS_DORADA);
+    expect({ con: con.doradas, sin: sin.doradas }).toEqual({ con: 1, sin: 0 });
+    expect(con.formas[11]).toMatchObject({ especial: "dorada" });
+    expect(sin.formas.every((f) => f.especial === undefined)).toBe(true);
+  });
+
+  it("la pieza que cuelga lleva su especial en el estado antes de soltarla", () => {
+    const partida = new Partida(SEMILLA);
+    const vistas: Array<string | undefined> = [];
+    const toques = new Set(TOQUES_DORADA);
+    while (partida.pasos <= TOQUES_DORADA.at(-1)!) {
+      if (toques.has(partida.pasos)) {
+        vistas.push(partida.estado().colgada?.especial);
+        partida.soltar();
+      }
+      partida.paso();
+    }
+    expect(vistas.map((e, i) => (e ? `${i}:${e}` : null)).filter(Boolean)).toEqual(["11:dorada"]);
+    expect(partida.estado().cuerpos[11]).toMatchObject({ especial: "dorada" });
+    expect(partida.estado().cuerpos[10]).not.toHaveProperty("especial");
+  });
+
+  it("una especial que cae no tiene efecto, y el episodio cuesta una sola vida", () => {
+    // Las 11 primeras sobre el objetivo y la dorada (11) en el extremo.
+    const { partida, eventos } = jugarCon((p, n) => (n < 11 ? sobreObjetivo(p) : enElExtremo(p)), 12);
+    seguir(partida, 600, eventos);
+    expect(eventos.filter((e) => e.tipo === "caida")).toEqual([expect.objectContaining({ vidas: 2 })]);
+    expect(eventos.filter((e) => e.tipo === "especial")).toEqual([]);
+    expect(partida.resultado()).toMatchObject({ doradas: 0, piezas: 11, vidas: 2 });
+  });
+
+  // Día 8 (2026-11-12): dorada en la 11, pegajosa en la 22 y cemento en la 27.
+  // Todas sobre el objetivo (perfectos), 29 piezas.
+  const SEMILLA_TRES = "2026-11-12";
+  const TOQUES_TRES = [
+    120, 273, 428, 581, 734, 873, 1015, 1162, 1297, 1437, 1584, 1716, 1854, 1993, 2130, 2265, 2400, 2525, 2648, 2770, 2900, 3036, 3173,
+    3298, 3434, 3548, 3682, 3801, 3935,
+  ];
+
+  it("cemento: tras el soltar() siguiente a colocarse, todo lo quieto por debajo de su cima está cementado", () => {
+    expect(especialDe(SEMILLA_TRES, 27)).toBe("cemento");
+    const partida = new Partida(SEMILLA_TRES);
+    const toques = new Set(TOQUES_TRES);
+    const eventos: Evento[] = [];
+    let antesDeSoltar: ReturnType<Partida["estado"]> | null = null;
+    while (partida.pasos <= TOQUES_TRES.at(-1)!) {
+      if (toques.has(partida.pasos)) {
+        if (partida.pasos === TOQUES_TRES.at(-1)) antesDeSoltar = partida.estado();
+        partida.soltar();
+      }
+      partida.paso();
+      eventos.push(...partida.tomarEventos());
+    }
+    // Antes de ese soltar() quedaban 12 piezas dinámicas, la de cemento incluida.
+    expect(antesDeSoltar!.cuerpos.filter((c) => !c.cementada)).toHaveLength(12);
+    expect(eventos.filter((e) => e.tipo === "especial" && e.especial === "cemento")).toEqual([
+      { tipo: "especial", paso: 3935, especial: "cemento", indice: 27, efecto: 12 },
+    ]);
+    const cuerpos = partida.estado().cuerpos;
+    expect(cuerpos[27]).toMatchObject({ especial: "cemento", cementada: true });
+    // Solo queda dinámica la pieza recién soltada (la 28), por encima del cemento.
+    expect(cuerpos.slice(0, 28).every((c) => c.cementada)).toBe(true);
+    expect(cuerpos[28]!.cementada).toBe(false);
+  });
+
+  it("pegajosa sobre la torre: se une a la pieza que toca, y a nada más", () => {
+    expect(especialDe(SEMILLA_TRES, 22)).toBe("pegajosa");
+    const { partida, eventos } = reproducir(SEMILLA_TRES, TOQUES_TRES.slice(0, 23), 200);
+    expect(eventos.filter((e) => e.tipo === "especial" && e.especial === "pegajosa")).toEqual([
+      { tipo: "especial", paso: 3223, especial: "pegajosa", indice: 22, efecto: 1 },
+    ]);
+    expect(partida.uniones).toBe(1);
+  });
+
+  // Día 12 (2026-11-16): la pieza 16 es pegajosa. Perfectos hasta la 15, la
+  // pegajosa a 0,45 m del objetivo y la 17 a 0,2 m más allá (buscados y
+  // fijados). Sin la unión, la 17 arrastra a la pegajosa al mar.
+  const SEMILLA_PEGAJOSA = "2026-11-16";
+  const TOQUES_PEGAJOSA = [120, 273, 426, 579, 732, 880, 1026, 1170, 1318, 1460, 1593, 1741, 1872, 2000, 2128, 2255, 2395, 2571];
+
+  it("pegajosa: donde sin la unión resbala y cae, con ella se queda en su sitio", () => {
+    expect(especialDe(SEMILLA_PEGAJOSA, 16)).toBe("pegajosa");
+    const sin = reproducir(SEMILLA_PEGAJOSA, TOQUES_PEGAJOSA, 300, { especiales: false });
+    expect(sin.eventos.filter((e) => e.tipo === "colocada").map((e) => e.indice)).toContain(16);
+    expect(sin.eventos.filter((e) => e.tipo === "caida")).toEqual([expect.objectContaining({ vidas: 2, perdidas: 2 })]);
+    expect(sin.partida.estado().cuerpos).toHaveLength(16);
+
+    // Con la unión, solo cae la 17; la distancia entre la pegajosa y su apoyo (la 15) apenas cambia.
+    const partida = new Partida(SEMILLA_PEGAJOSA);
+    const toques = new Set(TOQUES_PEGAJOSA);
+    const eventos: Evento[] = [];
+    const distancias: number[] = [];
+    while (partida.pasos <= TOQUES_PEGAJOSA.at(-1)! + 300) {
+      if (toques.has(partida.pasos)) partida.soltar();
+      partida.paso();
+      eventos.push(...partida.tomarEventos());
+      const pegada = eventos.find((e) => e.tipo === "especial" && e.especial === "pegajosa");
+      if (pegada && partida.pasos - pegada.paso <= 120) {
+        const [apoyo, pegajosa] = partida.estado().cuerpos.slice(15, 17);
+        distancias.push(Math.hypot(pegajosa!.x - apoyo!.x, pegajosa!.y - apoyo!.y));
+      }
+    }
+    expect(eventos.filter((e) => e.tipo === "especial" && e.especial === "pegajosa")).toEqual([expect.objectContaining({ indice: 16, efecto: 1 })]);
+    expect(eventos.filter((e) => e.tipo === "caida")).toEqual([expect.objectContaining({ vidas: 2, perdidas: 1 })]);
+    expect(partida.estado().cuerpos[16]).toMatchObject({ especial: "pegajosa" });
+    expect(distancias).toHaveLength(121);
+    expect(Math.max(...distancias) - Math.min(...distancias)).toBeLessThan(0.01);
+  });
+
+  it("retirar en un episodio una pieza unida no lanza excepciones y retira también la unión", () => {
+    // El mismo día con la pegajosa a −0,45 m y la 17 a −0,2 m más allá (buscados y
+    // fijados): la 17 tira la pegajosa, su apoyo y otras dos en el mismo episodio.
+    const toques = [120, 273, 426, 579, 732, 880, 1026, 1170, 1318, 1460, 1593, 1741, 1872, 2000, 2128, 2255, 2366, 2532];
+    const antes = reproducir(SEMILLA_PEGAJOSA, toques.slice(0, 17), 120);
+    expect(antes.eventos.filter((e) => e.tipo === "especial" && e.especial === "pegajosa")).toEqual([expect.objectContaining({ indice: 16, efecto: 1 })]);
+    expect(antes.partida.uniones).toBe(1);
+    let despues: ReturnType<typeof reproducir> | null = null;
+    expect(() => (despues = reproducir(SEMILLA_PEGAJOSA, toques, 400))).not.toThrow();
+    const { partida, eventos } = despues!;
+    expect(eventos.filter((e) => e.tipo === "caida")).toEqual([expect.objectContaining({ vidas: 2, perdidas: 5 })]);
+    expect(partida.estado().cuerpos.some((c) => c.especial === "pegajosa")).toBe(false);
+    expect(partida.uniones).toBe(0);
+    expect(partida.fase).toBe("apuntando");
+  });
+
+  it("prueba dorada de una partida con las tres especiales", () => {
+    // Nueva en H2 (tercera-version): día 8 con dorada, pegajosa y cemento colocadas.
+    const resultado = jugar(SEMILLA_TRES, TOQUES_TRES);
+    const r6 = (valor: number) => Math.round(valor * 1e6) / 1e6;
+    expect({
+      puntos: resultado.puntos,
+      piezas: resultado.piezas,
+      perfectos: resultado.perfectos,
+      vidas: resultado.vidas,
+      monedas: resultado.monedas,
+      doradas: resultado.doradas,
+      pasos: resultado.pasos,
+      terminada: resultado.terminada,
+      altura: r6(resultado.altura),
+      especiales: resultado.formas.map((f, i) => (f.especial ? `${i}:${f.especial}` : null)).filter(Boolean),
+      ultimas: resultado.posiciones.slice(-4).map((p) => ({ x: r6(p.x), y: r6(p.y), angulo: r6(p.angulo) })),
+    }).toEqual({
+      puntos: 1900,
+      piezas: 29,
+      perfectos: 29,
+      vidas: 3,
+      monedas: 88,
+      doradas: 1,
+      pasos: 4536,
+      terminada: false,
+      altura: 22.492809,
+      especiales: ["11:dorada", "22:pegajosa", "27:cemento"],
+      ultimas: [
+        { x: 0.145859, y: 20.010278, angulo: -0.012488 },
+        { x: 0.15776, y: 20.687857, angulo: -0.012331 },
+        { x: 0.151884, y: 21.407129, angulo: -0.012289 },
+        { x: 0.151908, y: 22.132183, angulo: -0.012289 },
+      ],
+    });
+  }, 20_000);
 });
 
 describe("cementado de la base (B3)", () => {
@@ -403,8 +596,8 @@ describe("aislamiento de la física", () => {
     expect(deJuego.filter((ruta) => readFileSync(new URL(ruta, raiz), "utf8").includes("planck"))).toEqual([]);
   });
 
-  it("simulacion.ts y puntuacion.ts no usan reloj, azar ni trigonometría propia", () => {
-    for (const archivo of ["logica/simulacion.ts", "logica/puntuacion.ts"]) {
+  it("simulacion.ts, puntuacion.ts, ritmo.ts y especiales.ts no usan reloj, azar ni trigonometría propia", () => {
+    for (const archivo of ["logica/simulacion.ts", "logica/puntuacion.ts", "logica/ritmo.ts", "logica/especiales.ts"]) {
       const codigo = readFileSync(new URL(archivo, raiz), "utf8");
       for (const prohibido of ["Math.random", "Date.now", "performance.now", "Math.sin", "Math.cos"]) {
         expect(codigo).not.toContain(prohibido);

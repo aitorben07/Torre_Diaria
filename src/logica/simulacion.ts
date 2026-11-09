@@ -9,7 +9,8 @@
 // opciones del mundo son constantes; los cuerpos se crean siempre en el mismo
 // orden; y aquí no se lee el reloj ni se usa azar. planck sí usa seno y coseno
 // por dentro, así que el resultado solo se garantiza igual en el mismo motor.
-import { Box, Polygon, Vec2, World, type Body, type Fixture } from "planck";
+import { Box, Polygon, Vec2, WeldJoint, World, type Body, type Fixture } from "planck";
+import { especialDe, MONEDAS_DORADA, type Especial } from "./especiales.ts";
 import { Secuencia, verticesPieza, type Forma, type FormasSecuencia, type Pieza } from "./piezas.ts";
 import { calidadDeSuelta, Marcador, VIDAS_INICIALES, type Calidad } from "./puntuacion.ts";
 import { siguienteRitmo, velocidadDe, VEL_INICIAL } from "./ritmo.ts";
@@ -79,7 +80,8 @@ export const FRICCION = 0.8;
 
 export type Fase = "apuntando" | "esperando" | "asentando" | "fin";
 
-export type CuerpoVisible = { pieza: Pieza; x: number; y: number; angulo: number; cementada?: boolean };
+/** `especial`: dorada, pegajosa o cemento (H1); sin el campo, una pieza normal. */
+export type CuerpoVisible = { pieza: Pieza; x: number; y: number; angulo: number; cementada?: boolean; especial?: Especial };
 
 export type EstadoPartida = {
   fase: Fase;
@@ -97,7 +99,7 @@ export type EstadoPartida = {
   cuerpos: CuerpoVisible[];
 };
 
-export type FormaColocada = { forma: Forma; color: number; ancho: number; alto: number };
+export type FormaColocada = { forma: Forma; color: number; ancho: number; alto: number; especial?: Especial };
 
 /** Eventos de la partida, en orden, para la pantalla (B1). Solo informan: no cambian la física. */
 export type Evento =
@@ -107,6 +109,12 @@ export type Evento =
   | { tipo: "vidaExtra"; paso: number; vidas: number }
   | { tipo: "hito"; paso: number; metros: number }
   | { tipo: "cementada"; paso: number; piezas: number }
+  /**
+   * Una especial actúa (H2). `efecto`: en la dorada, las monedas de más; en la
+   * pegajosa, las piezas a las que se une; en la de cemento, las que pasan a
+   * piedra en ese `soltar()`.
+   */
+  | { tipo: "especial"; paso: number; especial: Especial; indice: number; efecto: number }
   | { tipo: "fin"; paso: number; puntos: number; victoria: boolean };
 
 /**
@@ -156,6 +164,8 @@ export type OpcionesPartida = {
   formas?: FormasSecuencia;
   /** Objetivo del nivel: al cumplirse, la partida acaba con `victoria` (E1). */
   objetivo?: Objetivo;
+  /** Piezas especiales de la semilla (H1; por defecto `true`; los niveles 1 a 3, `false`). */
+  especiales?: boolean;
 };
 
 export type OpcionesJugar = OpcionesPartida & {
@@ -177,7 +187,10 @@ export type Resultado = {
   perfectos: number;
   comboMax: number;
   vidas: number;
+  /** Monedas de la partida, con las de las doradas colocadas (H2). */
   monedas: number;
+  /** Doradas colocadas: cada una da `MONEDAS_DORADA` monedas (H2). */
+  doradas: number;
   terminada: boolean;
   /** Objetivo de nivel cumplido; sin objetivo, siempre `false`. */
   victoria: boolean;
@@ -211,10 +224,18 @@ export function objetivoDe(piezas: Array<{ x: number; cima: number }>): number {
   return objetivo;
 }
 
-type Soltada = { pieza: Pieza; cuerpo: Body; fixture: Fixture; cementada: boolean };
+/** Con el campo `especial` solo si lo es: las piezas normales quedan igual que antes de H1. */
+function conEspecial<T extends object>(valor: T, especial: Especial | null): T & { especial?: Especial } {
+  return especial ? { ...valor, especial } : valor;
+}
+
+type Soltada = { pieza: Pieza; cuerpo: Body; fixture: Fixture; cementada: boolean; especial: Especial | null; indice: number };
 
 /** Pieza soltada que aún no cuenta como colocada. */
-type EnEspera = { indice: number; calidad: Calidad };
+type EnEspera = { indice: number; calidad: Calidad; soltada: Soltada };
+
+/** Cemento colocado (H2) con piezas por pasar a piedra en los `soltar()` siguientes. */
+type CementoPendiente = { indice: number; piezas: Soltada[]; aplicado: boolean; avisado: boolean };
 
 export class Partida {
   private readonly mundo = new World(OPCIONES_MUNDO);
@@ -241,8 +262,14 @@ export class Partida {
   private readonly velocidadInicial: number;
   /** Velocidad de la pieza que cuelga, fijada al colgarla. */
   private velocidadColgada = 0;
+  private readonly semilla: string;
+  private readonly conEspeciales: boolean;
+  /** Cementos colocados con piezas por cementar en el siguiente `soltar()` (H2). */
+  private cementos: CementoPendiente[] = [];
 
   constructor(semilla: string, opciones: OpcionesPartida = {}) {
+    this.semilla = semilla;
+    this.conEspeciales = opciones.especiales ?? true;
     this.secuencia = new Secuencia(semilla, { formas: opciones.formas });
     this.marcador = new Marcador(opciones.vidas ?? VIDAS_INICIALES);
     this.velocidadInicial = opciones.velocidad ?? VEL_INICIAL;
@@ -270,6 +297,7 @@ export class Partida {
    */
   soltar(): boolean {
     if (this.faseActual !== "apuntando") return false;
+    this.aplicarCementos();
     this.cementar(MAX_DINAMICAS - 1);
     const pieza = this.piezaActual();
     const objetivo = this.objetivo();
@@ -283,9 +311,10 @@ export class Partida {
       friction: FRICCION,
       restitution: 0,
     });
-    this.soltadas.push({ pieza, cuerpo, fixture, cementada: false });
+    const soltada: Soltada = { pieza, cuerpo, fixture, cementada: false, especial: this.especialActual(), indice: this.indice };
+    this.soltadas.push(soltada);
     this.ritmo = siguienteRitmo(this.ritmo, "soltada");
-    this.enEspera = { indice: this.indice, calidad };
+    this.enEspera = { indice: this.indice, calidad, soltada };
     this.eventos.push({ tipo: "soltada", paso: this.pasosHechos, indice: this.indice, calidad, x });
     this.faseActual = "esperando";
     this.pasoSoltada = this.pasosHechos;
@@ -341,11 +370,11 @@ export class Partida {
       objetivo: this.objetivo(),
       colgada:
         this.faseActual === "apuntando"
-          ? { pieza, x: this.xColgada(), y: this.colgadaY, angulo: 0, velocidad: this.velocidadColgada }
+          ? conEspecial({ pieza, x: this.xColgada(), y: this.colgadaY, angulo: 0, velocidad: this.velocidadColgada }, this.especialActual())
           : null,
-      cuerpos: this.soltadas.map(({ pieza, cuerpo, cementada }) => {
+      cuerpos: this.soltadas.map(({ pieza, cuerpo, cementada, especial }) => {
         const p = cuerpo.getPosition();
-        return { pieza, x: p.x, y: p.y, angulo: cuerpo.getAngle(), cementada };
+        return conEspecial({ pieza, x: p.x, y: p.y, angulo: cuerpo.getAngle(), cementada }, especial);
       }),
     };
   }
@@ -363,6 +392,7 @@ export class Partida {
       comboMax: m.comboMax,
       vidas: m.vidas,
       monedas: m.monedas,
+      doradas: m.doradas,
       terminada: this.terminada,
       victoria: this.victoria,
       pasos: this.pasosHechos,
@@ -373,8 +403,18 @@ export class Partida {
     };
   }
 
+  /** Uniones de pegajosas que siguen en el mundo (H2, para las pruebas). */
+  get uniones(): number {
+    return this.mundo.getJointCount();
+  }
+
   private piezaActual(): Pieza {
     return this.secuencia.pieza(this.indice);
+  }
+
+  /** Especial de la pieza que cuelga (H1). */
+  private especialActual(): Especial | null {
+    return especialDe(this.semilla, this.indice, { especiales: this.conEspeciales });
   }
 
   private xColgada(): number {
@@ -387,21 +427,85 @@ export class Partida {
     );
   }
 
-  /** La pieza en espera cuenta como colocada: puntos, combo, vida extra e hitos. */
+  /**
+   * La pieza en espera cuenta como colocada: puntos, combo, vida extra e hitos,
+   * y el efecto de su especial (H2): la dorada dobla sus puntos de colocada y da
+   * monedas; la pegajosa se une a las piezas que toca; el cemento espera al
+   * siguiente `soltar()`.
+   */
   private colocarEnEspera(): void {
     const enEspera = this.enEspera;
     if (!enEspera) return;
     this.enEspera = null;
     const pieza = this.secuencia.pieza(enEspera.indice);
-    const { puntos, combo, vidaExtra } = this.marcador.colocar(enEspera.calidad);
-    this.colocadas.push({ forma: pieza.forma, color: pieza.color, ancho: pieza.ancho, alto: pieza.alto });
+    const { especial } = enEspera.soltada;
+    const { puntos, combo, vidaExtra } = this.marcador.colocar(enEspera.calidad, { dorada: especial === "dorada" });
+    this.colocadas.push(conEspecial({ forma: pieza.forma, color: pieza.color, ancho: pieza.ancho, alto: pieza.alto }, especial));
     this.indicesColocadas.push(enEspera.indice);
     const paso = this.pasosHechos;
     this.eventos.push({ tipo: "colocada", paso, indice: enEspera.indice, calidad: enEspera.calidad, combo, puntos });
+    if (especial === "dorada") this.eventos.push({ tipo: "especial", paso, especial, indice: enEspera.indice, efecto: MONEDAS_DORADA });
+    else if (especial === "pegajosa") this.pegar(enEspera.soltada);
+    else if (especial === "cemento") this.cementos.push({ indice: enEspera.indice, piezas: [], aplicado: false, avisado: false });
     if (vidaExtra) this.eventos.push({ tipo: "vidaExtra", paso, vidas: this.marcador.vidas });
     for (const metros of this.marcador.medirAltura(this.alturaTorre(this.sobrePlataforma()))) {
       this.eventos.push({ tipo: "hito", paso, metros });
     }
+  }
+
+  /**
+   * Pegajosa colocada (H2): una `WeldJoint` con cada pieza que toca en ese
+   * momento, nunca con la plataforma (impacto: así no hace de ancla). Se crea
+   * fuera de `mundo.step`. Al retirar una pieza unida, `destroyBody` quita
+   * también la unión.
+   */
+  private pegar(soltada: Soltada): void {
+    const tocadas: Soltada[] = [];
+    for (let borde = soltada.cuerpo.getContactList(); borde; borde = borde.next ?? null) {
+      if (!borde.contact.isTouching()) continue;
+      const otra = this.soltadas.find((s) => s.cuerpo === borde!.other);
+      if (otra && otra !== soltada && !tocadas.includes(otra)) tocadas.push(otra);
+    }
+    // En el orden en que se soltaron: el orden de las uniones no depende de la lista de contactos.
+    tocadas.sort((a, b) => this.soltadas.indexOf(a) - this.soltadas.indexOf(b));
+    const ancla = soltada.cuerpo.getPosition();
+    for (const otra of tocadas) this.mundo.createJoint(new WeldJoint({}, otra.cuerpo, soltada.cuerpo, new Vec2(ancla.x, ancla.y)));
+    this.eventos.push({ tipo: "especial", paso: this.pasosHechos, especial: "pegajosa", indice: soltada.indice, efecto: tocadas.length });
+  }
+
+  /**
+   * Cementos colocados (H2): al soltar la pieza siguiente, el cemento y todas
+   * las piezas en pie con la cima por debajo de la suya pasan a piedra. Se hace
+   * aquí, como `cementar` y por el mismo motivo, y no al colocarse. Las que aún
+   * se mueven esperan a un `soltar()` en que estén quietas. Si el cemento ya no
+   * está en pie (cayó en un episodio), no hace nada.
+   */
+  private aplicarCementos(): void {
+    for (const cemento of this.cementos) {
+      if (!cemento.aplicado) {
+        const propia = this.soltadas.find((s) => s.indice === cemento.indice);
+        if (propia && this.sigueEnPie(propia)) {
+          const cima = propia.fixture.getAABB(0).upperBound.y;
+          cemento.piezas = this.enPie().filter((s) => !s.cementada && s.fixture.getAABB(0).upperBound.y <= cima + 1e-9);
+        }
+      }
+      cemento.piezas = cemento.piezas.filter((s) => !s.cementada && this.soltadas.includes(s) && this.sigueEnPie(s));
+      let piezas = 0;
+      for (const s of cemento.piezas) {
+        if (s.cuerpo.isAwake() && !this.quieta(s)) continue;
+        s.cuerpo.setType("static");
+        s.cementada = true;
+        piezas++;
+      }
+      cemento.piezas = cemento.piezas.filter((s) => !s.cementada);
+      if (piezas > 0) this.eventos.push({ tipo: "cementada", paso: this.pasosHechos, piezas });
+      if (!cemento.avisado && piezas > 0) {
+        cemento.avisado = true;
+        this.eventos.push({ tipo: "especial", paso: this.pasosHechos, especial: "cemento", indice: cemento.indice, efecto: piezas });
+      }
+      cemento.aplicado = true;
+    }
+    this.cementos = this.cementos.filter((c) => c.piezas.length > 0);
   }
 
   /**

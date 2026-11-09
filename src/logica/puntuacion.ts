@@ -2,6 +2,7 @@
 // lógica pura, sin física: `simulacion.ts` le dice qué calidad tuvo cada pieza
 // colocada, qué altura tiene la torre y cuándo hay una caída, y el marcador
 // lleva la cuenta. Así los ejemplos del Anexo 1 se prueban sin planck.
+import { MONEDAS_DORADA } from "./especiales.ts";
 
 export type Calidad = "perfecto" | "bueno" | "normal";
 
@@ -57,19 +58,26 @@ export class Marcador {
   alturaMax = 0;
   /** Hitos de `METROS_HITO` ya cobrados. */
   hitos = 0;
+  /** Piezas doradas colocadas (H2). */
+  doradas = 0;
   vidas: number;
 
   constructor(vidas: number = VIDAS_INICIALES) {
     this.vidas = vidas;
   }
 
-  /** Una pieza cuenta como colocada: suma sus puntos y, cada 5 perfectos seguidos, una vida si faltan. */
-  colocar(calidad: Calidad): Colocacion {
+  /**
+   * Una pieza cuenta como colocada: suma sus puntos y, cada 5 perfectos
+   * seguidos, una vida si faltan. Una dorada (H2) vale el doble de puntos de
+   * colocada y da `MONEDAS_DORADA` monedas más.
+   */
+  colocar(calidad: Calidad, { dorada = false }: { dorada?: boolean } = {}): Colocacion {
     this.piezas++;
     this.combo = calidad === "perfecto" ? this.combo + 1 : 0;
     this.comboMax = Math.max(this.comboMax, this.combo);
     if (calidad === "perfecto") this.perfectos++;
-    const puntos = puntosDeColocada(calidad, this.combo);
+    const puntos = puntosDeColocada(calidad, this.combo) * (dorada ? 2 : 1);
+    if (dorada) this.doradas++;
     this.puntos += puntos;
     const vidaExtra = this.combo > 0 && this.combo % PERFECTOS_POR_VIDA === 0 && this.vidas < VIDAS_MAX;
     if (vidaExtra) this.vidas++;
@@ -96,6 +104,6 @@ export class Marcador {
   }
 
   get monedas(): number {
-    return this.piezas * MONEDAS_COLOCADA + this.perfectos * MONEDAS_PERFECTO + this.hitos * MONEDAS_HITO;
+    return this.piezas * MONEDAS_COLOCADA + this.perfectos * MONEDAS_PERFECTO + this.hitos * MONEDAS_HITO + this.doradas * MONEDAS_DORADA;
   }
 }

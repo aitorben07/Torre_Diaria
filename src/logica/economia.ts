@@ -1,6 +1,7 @@
 // Monedas, récords y estadísticas (C2, Anexo 1, 4.2). Funciones puras: la
 // página las aplica al progreso con `Guardado.cambiar`. La simulación no sabe
 // nada de esto: solo da el resultado de la partida.
+import { MONEDAS_DORADA } from "./especiales.ts";
 import { MONEDAS_COLOCADA, MONEDAS_HITO, MONEDAS_PERFECTO, METROS_HITO } from "./puntuacion.ts";
 import type { Progreso } from "./progreso.ts";
 
@@ -19,9 +20,9 @@ export function hitosDeAltura(alturaMax: number): number {
   return Math.max(0, Math.floor(alturaMax / METROS_HITO));
 }
 
-/** Monedas de una partida: 1 por pieza colocada, +1 por perfecto, +5 por hito. */
-export function monedasDePartida({ piezas, perfectos, hitos }: { piezas: number; perfectos: number; hitos: number }): number {
-  return piezas * MONEDAS_COLOCADA + perfectos * MONEDAS_PERFECTO + hitos * MONEDAS_HITO;
+/** Monedas de una partida: 1 por pieza colocada, +1 por perfecto, +5 por hito y +10 por dorada colocada (H2). */
+export function monedasDePartida({ piezas, perfectos, hitos, doradas = 0 }: { piezas: number; perfectos: number; hitos: number; doradas?: number }): number {
+  return piezas * MONEDAS_COLOCADA + perfectos * MONEDAS_PERFECTO + hitos * MONEDAS_HITO + doradas * MONEDAS_DORADA;
 }
 
 /** Premio del reto diario oficial: por medalla y 10 por día de racha (como mucho 7). */
@@ -46,6 +47,12 @@ export type PartidaAcabada = {
   perfectos: number;
   comboMax: number;
   alturaMax: number;
+  /**
+   * Doradas colocadas (H2): cada una suma `MONEDAS_DORADA` al cobrar la libre o
+   * el reto oficial. Sin el campo, 0. En los niveles, que solo pagan
+   * estrellas, no dan monedas.
+   */
+  doradas?: number;
 };
 
 /** Suma las estadísticas de una partida (cualquier modo). */

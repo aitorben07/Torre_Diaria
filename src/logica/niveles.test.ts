@@ -68,6 +68,10 @@ describe("tabla de niveles (E1)", () => {
     const partida = new Partida("nivel-1", { velocidad: 0.9, formas: "faciles" });
     expect(partida.estado().colgada!.velocidad).toBe(0.9);
   });
+
+  it("los niveles 1 a 3 no tienen piezas especiales; desde el 4, sí (H1)", () => {
+    expect(NIVELES.map((n) => opcionesDeNivel(n).especiales ?? true)).toEqual([false, false, false, true, true, true, true, true, true, true]);
+  });
 });
 
 describe("objetivos de la partida (E1)", () => {

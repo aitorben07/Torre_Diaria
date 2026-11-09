@@ -80,6 +80,14 @@ describe("racha (D1)", () => {
     expect(progreso.racha).toEqual(antes.racha);
   });
 
+  it("dos doradas colocadas en el oficial suman 20 monedas (H2)", () => {
+    const p = conRacha5a7();
+    const sin = registrarOficial(p, 8, 8, partida(0)).monedas;
+    const con = registrarOficial(p, 8, 8, { ...partida(0), doradas: 2 });
+    expect(con.monedas).toBe(sin + 20);
+    expect(con.progreso.monedas).toBe(p.monedas + sin + 20);
+  });
+
   it("el oficial de hoy suma el extra de racha con la racha nueva", () => {
     const p = conRacha5a7();
     const { monedas } = registrarOficial(p, 8, 8, partida(0));

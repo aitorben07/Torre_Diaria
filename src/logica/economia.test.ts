@@ -44,6 +44,13 @@ describe("cobrar la partida libre (C2)", () => {
     expect(p.estadisticas).toEqual({ piezas: 12, perfectos: 11, comboMax: 11, alturaMax: 8.6, partidas: 0 });
   });
 
+  it("dos doradas colocadas suman 20 monedas a la partida libre (H2)", () => {
+    const { progreso, monedas } = cobrarLibre(progresoVacio(), { ...partida, doradas: 2 });
+    expect(monedas).toBe(12 + 11 + 5 + 20);
+    expect(progreso.monedas).toBe(12 + 11 + 5 + 20);
+    expect(monedasDePartida({ piezas: 1, perfectos: 0, hitos: 0, doradas: 1 })).toBe(11);
+  });
+
   it("la misma partida no se cobra dos veces (dos pestañas): ni monedas ni récord", () => {
     const una = cobrarLibre(progresoVacio(), partida).progreso;
     const otra = cobrarLibre(una, partida);

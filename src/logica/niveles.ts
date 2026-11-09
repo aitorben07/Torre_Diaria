@@ -63,6 +63,8 @@ export const NIVELES: readonly Nivel[] = FILAS.map((fila, i) => ({
 }));
 
 export const ESTRELLAS_POR_NIVEL = 3;
+/** Primer nivel con piezas especiales (H1). */
+export const NIVEL_ESPECIALES = 4;
 
 export function nivelPorNumero(numero: number): Nivel | null {
   return NIVELES[numero - 1] ?? null;
@@ -70,7 +72,9 @@ export function nivelPorNumero(numero: number): Nivel | null {
 
 /** Opciones de la partida del nivel: van en `data-opciones` y bastan para repetirla con `jugar` (G3). */
 export function opcionesDeNivel(nivel: Nivel): OpcionesPartida {
-  return { vidas: nivel.vidas, velocidad: nivel.velocidad, formas: nivel.formas, objetivo: nivel.objetivo };
+  const opciones: OpcionesPartida = { vidas: nivel.vidas, velocidad: nivel.velocidad, formas: nivel.formas, objetivo: nivel.objetivo };
+  // Sin piezas especiales hasta el nivel 4 (H1, Anexo G).
+  return nivel.numero < NIVEL_ESPECIALES ? { ...opciones, especiales: false } : opciones;
 }
 
 /** Estrellas de una partida: 0 sin cumplir el objetivo; 1 al cumplirlo; 2 con `p2` puntos; 3 con `p3`. */

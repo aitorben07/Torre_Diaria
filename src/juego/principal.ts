@@ -446,6 +446,8 @@ function cobrar(actual: Partida, modo: Modo, dia: number): Premios {
     perfectos: r.perfectos,
     comboMax: r.comboMax,
     alturaMax: r.alturaMax,
+    // Las monedas de las doradas (H2) llegan al saldo por aquí; en los niveles no se cobran.
+    doradas: r.doradas,
   };
   const antes = guardado.releer();
   const premios: Premios = {};
