@@ -37,6 +37,8 @@ export type DatosTarjeta =
       altura: number;
       /** Día jugado con la v1: la marca son piezas (C1). */
       enPiezas?: boolean;
+      /** Repetición de un día ya jugado (no cuenta): sus puntos no son los oficiales. */
+      repeticion?: boolean;
       /** Racha de hoy, solo en el oficial de hoy; 0 o sin ella, no se escribe. */
       racha?: number;
       origen: string;
@@ -66,6 +68,8 @@ function frase(datos: DatosTarjeta): string {
 function enlace(datos: DatosTarjeta): string {
   if (datos.modo === "nivel") return `Juega en ${datos.origen}/`;
   if (datos.modo === "libre") return `¿Me superas? ${datos.origen}/${datos.codigo ? crearLibre(datos.codigo, datos.puntos) : ""}`;
+  // En piezas (v1) o en una repetición la cifra no son puntos oficiales: se enlaza la página principal.
+  if (datos.enPiezas || datos.repeticion) return `¿Me superas? ${datos.origen}/`;
   return `¿Me superas? ${datos.origen}/${crearReto(datos.dia, datos.puntos)}`;
 }
 

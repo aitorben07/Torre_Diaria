@@ -52,6 +52,8 @@ test("jugar el reto de hoy desde el calendario y recargar: el día sale jugado e
   await jugarHastaElFin(page, conTactil(testInfo));
   await expect(page.locator("#fin-titulo")).toHaveText(`Reto del día #${DIA} (no cuenta)`);
   await expect(page.locator("#fin-monedas")).toBeHidden();
+  // Sus puntos no son los oficiales: la tarjeta enlaza la página principal, sin ?reto=.
+  await expect(page.locator("#tarjeta")).not.toContainText("reto=");
   const despues = await leerProgreso(page);
   expect(despues!.diarios).toEqual(antes!.diarios);
   expect(despues!.monedas).toBe(antes!.monedas);

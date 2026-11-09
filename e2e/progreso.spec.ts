@@ -34,6 +34,9 @@ test("solo se escribe torre-diaria:progreso, y un día de la v1 se ve en piezas,
   await page.getByRole("button", { name: "Ver mi resultado de hoy" }).click();
   await expect(page.locator("#fin-puntos")).toHaveText("7 piezas");
   await expect(page.locator("#fin-medalla-texto")).toHaveText("Sin medalla · con la versión anterior");
+  // Las piezas no son puntos: la tarjeta no reta con ?reto=<día>.7.
+  await expect(page.locator("#tarjeta")).toContainText("7 piezas");
+  await expect(page.locator("#tarjeta")).not.toContainText("reto=");
   const escritas = await page.evaluate(() => JSON.parse(sessionStorage.getItem("escritas") ?? "[]") as string[]);
   expect(new Set(escritas)).toEqual(new Set([CLAVE_PROGRESO]));
   expect(await page.evaluate(() => localStorage.getItem("torre-diaria:resultado"))).toBe(v1);

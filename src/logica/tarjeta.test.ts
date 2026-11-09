@@ -39,8 +39,17 @@ describe("generarTarjeta (F2)", () => {
     expect(leerReto(generarTarjeta(diario()).split(" ").at(-1)!, 16)).toEqual({ dia: 16, puntos: 1240 });
   });
 
-  it("un día de la v1 se cuenta en piezas", () => {
-    expect(generarTarjeta(diario({ enPiezas: true, puntos: 12, racha: 0 })).split("\n")[0]).toBe("Torre Diaria #16: 12 piezas y 18,4 m.");
+  it("un día de la v1 se cuenta en piezas y enlaza la página principal, sin ?reto= con piezas", () => {
+    const texto = generarTarjeta(diario({ enPiezas: true, puntos: 12, racha: 0 }));
+    expect(texto).toBe(`Torre Diaria #16: 12 piezas y 18,4 m.\n¿Me superas? ${ORIGEN}/`);
+    expect(leerReto(texto.split(" ").at(-1)!, 16)).toBeNull();
+  });
+
+  it("una repetición (no cuenta) enlaza la página principal, sin ?reto= con sus puntos", () => {
+    const texto = generarTarjeta(diario({ repeticion: true, racha: 0 }));
+    expect(texto.split("\n")[1]).toBe(`¿Me superas? ${ORIGEN}/`);
+    expect(texto).not.toContain("reto=");
+    expect(leerReto(texto.split(" ").at(-1)!, 16)).toBeNull();
   });
 
   it("la de partida libre enlaza su código con ?libre=", () => {

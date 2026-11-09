@@ -327,7 +327,8 @@ function datosTarjeta(datos: DatosFin, modoPartida: Modo, premios: Premios): Dat
   const enPiezas = datos.reglas === 1;
   // La racha solo se escribe en el oficial de hoy jugado en su día (recién acabado o visto después).
   const racha = modoPartida === "oficial" ? rachaDelDia(datos.dia) : 0;
-  return { modo: "diario", dia: datos.dia, puntos: enPiezas ? datos.piezas : datos.puntos, altura: datos.altura, enPiezas, racha, origen };
+  const repeticion = modoPartida === "repeticion";
+  return { modo: "diario", dia: datos.dia, puntos: enPiezas ? datos.piezas : datos.puntos, altura: datos.altura, enPiezas, repeticion, racha, origen };
 }
 
 type Premios = Pick<DatosPantallaFin, "nuevoRecord" | "diario" | "monedas" | "desbloqueo" | "siguiente" | "nivel">;
