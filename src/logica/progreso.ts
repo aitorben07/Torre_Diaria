@@ -36,7 +36,7 @@ export type Progreso = {
   niveles: Record<number, number>;
   ajustes: { sonido: boolean; vibracion: boolean; tutorialVisto: boolean };
   estadisticas: { piezas: number; perfectos: number; comboMax: number; alturaMax: number };
-  /** Semilla de la última partida cobrada: la misma partida no se cobra dos veces (C2). */
+  /** Identificador (`PartidaAcabada.id`) de la última partida libre cobrada: la misma partida no se cobra dos veces (C2). */
   ultimaCobrada: string;
 };
 

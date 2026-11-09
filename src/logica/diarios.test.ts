@@ -17,8 +17,8 @@ import {
 import { progresoVacio, type Progreso } from "./progreso.ts";
 import { fechaUTC, numeroDia } from "./semilla.ts";
 
-const partida = (puntos: number, semilla = "x"): PartidaDiaria => ({
-  semilla,
+const partida = (puntos: number, id = "x"): PartidaDiaria => ({
+  id,
   puntos,
   piezas: 20,
   perfectos: 5,

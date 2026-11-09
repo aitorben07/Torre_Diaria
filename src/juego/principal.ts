@@ -5,14 +5,14 @@
 // funciones puras de `src/logica/` aplicadas por `Guardado.cambiar`.
 import { comprar, equipado, equipar, nuevosEscenarios, siguienteObjetivo } from "../logica/catalogo.ts";
 import { actualizarRacha, medallaDe, medallaDePuntos, rachaDeHoy, registrarOficial, UMBRAL_BRONCE, UMBRAL_ORO, UMBRAL_PLATA, type Oficial } from "../logica/diarios.ts";
-import { cobrarLibre, hitosDeAltura, monedasDePartida, sumarEstadisticas, type Medalla, type PartidaAcabada } from "../logica/economia.ts";
+import { cobrarLibre, sumarEstadisticas, type LibreCobrada, type Medalla, type PartidaAcabada } from "../logica/economia.ts";
 import { estrellasDe, nivelDisponible, nivelPorNumero, opcionesDeNivel, registrarNivel, textoMeta, textoObjetivo, totalEstrellas, type NivelRegistrado } from "../logica/niveles.ts";
 import { leerLibre, leerReto } from "../logica/reto.ts";
 import { almacenDelNavegador } from "../logica/registro.ts";
 import { deTramos, Guardado, type DiaJugado } from "../logica/progreso.ts";
 import { generarSecuencia } from "../logica/piezas.ts";
 import { VIDAS_INICIALES, VIDAS_MAX } from "../logica/puntuacion.ts";
-import { codigoDeSemilla, fechaDeDia, fechaUTC, numeroDia, semillaLibre } from "../logica/semilla.ts";
+import { codigoDeSemilla, codigoLibre, fechaDeDia, fechaUTC, numeroDia, semillaLibre } from "../logica/semilla.ts";
 import type { Pieza } from "../logica/piezas.ts";
 import type { Calidad } from "../logica/puntuacion.ts";
 import { Partida, REGLAS, type EstadoPartida, type Evento, type OpcionesPartida } from "../logica/simulacion.ts";
@@ -75,6 +75,14 @@ let enCaida: { pieza: Pieza; calidad: Calidad; combo: number; y: number; bajando
 let mojadas = new WeakSet<Pieza>();
 let recordCelebrado = false;
 let partida: Partida | null = null;
+/** Partidas empezadas en esta página, para el identificador de cada una. */
+let partidasEmpezadas = 0;
+/**
+ * Identifica la partida en marcha para cobrarla una sola vez (C2): su semilla,
+ * el número de partida y un código al azar, porque al recargar o en otra
+ * pestaña la cuenta vuelve a empezar y la semilla puede repetirse (`?libre=`).
+ */
+let idPartida = "";
 /** Partida que se dibuja: sigue en pantalla, quieta, tras acabar. */
 let escena: Partida | null = null;
 let flujo: Flujo;
@@ -226,6 +234,8 @@ function empezar(modo: Modo, dia: number, numeroNivel: number = 0, codigo?: stri
   const semilla = nivel ? nivel.semilla : modo === "libre" ? semillaLibre(codigo) : fechaDeDia(dia);
   const opciones = nivel ? opcionesDeNivel(nivel) : OPCIONES;
   partida = new Partida(semilla, opciones);
+  partidasEmpezadas++;
+  idPartida = `${semilla}#${partidasEmpezadas}.${codigoLibre()}`;
   pararEstrellas();
   escena = partida;
   pendiente = false;
@@ -403,7 +413,7 @@ function reservarTarjeta(): void {
 function cobrar(actual: Partida, modo: Modo, dia: number): Premios {
   const r = actual.resultado();
   const partidaAcabada: PartidaAcabada = {
-    semilla: ui.juego().dataset.semilla ?? "",
+    id: idPartida,
     puntos: r.puntos,
     piezas: r.piezas,
     perfectos: r.perfectos,
@@ -413,9 +423,15 @@ function cobrar(actual: Partida, modo: Modo, dia: number): Premios {
   const antes = guardado.releer();
   const premios: Premios = {};
   if (modo === "libre") {
-    guardado.cambiar((p) => cobrarLibre(p, partidaAcabada));
-    premios.monedas = monedasDePartida({ ...partidaAcabada, hitos: hitosDeAltura(r.alturaMax) });
-    premios.nuevoRecord = r.puntos > antes.libre.record;
+    // Monedas y récord salen de lo que se ha guardado: si la partida ya se cobró, ni lo uno ni lo otro.
+    let libre: LibreCobrada | null = null;
+    guardado.cambiar((p) => {
+      libre = cobrarLibre(p, partidaAcabada);
+      return libre.progreso;
+    });
+    const hecho = libre as LibreCobrada | null;
+    premios.monedas = hecho?.nuevo ? hecho.monedas : null;
+    premios.nuevoRecord = hecho?.nuevoRecord ?? false;
   } else if (modo === "oficial") {
     // Con dos pestañas vale la primera oficial que acaba (D4): el cambio se aplica sobre lo releído.
     let oficial: Oficial | null = null;
@@ -457,7 +473,7 @@ function cobrarNivel(actual: Partida, numero: number): Premios {
   guardado.cambiar((p) => {
     registro = registrarNivel(p, numero, estrellas);
     return sumarEstadisticas(registro.progreso, {
-      semilla: nivel.semilla,
+      id: idPartida,
       puntos: r.puntos,
       piezas: r.piezas,
       perfectos: r.perfectos,

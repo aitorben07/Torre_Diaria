@@ -36,8 +36,11 @@ export function premioNivel(estrellasNuevas: number, mundoCompletado: boolean): 
 
 /** Lo que cuenta de una partida acabada para monedas, récord y estadísticas. */
 export type PartidaAcabada = {
-  /** Identifica la partida: se cobra una sola vez. */
-  semilla: string;
+  /**
+   * Identifica la partida jugada (semilla y número de partida, de `empezar`):
+   * la misma semilla se puede jugar otra vez, pero cada partida se cobra una sola vez.
+   */
+  id: string;
   puntos: number;
   piezas: number;
   perfectos: number;
@@ -59,14 +62,25 @@ export function sumarEstadisticas(p: Progreso, partida: PartidaAcabada): Progres
   };
 }
 
+/** Partida libre cobrada: el progreso y lo que se ha guardado de verdad. */
+export type LibreCobrada = {
+  progreso: Progreso;
+  /** Monedas sumadas; 0 si la partida ya se había cobrado. */
+  monedas: number;
+  /** ¿Ha subido el récord de puntos? */
+  nuevoRecord: boolean;
+  /** `false` si la partida ya se había cobrado (otra pestaña, o la misma dos veces). */
+  nuevo: boolean;
+};
+
 /**
  * Partida libre acabada: monedas, récord de puntos y de altura, partidas
- * jugadas y estadísticas. Si `semilla` ya se cobró, no cambia nada.
+ * jugadas y estadísticas. Si `id` ya se cobró, no cambia nada.
  */
-export function cobrarLibre(p: Progreso, partida: PartidaAcabada): Progreso {
-  if (p.ultimaCobrada === partida.semilla) return p;
+export function cobrarLibre(p: Progreso, partida: PartidaAcabada): LibreCobrada {
+  if (p.ultimaCobrada === partida.id) return { progreso: p, monedas: 0, nuevoRecord: false, nuevo: false };
   const monedas = monedasDePartida({ ...partida, hitos: hitosDeAltura(partida.alturaMax) });
-  return sumarEstadisticas(
+  const progreso = sumarEstadisticas(
     {
       ...p,
       monedas: p.monedas + monedas,
@@ -75,8 +89,9 @@ export function cobrarLibre(p: Progreso, partida: PartidaAcabada): Progreso {
         alturaRecord: Math.max(p.libre.alturaRecord, partida.alturaMax),
         partidas: p.libre.partidas + 1,
       },
-      ultimaCobrada: partida.semilla,
+      ultimaCobrada: partida.id,
     },
     partida,
   );
+  return { progreso, monedas, nuevoRecord: partida.puntos > p.libre.record, nuevo: true };
 }

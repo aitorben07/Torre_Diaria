@@ -32,25 +32,41 @@ describe("monedas (C2, Anexo 1, 4.2)", () => {
 });
 
 describe("cobrar la partida libre (C2)", () => {
-  const partida: PartidaAcabada = { semilla: "libre-1", puntos: 610, piezas: 12, perfectos: 11, comboMax: 11, alturaMax: 8.6 };
+  const partida: PartidaAcabada = { id: "libre-1#1", puntos: 610, piezas: 12, perfectos: 11, comboMax: 11, alturaMax: 8.6 };
 
   it("suma monedas, récord, altura récord, partidas y estadísticas", () => {
-    const p = cobrarLibre(progresoVacio(), partida);
+    const { progreso: p, monedas, nuevoRecord, nuevo } = cobrarLibre(progresoVacio(), partida);
     expect(p.monedas).toBe(12 + 11 + 5);
+    expect(monedas).toBe(12 + 11 + 5);
+    expect(nuevoRecord).toBe(true);
+    expect(nuevo).toBe(true);
     expect(p.libre).toEqual({ record: 610, alturaRecord: 8.6, partidas: 1 });
     expect(p.estadisticas).toEqual({ piezas: 12, perfectos: 11, comboMax: 11, alturaMax: 8.6 });
   });
 
-  it("la misma partida no se cobra dos veces", () => {
-    const una = cobrarLibre(progresoVacio(), partida);
-    expect(cobrarLibre(una, partida)).toBe(una);
+  it("la misma partida no se cobra dos veces (dos pestañas): ni monedas ni récord", () => {
+    const una = cobrarLibre(progresoVacio(), partida).progreso;
+    const otra = cobrarLibre(una, partida);
+    expect(otra).toEqual({ progreso: una, monedas: 0, nuevoRecord: false, nuevo: false });
+    expect(otra.progreso).toBe(una);
   });
 
-  it("una partida peor no baja el récord", () => {
-    const una = cobrarLibre(progresoVacio(), partida);
-    const otra = cobrarLibre(una, { ...partida, semilla: "libre-2", puntos: 100, alturaMax: 2 });
-    expect(otra.libre.record).toBe(610);
-    expect(otra.libre.alturaRecord).toBe(8.6);
-    expect(otra.libre.partidas).toBe(2);
+  it("repetir la misma semilla en otra partida sí se cobra, y el récord sale de lo guardado", () => {
+    const una = cobrarLibre(progresoVacio(), partida).progreso;
+    const otra = cobrarLibre(una, { ...partida, id: "libre-1#2", puntos: 700 });
+    expect(otra.nuevo).toBe(true);
+    expect(otra.monedas).toBe(12 + 11 + 5);
+    expect(otra.nuevoRecord).toBe(true);
+    expect(otra.progreso.monedas).toBe(2 * (12 + 11 + 5));
+    expect(otra.progreso.libre).toEqual({ record: 700, alturaRecord: 8.6, partidas: 2 });
+  });
+
+  it("una partida peor no baja el récord ni cuenta como nuevo récord", () => {
+    const una = cobrarLibre(progresoVacio(), partida).progreso;
+    const otra = cobrarLibre(una, { ...partida, id: "libre-2#2", puntos: 100, alturaMax: 2 });
+    expect(otra.nuevoRecord).toBe(false);
+    expect(otra.progreso.libre.record).toBe(610);
+    expect(otra.progreso.libre.alturaRecord).toBe(8.6);
+    expect(otra.progreso.libre.partidas).toBe(2);
   });
 });
