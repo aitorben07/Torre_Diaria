@@ -123,6 +123,27 @@ test("con 0, 1 y 200 piezas la imagen del día se genera sin errores desde la fi
   expect(vigilancia.errores).toEqual([]);
 });
 
+test("la imagen de la ficha del día se vuelve a generar al cambiar de tema (F3)", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "escritorio", "Basta con Chromium de escritorio");
+  await page.addInitScript(sinShare);
+  await sembrarProgreso(page, { diarios: { [DIA]: dia("0-29", 1240) }, catalogo: { comprados: ["madera"], equipado: { tema: "riso", escenario: "puerto" } } });
+  await preparar(page);
+  await page.goto("/");
+  await esperarLibre(page);
+  await abrirRetos(page);
+  await page.locator(`#dia-${DIA}`).click();
+  const { png: conRiso } = await descargarCon(page, "#ficha-descargar");
+
+  await page.getByRole("button", { name: /^Colección/ }).click();
+  await page.getByRole("button", { name: "Usar Madera" }).click();
+  await expect(page.locator("#lienzo")).toHaveAttribute("data-tema", "madera");
+  await abrirRetos(page);
+  await page.locator(`#dia-${DIA}`).click();
+  const { png: conMadera } = await descargarCon(page, "#ficha-descargar");
+  comprobarPNG(conMadera);
+  expect(conMadera.equals(conRiso)).toBe(false);
+});
+
 test("la imagen de un resultado fijado tiene papel en la esquina, tinta en la cabecera y los colores de las piezas (F1)", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "escritorio", "Basta con Chromium de escritorio");
   await page.addInitScript(sinShare);

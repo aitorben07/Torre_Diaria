@@ -99,7 +99,8 @@ let finNivel: { victoria: boolean; haySiguiente: boolean } | null = null;
 /** Imagen del fin y de la ficha del día en Retos, generadas de antemano (F3). */
 const imagenFin = new ImagenCompartida();
 const imagenDia = new ImagenCompartida();
-let diaImagen = 0;
+/** Día, tema y escenario de la imagen de la ficha: si cambia cualquiera, se vuelve a generar. */
+let claveImagenDia = "";
 let temporizadoresEstrellas: number[] = [];
 
 /** Recalcula `hoy`, por si ha pasado la medianoche UTC. Devuelve si ha cambiado. */
@@ -566,8 +567,10 @@ const panelColeccion = new PanelColeccion(
 /** Prepara la imagen de un día jugado al pintar su ficha en Retos (F3). */
 function prepararDia(dia: number): void {
   const jugado = resultadoDe(dia);
-  if (!jugado || (dia === diaImagen && imagenDia.archivo)) return;
-  diaImagen = dia;
+  const { tema, escenario } = equipado(guardado.actual);
+  const clave = `${dia}|${tema}|${escenario}`;
+  if (!jugado || (clave === claveImagenDia && imagenDia.archivo)) return;
+  claveImagenDia = clave;
   imagenDia.preparar(datosImagen(datosDeDia(dia, jugado), "oficial", {}), nombreImagen("oficial"));
 }
 
