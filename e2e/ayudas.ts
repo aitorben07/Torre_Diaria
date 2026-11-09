@@ -219,8 +219,8 @@ export async function soltarEnExtremo(page: Page): Promise<void> {
           const el = document.getElementById("juego")!;
           if (el.dataset.estado === "fin") return listo();
           if (soltadaEn !== null && el.dataset.fase !== "apuntando") return listo();
-          // Si 4 s después la pieza sigue colgando (visto dos veces con el equipo muy cargado, sin
-          // explicar), se vuelve a soltar cuando está lejos de la plataforma.
+          // Por si el toque se perdiera: si 4 s después la pieza sigue colgando, se
+          // vuelve a soltar cuando está lejos de la plataforma.
           const tocaSoltar = soltadaEn === null || performance.now() - soltadaEn > 4000;
           if (tocaSoltar && el.dataset.fase === "apuntando" && Math.abs(Number(el.dataset.x || "0")) >= 2.6) {
             document.getElementById("zona")!.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true }));
