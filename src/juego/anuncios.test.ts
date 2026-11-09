@@ -53,8 +53,23 @@ describe("huecos de anuncios (G1)", () => {
 
   it("una partida libre completa y «Otra vez»: partidaEmpieza 2 veces, partidaPara 1 vez e intersticial(otra-vez) 1 vez", () => {
     const { anuncios, llamadas } = contador();
-    recorrer(anuncios, abrir(null, HOY), [{ tipo: "terminar" }, { tipo: "libre" }]);
+    recorrer(anuncios, abrir(null, HOY), [{ tipo: "libre" }, { tipo: "terminar" }, { tipo: "libre" }]);
     expect(llamadas).toEqual(["partidaEmpieza", "partidaPara", "intersticial:otra-vez", "partidaEmpieza"]);
+  });
+
+  it("una partida libre con una pausa y «Otra vez»: partidaEmpieza 3 veces, partidaPara 2 e intersticial(otra-vez) 1 (E1)", () => {
+    const { anuncios, llamadas } = contador();
+    const ordenes = recorrer(anuncios, abrir(null, HOY), [{ tipo: "libre" }, { tipo: "pausar" }, { tipo: "seguirPartida" }, { tipo: "terminar" }, { tipo: "libre" }]);
+    expect(ordenes).toEqual(["nada", "jugar", "pausa", "volver", "nada", "jugar"]);
+    expect(llamadas).toEqual(["partidaEmpieza", "partidaPara", "partidaEmpieza", "partidaPara", "intersticial:otra-vez", "partidaEmpieza"]);
+  });
+
+  it("al abrir en el inicio no se avisa de ninguna partida, y volver al inicio desde la pausa la para una vez", () => {
+    const { anuncios, llamadas } = contador();
+    recorrer(anuncios, abrir(null, HOY), [{ tipo: "abrir", panel: "ajustes" }, { tipo: "cerrar" }]);
+    expect(llamadas).toEqual([]);
+    recorrer(anuncios, abrir(null, HOY), [{ tipo: "libre" }, { tipo: "pausar" }, { tipo: "inicio" }]);
+    expect(llamadas).toEqual(["partidaEmpieza", "partidaPara"]);
   });
 
   it("el reto diario no pide intersticial ni recompensado («seguir» nunca)", () => {
@@ -72,6 +87,7 @@ describe("huecos de anuncios (G1)", () => {
   it("pausar con un panel encima llama a partidaPara y seguir, a partidaEmpieza; «Siguiente nivel» pide su intersticial", () => {
     const { anuncios, llamadas } = contador();
     recorrer(anuncios, abrir(null, HOY), [
+      { tipo: "libre" },
       { tipo: "abrir", panel: "niveles" },
       { tipo: "cerrar" },
       { tipo: "abrir", panel: "niveles" },

@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { abrir, aceptaEntrada, empezar, ESPERA_FIN_MS, transicion, verResultado, type Contexto } from "./flujo.ts";
+import { abrir, aceptaEntrada, empezar, enInicio, ESPERA_FIN_MS, transicion, verResultado, type Contexto, type Flujo, type Panel } from "./flujo.ts";
 
 const HOY = 16;
 const contexto = (ahora: number, jugados: number[] = []): Contexto => ({ ahora, hoy: HOY, jugado: (dia) => jugados.includes(dia) });
 
 describe("flujo de pantallas (B5)", () => {
-  it("al abrir sin reto, la partida libre ya está en marcha", () => {
+  it("al abrir sin reto se ve la pantalla de inicio y no empieza ninguna partida (E1)", () => {
     expect(abrir(null, HOY)).toEqual({
-      flujo: { pantalla: "jugando", modo: "libre", dia: HOY, nivel: 0, finDesde: -Infinity, debajo: null },
-      orden: { tipo: "jugar", modo: "libre", dia: HOY },
+      flujo: { pantalla: "inicio", modo: "libre", dia: HOY, nivel: 0, finDesde: -Infinity, debajo: null },
+      orden: { tipo: "nada" },
     });
   });
 
@@ -150,5 +150,78 @@ describe("niveles (E3)", () => {
   it("la repetición de un día tampoco se puede dejar a medias", () => {
     const repeticion = empezar("repeticion", 3);
     expect(transicion(repeticion, { tipo: "abrir", panel: "niveles" }, contexto(0)).orden).toEqual({ tipo: "nada" });
+  });
+});
+
+describe("inicio y pausa (E1, E3)", () => {
+  const conNiveles = (ahora: number): Contexto => ({ ...contexto(ahora), nivelDisponible: (n) => n === 1 });
+  const PANELES: Panel[] = ["retos", "niveles", "coleccion", "ajustes"];
+
+  it("desde el inicio, «Jugar» empieza la partida libre", () => {
+    expect(transicion(enInicio(HOY), { tipo: "libre" }, contexto(0))).toEqual({
+      flujo: empezar("libre", HOY),
+      orden: { tipo: "jugar", modo: "libre", dia: HOY },
+    });
+  });
+
+  it("desde el inicio se abre cada panel y al cerrarlo se vuelve al inicio", () => {
+    for (const panel of PANELES) {
+      const { flujo, orden } = transicion(enInicio(HOY), { tipo: "abrir", panel }, contexto(0));
+      expect(orden).toEqual({ tipo: "panel", panel });
+      expect(flujo).toMatchObject({ pantalla: panel, debajo: "inicio" });
+      expect(transicion(flujo, { tipo: "cerrar" }, contexto(0))).toEqual({ flujo: enInicio(HOY), orden: { tipo: "volver", pantalla: "inicio" } });
+      expect(transicion(flujo, { tipo: "inicio" }, contexto(0))).toEqual({ flujo: enInicio(HOY), orden: { tipo: "inicio" } });
+    }
+  });
+
+  it("en libre y en nivel: pausar, seguir e ir al inicio desde la pausa", () => {
+    for (const partida of [empezar("libre", HOY), empezar("nivel", HOY, 1)]) {
+      const { flujo: pausa, orden } = transicion(partida, { tipo: "pausar" }, contexto(0));
+      expect(orden).toEqual({ tipo: "pausa" });
+      expect(pausa).toEqual({ ...partida, pantalla: "pausa" });
+      expect(transicion(pausa, { tipo: "seguirPartida" }, contexto(0))).toEqual({ flujo: partida, orden: { tipo: "volver", pantalla: "jugando" } });
+      expect(transicion(pausa, { tipo: "inicio" }, conNiveles(0))).toEqual({ flujo: enInicio(HOY), orden: { tipo: "inicio" } });
+      // Ajustes encima de la pausa: al cerrar, vuelve a la pausa.
+      const ajustes = transicion(pausa, { tipo: "abrir", panel: "ajustes" }, contexto(0)).flujo;
+      expect(ajustes).toMatchObject({ pantalla: "ajustes", debajo: "pausa" });
+      expect(transicion(ajustes, { tipo: "cerrar" }, contexto(0))).toEqual({ flujo: pausa, orden: { tipo: "volver", pantalla: "pausa" } });
+    }
+  });
+
+  it("en el reto oficial y su repetición se pausa, pero desde la pausa solo se abren los Ajustes y no hay «Inicio» (R-3)", () => {
+    for (const reto of [empezar("oficial", HOY), empezar("repeticion", 3)]) {
+      const { flujo: pausa } = transicion(reto, { tipo: "pausar" }, contexto(0));
+      expect(pausa.pantalla).toBe("pausa");
+      for (const panel of ["retos", "niveles", "coleccion"] as const) {
+        expect(transicion(pausa, { tipo: "abrir", panel }, contexto(0))).toEqual({ flujo: pausa, orden: { tipo: "nada" } });
+      }
+      expect(transicion(pausa, { tipo: "inicio" }, contexto(0))).toEqual({ flujo: pausa, orden: { tipo: "nada" } });
+      const ajustes = transicion(pausa, { tipo: "abrir", panel: "ajustes" }, contexto(0));
+      expect(ajustes.orden).toEqual({ tipo: "panel", panel: "ajustes" });
+      // Con los Ajustes encima, tampoco se sale al inicio ni se abre otro panel.
+      expect(transicion(ajustes.flujo, { tipo: "inicio" }, contexto(0)).orden).toEqual({ tipo: "nada" });
+      expect(transicion(ajustes.flujo, { tipo: "abrir", panel: "retos" }, contexto(0)).orden).toEqual({ tipo: "nada" });
+      expect(transicion(ajustes.flujo, { tipo: "cerrar" }, contexto(0)).flujo).toEqual(pausa);
+      expect(transicion(pausa, { tipo: "seguirPartida" }, contexto(0)).flujo).toEqual(reto);
+    }
+  });
+
+  it("«Inicio» en el fin respeta los 700 ms y lleva al inicio", () => {
+    const { flujo: fin } = transicion(empezar("libre", HOY), { tipo: "terminar" }, contexto(1000));
+    expect(transicion(fin, { tipo: "inicio" }, contexto(1300)).orden).toEqual({ tipo: "nada" });
+    expect(transicion(fin, { tipo: "inicio" }, contexto(1000 + ESPERA_FIN_MS))).toEqual({ flujo: enInicio(HOY), orden: { tipo: "inicio" } });
+  });
+
+  it("pausar, seguir e «Inicio» no hacen nada fuera de su sitio", () => {
+    const casos: Array<[Flujo, "pausar" | "seguirPartida" | "inicio"]> = [
+      [enInicio(HOY), "pausar"],
+      [enInicio(HOY), "seguirPartida"],
+      [enInicio(HOY), "inicio"],
+      [empezar("libre", HOY), "seguirPartida"],
+      [empezar("libre", HOY), "inicio"],
+      [verResultado(HOY), "pausar"],
+      [abrir({ dia: 1, puntos: 5 }, HOY).flujo, "inicio"],
+    ];
+    for (const [flujo, tipo] of casos) expect(transicion(flujo, { tipo }, contexto(0)), `${flujo.pantalla} + ${tipo}`).toEqual({ flujo, orden: { tipo: "nada" } });
   });
 });
