@@ -1,6 +1,6 @@
 // Bloque A: fuente local, efectos, sonido, háptica e interfaz.
 import { expect, test, type Page } from "@playwright/test";
-import { conTactil, esperarFinListo, esperarLibre, jugarHastaElFin, preparar } from "./ayudas.ts";
+import { conTactil, esperarFinListo, esperarLibre, juego, jugarHastaElFin, preparar } from "./ayudas.ts";
 
 test("la fuente local se carga sin peticiones a otros orígenes (A1)", async ({ page }) => {
   const vigilancia = await preparar(page);
@@ -49,31 +49,48 @@ async function soltarA(page: Page, min: number, max: number, extremo = false): P
 const contadores = async (page: Page) =>
   JSON.parse((await page.locator("#juego").getAttribute("data-efectos")) ?? "{}") as Record<string, number>;
 
+/** Efectos que la prueba de A3 tiene que ver al menos una vez. */
+const EVENTOS_A3 = ["soltada", "aterrizaje", "colocada-perfecto", "colocada-bueno", "colocada-normal", "caida", "vidaExtra", "hito", "confeti"];
+
 test("cada evento lanza su efecto: colocada de cada calidad, caída, vida extra e hito (A3)", async ({ page }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(240_000);
   const { errores } = await preparar(page);
   await page.goto("/");
   await esperarLibre(page);
-  // Las 5 primeras piezas son de formas anchas (bloque, tablón o cuadrado, de 0,7 m
-  // o más). Un normal con la torre vacía cae sobre los 4 m de plataforma; un bueno
-  // (a 0,3 m o menos) se sostiene sobre esa pieza; luego una caída (con el centro
-  // a más de 2,6 m, cae seguro; quedan 2 vidas) y perfectos (vida extra en el
-  // quinto seguido) hasta el hito de 5 m. Si con el equipo cargado una ventana
-  // estrecha se salta, la pieza vuelve a pasar.
-  await soltarA(page, 0.38, 0.45);
-  await soltarA(page, 0.22, 0.3);
-  await soltarA(page, 0, 0, true);
-  await page.waitForFunction(() => document.getElementById("juego")!.dataset.vidas === "2");
-  for (let intento = 0; intento < 20 && !(await contadores(page)).hito; intento++) await soltarA(page, 0, 0.05);
-  await page.waitForFunction(() => {
-    const el = document.getElementById("juego")!;
-    return el.dataset.estado === "fin" || el.dataset.fase === "apuntando";
-  });
-  const c = await contadores(page);
-  for (const tipo of ["soltada", "aterrizaje", "colocada-perfecto", "colocada-bueno", "colocada-normal", "caida", "vidaExtra", "hito", "confeti"]) {
-    expect(c[tipo], tipo).toBeGreaterThan(0);
+  // Cada pieza se suelta a por el efecto que aún falta, leyendo los contadores
+  // con la pieza anterior ya resuelta, así que no depende de lo que tarde el
+  // equipo: un normal (de 0,38 a 0,45 m del objetivo), un bueno (a 0,3 m o
+  // menos), una caída (con el centro a más de 2,6 m, cae seguro; solo con 2
+  // vidas o más) y perfectos (a 0,1 m o menos; vida extra en el quinto seguido
+  // si falta alguna vida, confeti desde el tercero) hasta el hito de 5 m. Si
+  // una pieza sale de otra calidad o se cae, la siguiente lo vuelve a intentar;
+  // si la partida acaba, «Otra vez» (los contadores siguen entre partidas).
+  const faltan = async () => {
+    const c = await contadores(page);
+    return EVENTOS_A3.filter((tipo) => !(c[tipo]! > 0));
+  };
+  for (let pieza = 0; pieza < 80; pieza++) {
+    await page.waitForFunction(() => {
+      const el = document.getElementById("juego")!;
+      return el.dataset.estado === "fin" || el.dataset.fase === "apuntando";
+    });
+    const pendientes = await faltan();
+    if (pendientes.length === 0) break;
+    if ((await juego(page).getAttribute("data-estado")) === "fin") {
+      await esperarFinListo(page);
+      await page.locator("#boton-otra-vez").click();
+      await esperarLibre(page);
+      continue;
+    }
+    const vidas = Number(await juego(page).getAttribute("data-vidas"));
+    if (pendientes.includes("colocada-normal")) await soltarA(page, 0.38, 0.45);
+    else if (pendientes.includes("colocada-bueno")) await soltarA(page, 0.22, 0.3);
+    else if (pendientes.includes("caida") && vidas >= 2) await soltarA(page, 0, 0, true);
+    else await soltarA(page, 0, 0.1);
   }
-  expect(c.sacudidaMax).toBeGreaterThan(0);
+  // Los contadores se escriben en el fotograma siguiente: se releen hasta verlos todos.
+  await expect.poll(faltan, { timeout: 10_000 }).toEqual([]);
+  expect((await contadores(page)).sacudidaMax).toBeGreaterThan(0);
   expect(errores).toEqual([]);
 });
 
