@@ -35,18 +35,18 @@ describe("tabla de niveles (E1)", () => {
     expect(NIVELES.filter((n) => n.jefe).map((n) => n.numero)).toEqual([10]);
   });
 
-  it("los objetivos siguen el ejemplo del Anexo 1, 6", () => {
+  it("los objetivos parten del ejemplo del Anexo 1, 6, más largos desde el 4 (E2)", () => {
     expect(NIVELES.map((n) => textoObjetivo(n))).toEqual([
       "Coloca 5 piezas",
       "Llega a 3 m",
       "Haz 4 perfectos",
-      "Coloca 10 piezas",
+      "Coloca 12 piezas",
       "Haz un combo de 4",
-      "Llega a 6 m con 2 vidas",
-      "Coloca 8 piezas con 1 vida",
-      "Consigue 400 puntos",
-      "Llega a 8 m en 12 piezas",
-      "Llega a 12 m con 2 vidas",
+      "Llega a 8 m con 2 vidas",
+      "Coloca 12 piezas con 1 vida",
+      "Consigue 600 puntos",
+      "Llega a 10 m en 18 piezas",
+      "Llega a 14 m con 2 vidas",
     ]);
   });
 

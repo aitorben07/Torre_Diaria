@@ -18,7 +18,7 @@ Diseño completo en [`docs/diseno/diseno-juego.md`](docs/diseno/diseno-juego.md)
 
 - **Partida libre** (al abrir y con «Otra vez»): una semilla nueva cada vez y sin límite. Cuenta para el récord, las monedas y los escenarios por altura.
 - **Retos diarios** (botón con la llama): calendario con todos los días desde el 2026-11-05 (día 1). El primer intento de cada día es el oficial y da medalla por puntos (bronce 550, plata 2.400, oro 4.000) y monedas; el de hoy suma racha. Los días pasados se pueden jugar como «atrasados» (medalla sí, racha no) y los ya jugados, repetir sin que cuente. Un congelador (200 monedas, como mucho 2) salva la racha si falta un día. El día cambia a medianoche UTC.
-- **Niveles** (botón con la estrella): 10 niveles del Puerto en un mapa de saga, cada uno con un objetivo corto («Coloca 5 piezas», «Llega a 6 m con 2 vidas», «Llega a 8 m en 12 piezas»…) y hasta 3 estrellas por puntos. El nivel siguiente se abre al completar el anterior. El 10 es el jefe.
+- **Niveles** (botón con la estrella): 10 niveles del Puerto en un mapa de saga, cada uno con un objetivo corto («Coloca 5 piezas», «Llega a 8 m con 2 vidas», «Llega a 10 m en 18 piezas»…) y hasta 3 estrellas por puntos. El nivel siguiente se abre al completar el anterior. El 10 es el jefe.
 
 ## Economía y colección
 
@@ -97,12 +97,12 @@ No hay anuncios. `src/juego/anuncios.ts` define la interfaz `Anuncios` y `anunci
 
 ## Limitaciones y lo que no se ha comprobado
 
-- **Duración, dificultad y economía sin probar con personas.** Todas las cifras salen de jugadores simulados, que en la v1 duraban el doble que las partidas reales. Con los niveles, el medio y el experto simulados ganan todos los niveles y sacan 3 estrellas siempre: los umbrales pueden quedar fáciles.
+- **Duración, dificultad y economía sin probar con personas.** Todas las cifras salen de jugadores simulados, que en la v1 duraban el doble que las partidas reales. En los niveles, el experto simulado no falla ningún perfecto, así que las 3 estrellas piden una partida casi sin fallos; con personas pueden quedar difíciles o fáciles.
 - **Fotogramas sin medir en un móvil real.** Solo con Chromium de escritorio y emulando un Pixel 7 con la CPU 4 veces más lenta (la emulación no frena la GPU). En pantallas táctiles el lienzo usa como mucho 1,5 píxeles por píxel CSS.
 - **Sonido en iPhone:** con el interruptor de silencio, WebAudio no suena; y como el `AudioContext` se abre justo después del primer gesto, el sonido puede empezar en el segundo toque. iOS no vibra.
 - **Compartir sin probar en dispositivos reales.** Las pruebas simulan `navigator.share` y `navigator.canShare`. En Safari, si compartir llega tarde respecto al toque, da `NotAllowedError` y se ofrece descargar la imagen.
 - **Igualdad entre pantalla y Node** solo en el mismo navegador y con partidas cortas: planck usa `Math.sin`, `Math.cos` y `Math.atan2`, que pueden diferir en el último decimal entre motores (y entre Chrome y Node). Por eso las pruebas comparan la altura con 9 decimales. En otros navegadores la misma secuencia de toques puede dar otra puntuación.
-- **En el nivel 8 («Consigue 400 puntos»)**, ganar ya supera el umbral de 3 estrellas: los puntos son el propio objetivo.
+- **En el nivel 8 («Consigue 600 puntos»)** ganar ya supera el umbral de 3 estrellas: los puntos son el propio objetivo. En los niveles 1, 2, 3 y 5 (lentos y cortos) el medio simulado también saca 3 estrellas siempre.
 - **Los navegadores integrados de WhatsApp o Instagram guardan su propio progreso**; al borrar los datos del sitio se pierde todo (sin servidor no se puede evitar).
 - **Sin comprobar:** Firefox (Windows no deja ejecutarlo en este equipo), Safari en iPhone y navegadores Android reales; el CI en GitHub (aún no se ha subido la rama, así que no se ha medido cuánto tarda; estimación de 7 a 13 minutos por ejecución).
 - Sin ranking, sin servidor, sin `og:image` y sin misiones diarias (aplazadas). Toda la interfaz va en español.
@@ -121,20 +121,20 @@ En este equipo Windows con Node 24.18.0 y Chromium de Playwright. Las cifras cad
 - **Tamaño (`npm run build`, y `gzip -9 -c` de cada archivo):** el JavaScript de `dist/` ocupa 311.902 bytes y **79.718 bytes con `gzip -9`** (presupuesto: 150 KB); el CSS, 17.841 bytes (4.865 con gzip); fuentes sin cambios (60.012 bytes). Sin imágenes ni audio.
 - **Fotogramas (A2, `npm run e2e`, proyectos `rendimiento-*`, 20 s jugando sola):** escritorio 1280×800, mediana 16 ms y p95 de 17 a 18 ms (límites 17,5 y 25); móvil (Pixel 7) con la CPU 4 veces más lenta, mediana de 16 a 20 ms y **p95 de 26 a 31 ms** en cinco ejecuciones con el lienzo a 1,5 píxeles por píxel CSS (objetivo 33 ms). Con 2, el mismo móvil daba 35 ms (medido el 2026-11-08 por el coordinador), por eso en táctil se limita a 1,5. **Sin medir en un móvil real.**
 - **Imagen para compartir (F1, `e2e/compartir.spec.ts`):** PNG de 1080×1350 de unos 215 KB (217.767 y 219.376 bytes en las dos capturas de `docs/proceso/segunda-version/capturas/`) (límite 600 KB).
-- **Niveles (E2, `npm run medir:niveles`, 14,7 s):** cada perfil juega cada nivel 10 veces con errores distintos. `p3` es la mediana de puntos del experto al ganar y `p2` la del medio, redondeadas a 50 hacia abajo; si empatan, `p2` queda 50 por debajo. Sin fallos: el novato gana los niveles 1 a 5 en 9 o 10 de 10 (8 de 10 el 7 y el 8; 3 el 9 y 1 el jefe); el medio y el experto ganan los 10 niveles en 10 de 10 y sacan 3 estrellas siempre. Mediana de duración de las partidas ganadas por el medio, **30,1 s** (de 16 s en el nivel 5 a 58 s en el jefe; objetivo de 30 a 120 s). Para que hubiera hueco entre dos umbrales, el nivel 3 pide 4 perfectos (no 2) y el 5 un combo de 4 (no de 3).
+- **Niveles (E2, `npm run medir:niveles`, 20 s):** cada perfil juega cada nivel 10 veces con errores distintos. `p3` es la mediana de puntos del experto al ganar y `p2` la del medio, redondeadas a 50 hacia abajo; si empatan, `p2` queda 50 por debajo. Por debajo de unos 1,8 m/s el medio simulado (90 ms de error) hace siempre perfecto y empata con el experto, así que del nivel 4 en adelante la pieza empieza a 1,6-1,8 m/s y los objetivos son más largos que en el Anexo 1 (para que la mediana de duración no baje de 30 s). Sin fallos: el novato gana los niveles 1 a 5 en 7 de 10 o más; el medio gana todos en 9 o 10 de 10 salvo el jefe (6 de 10); el experto saca 3 estrellas siempre. El medio saca 3 estrellas siempre en los niveles 1, 2, 3, 5 y 8 y en 3 o 4 de 10 en los demás. Mediana de duración de las partidas ganadas por el medio, **30,7 s** (de 16 s en el nivel 5 a 53 s en el jefe; objetivo de 30 a 120 s). Para que hubiera hueco entre dos umbrales, el nivel 3 pide 4 perfectos (no 2) y el 5 un combo de 4 (no de 3).
 
-  | Nivel | Objetivo | Vidas | p2 | p3 | Novato: ganadas, 3 estrellas | Medio al ganar |
-  |---|---|---|---|---|---|---|
-  | 1 | Coloca 5 piezas | 3 | 150 | 200 | 10, 7 | 200 puntos, 21,4 s |
-  | 2 | Llega a 3 m | 3 | 50 | 100 | 10, 7 | 140, 17,4 s |
-  | 3 | Haz 4 perfectos | 3 | 50 | 100 | 10, 10 | 140, 17,4 s |
-  | 4 | Coloca 10 piezas | 3 | 500 | 550 | 10, 2 | 550, 38,4 s |
-  | 5 | Haz un combo de 4 | 3 | 50 | 100 | 9, 9 | 140, 16,0 s |
-  | 6 | Llega a 6 m | 2 | 500 | 550 | 9, 1 | 550, 38,3 s |
-  | 7 | Coloca 8 piezas | 1 | 350 | 400 | 8, 1 | 430, 31,2 s |
-  | 8 | Consigue 400 puntos | 3 | 350 | 400 | 8, 8 | 430, 29,1 s |
-  | 9 | Llega a 8 m en 12 piezas | 3 | 550 | 600 | 3, 0 | 610, 39,1 s |
-  | 10 (jefe) | Llega a 12 m | 2 | 950 | 1.000 | 1, 0 | 1.020, 58,2 s |
+  | Nivel | Objetivo | Vidas | Velocidad | p2 | p3 | Novato: ganadas | Medio: ganadas, 3 estrellas, puntos y duración al ganar |
+  |---|---|---|---|---|---|---|---|
+  | 1 | Coloca 5 piezas | 3 | 0,9 | 150 | 200 | 10 | 10, 10, 200 puntos, 21,4 s |
+  | 2 | Llega a 3 m | 3 | 0,9 | 50 | 100 | 10 | 10, 10, 140, 17,4 s |
+  | 3 | Haz 4 perfectos | 3 | 0,9 | 50 | 100 | 10 | 10, 10, 140, 17,4 s |
+  | 4 | Coloca 12 piezas | 3 | 1,7 | 600 | 650 | 7 | 10, 4, 625, 32,0 s |
+  | 5 | Haz un combo de 4 | 3 | 1,0 | 50 | 100 | 9 | 10, 10, 140, 16,0 s |
+  | 6 | Llega a 8 m | 2 | 1,7 | 650 | 750 | 0 | 9, 3, 650, 39,4 s |
+  | 7 | Coloca 12 piezas | 1 | 1,8 | 550 | 650 | 0 | 10, 3, 583, 33,3 s |
+  | 8 | Consigue 600 puntos | 3 | 1,6 | 550 | 600 | 1 | 10, 10, 610, 30,6 s |
+  | 9 | Llega a 10 m en 18 piezas | 3 | 1,7 | 850 | 900 | 0 | 9, 4, 855, 39,6 s |
+  | 10 (jefe) | Llega a 14 m | 2 | 1,6 | 1.050 | 1.100 | 0 | 6, 4, 1.133, 52,7 s |
 
 ### 2026-11-08 (bloques A, C y D)
 

@@ -104,7 +104,7 @@ test("perder un nivel ofrece Repetir y Mapa; el nivel en pantalla equivale a jug
   await expect(page.locator("#boton-otra-vez")).toHaveText("Repetir");
   await expect(page.locator("#boton-mapa")).toBeVisible();
   await expect(page.locator("#boton-repetir-nivel")).toBeHidden();
-  await expect(page.locator("#fin-objetivo")).toHaveText("Sin superar: Coloca 8 piezas con 1 vida");
+  await expect(page.locator("#fin-objetivo")).toHaveText("Sin superar: Coloca 12 piezas con 1 vida");
 
   const fin = await datosFin(page);
   expect(fin.semilla).toBe("nivel-7");
