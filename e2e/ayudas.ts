@@ -95,6 +95,7 @@ export async function preparar(
         buffer: unknown = null;
         frequency = new Parametro(440);
         detune = new Parametro(0);
+        setPeriodicWave() {}
         start() {
           const salida = salidaDe(this, this.ctx!.destination);
           if (salida) cuenta[salida]++;
@@ -137,6 +138,9 @@ export async function preparar(
         }
         createBufferSource() {
           return new Fuente("ruido", this);
+        }
+        createPeriodicWave() {
+          return {};
         }
         createBuffer(_canales: number, largo: number, sampleRate: number) {
           cuenta.nodos++;

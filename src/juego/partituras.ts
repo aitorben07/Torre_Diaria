@@ -107,14 +107,19 @@ function colchon(acorde: Acorde): NotaPartitura[] {
   return COLCHON[acorde].map((midi) => ({ instrumento: "colchon" as const, midi, corchea: 0, duracion: CORCHEAS, volumen: 1, capa: 0 }));
 }
 
-/** Percusión suave de la capa 2: bombo en el 1 y el 3, cepillo en cada corchea, más marcado en el 2 y el 4. */
+/**
+ * Percusión suave de la capa 2: bombo en el 1 y el 3, cepillo en el 2 y el 4
+ * y uno más flojo en la última corchea, que empuja al compás siguiente. Pocas
+ * notas a propósito: cada una son dos nodos (D4).
+ */
 function percusion(): NotaPartitura[] {
-  const notas: NotaPartitura[] = [];
-  for (let corchea = 0; corchea < CORCHEAS; corchea++) {
-    if (corchea % 4 === 0) notas.push({ instrumento: "bombo", midi: 0, corchea, duracion: 1, volumen: 1, capa: 2 });
-    else notas.push({ instrumento: "cepillo", midi: 0, corchea, duracion: 1, volumen: corchea % 4 === 2 ? 1 : 0.45, capa: 2 });
-  }
-  return notas;
+  return [
+    { instrumento: "bombo", midi: 0, corchea: 0, duracion: 1, volumen: 1, capa: 2 },
+    { instrumento: "cepillo", midi: 0, corchea: 2, duracion: 1, volumen: 1, capa: 2 },
+    { instrumento: "bombo", midi: 0, corchea: 4, duracion: 1, volumen: 0.85, capa: 2 },
+    { instrumento: "cepillo", midi: 0, corchea: 6, duracion: 1, volumen: 1, capa: 2 },
+    { instrumento: "cepillo", midi: 0, corchea: 7, duracion: 1, volumen: 0.45, capa: 2 },
+  ];
 }
 
 /** Compases a partir de los acordes y la melodía, con el bajo y, si toca, la percusión. Notas ordenadas por corchea. */

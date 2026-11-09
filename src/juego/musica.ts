@@ -6,7 +6,9 @@
 // suena a tiempo.
 //
 // Cada vez que la música arranca se crea una «sesión»: su salida con el filtro
-// de la caída y un filtro (o ganancia) por instrumento, una sola vez. Al
+// de la caída y un filtro (o ganancia) por instrumento, una sola vez. Cada nota
+// es un oscilador (o un ruido) y su envolvente, nada más: con menos nodos, el
+// móvil emulado pierde menos fotogramas (D4). Al
 // pausar, ocultar la pestaña, apagarla o acabar la partida, la sesión se
 // apaga en un instante y se suelta: las notas que ya estaban programadas
 // suenan en una salida muda.
@@ -49,12 +51,14 @@ export function capaMusical({ combo, altura, velocidad, caidaReciente }: { combo
 export type SalidaAudio = { ctx: BaseAudioContext; destino: AudioNode };
 
 /** Volumen de cada instrumento dentro de la salida de la música. */
-const VOLUMEN: Record<Instrumento, number> = { marimba: 0.7, bajo: 0.65, colchon: 0.11, bombo: 0.7, cepillo: 0.12 };
+const VOLUMEN: Record<Instrumento, number> = { marimba: 0.7, bajo: 0.65, colchon: 0.17, bombo: 0.7, cepillo: 0.12 };
 
 type Sesion = {
   salida: GainNode;
   filtro: BiquadFilterNode;
   entradas: Record<Instrumento, AudioNode>;
+  /** Onda de la marimba: el seno y su parcial a ×4 en un solo oscilador. */
+  marimba: PeriodicWave;
   /** Hasta cuándo suena (al cortarla), para soltarla después. */
   hasta: number;
 };
@@ -211,8 +215,10 @@ export class Musica {
     return {
       salida,
       filtro,
-      // Marimba algo apagada arriba, bajo redondo a 600 Hz y colchón tenue a 1,2 kHz (Anexo F).
-      entradas: { marimba: pasoBajo(5000), bajo: pasoBajo(600), colchon: pasoBajo(1200), bombo: directa(), cepillo },
+      // Bajo redondo a 600 Hz y colchón tenue a 1,2 kHz (Anexo F); la marimba y el bombo, directos.
+      entradas: { marimba: directa(), bajo: pasoBajo(600), colchon: pasoBajo(1200), bombo: directa(), cepillo },
+      // Seno con el parcial a ×4 al 12 % (Anexo F: 15 %, algo menos porque aquí no se apaga antes).
+      marimba: ctx.createPeriodicWave(new Float32Array([0, 0, 0, 0, 0]), new Float32Array([0, 1, 0, 0, 0.12])),
       hasta: Infinity,
     };
   }
@@ -254,15 +260,14 @@ export class Musica {
     const volumen = VOLUMEN[instrumento] * acento;
     const entrada = sesion.entradas[instrumento];
     if (instrumento === "marimba") {
-      // Seno con un parcial a ×4 al 15 %, ataque de 5 ms y caída exponencial (Anexo F).
-      const f = frecuencia(midi);
+      // Ataque de 5 ms y caída exponencial, más larga en las notas largas (Anexo F).
       const caida = Math.min(0.9, Math.max(0.35, duracion * 0.9));
-      this.parcial(ctx, entrada, "sine", f, t, 0.005, caida, volumen);
-      this.parcial(ctx, entrada, "sine", f * 4, t, 0.003, 0.12, volumen * 0.15);
+      this.parcial(ctx, entrada, sesion.marimba, frecuencia(midi), t, 0.005, caida, volumen);
     } else if (instrumento === "bajo") {
       this.parcial(ctx, entrada, "triangle", frecuencia(midi), t, 0.012, Math.min(0.6, duracion + 0.1), volumen);
     } else if (instrumento === "colchon") {
-      // Dos triangulares desafinadas ±6 centésimas con una sola envolvente lenta.
+      // Triangular con subida lenta. Cada nota del acorde va desafinada -6, 0 o
+      // +6 centésimas: entre ellas baten un poco, como un conjunto (Anexo F).
       const env = ctx.createGain();
       const subida = Math.min(0.4, duracion / 3);
       env.gain.setValueAtTime(0, t);
@@ -270,15 +275,13 @@ export class Musica {
       env.gain.setValueAtTime(volumen, t + duracion - 0.05);
       env.gain.linearRampToValueAtTime(0, t + duracion + 0.35);
       env.connect(entrada);
-      for (const desafine of [-6, 6]) {
-        const osc = ctx.createOscillator();
-        osc.type = "triangle";
-        osc.frequency.value = frecuencia(midi);
-        osc.detune.value = desafine;
-        osc.connect(env);
-        osc.start(t);
-        osc.stop(t + duracion + 0.4);
-      }
+      const osc = ctx.createOscillator();
+      osc.type = "triangle";
+      osc.frequency.value = frecuencia(midi);
+      osc.detune.value = ((midi % 3) - 1) * 6;
+      osc.connect(env);
+      osc.start(t);
+      osc.stop(t + duracion + 0.4);
     } else if (instrumento === "bombo") {
       // Seno de 120 a 50 Hz en 120 ms.
       const osc = ctx.createOscillator();
@@ -306,10 +309,11 @@ export class Musica {
   }
 
   /** Oscilador con envolvente de percusión: sube en `ataque` y cae en `caida` segundos. */
-  private parcial(ctx: BaseAudioContext, entrada: AudioNode, onda: OscillatorType, f: number, t: number, ataque: number, caida: number, volumen: number): void {
+  private parcial(ctx: BaseAudioContext, entrada: AudioNode, onda: OscillatorType | PeriodicWave, f: number, t: number, ataque: number, caida: number, volumen: number): void {
     const osc = ctx.createOscillator();
     const env = ctx.createGain();
-    osc.type = onda;
+    if (typeof onda === "string") osc.type = onda as OscillatorType;
+    else osc.setPeriodicWave(onda);
     osc.frequency.value = f;
     env.gain.setValueAtTime(0.0001, t);
     env.gain.exponentialRampToValueAtTime(volumen, t + ataque);

@@ -29,7 +29,15 @@ function contextoFalso() {
     return n;
   };
   const fuente = () =>
-    nodo({ type: "sine", frequency: parametro(440), detune: parametro(0), buffer: null, start: (t: number) => void cuenta.arranques.push(t), stop: () => undefined });
+    nodo({
+      type: "sine",
+      frequency: parametro(440),
+      detune: parametro(0),
+      buffer: null,
+      setPeriodicWave: () => undefined,
+      start: (t: number) => void cuenta.arranques.push(t),
+      stop: () => undefined,
+    });
   const ctx = {
     currentTime: 0,
     sampleRate: 8000,
@@ -39,6 +47,7 @@ function contextoFalso() {
     createOscillator: fuente,
     createBufferSource: fuente,
     createBuffer: (_c: number, largo: number, sampleRate: number) => ({ sampleRate, getChannelData: () => new Float32Array(largo) }),
+    createPeriodicWave: () => ({}),
   };
   const salida: SalidaAudio = { ctx: ctx as unknown as BaseAudioContext, destino: nodo() as unknown as AudioNode };
   cuenta.nodos = 0;
