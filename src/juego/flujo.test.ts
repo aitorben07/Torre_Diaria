@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { abrir, aceptaEntrada, empezar, enPausa, ESPERA_FIN_MS, transicion, verResultado, type Contexto } from "./flujo.ts";
+import { abrir, aceptaEntrada, empezar, ESPERA_FIN_MS, transicion, verResultado, type Contexto } from "./flujo.ts";
 
 const HOY = 16;
 const contexto = (ahora: number, jugados: number[] = []): Contexto => ({ ahora, hoy: HOY, jugado: (dia) => jugados.includes(dia) });
@@ -87,7 +87,6 @@ describe("paneles de Retos y Colección (C3, D2)", () => {
     const { flujo: panel, orden } = transicion(empezar("libre", HOY), { tipo: "abrir", panel: "coleccion" }, contexto(0));
     expect(orden).toEqual({ tipo: "panel", panel: "coleccion" });
     expect(panel).toMatchObject({ pantalla: "coleccion", debajo: "jugando" });
-    expect(enPausa(panel)).toBe(true);
     const cerrado = transicion(panel, { tipo: "cerrar" }, contexto(0));
     expect(cerrado.orden).toEqual({ tipo: "volver", pantalla: "jugando" });
     expect(cerrado.flujo).toEqual(empezar("libre", HOY));
@@ -144,7 +143,7 @@ describe("niveles (E3)", () => {
   it("un nivel en marcha se deja en pausa al abrir un panel, como la partida libre", () => {
     const { flujo: panel, orden } = transicion(empezar("nivel", HOY, 2), { tipo: "abrir", panel: "niveles" }, contexto(0));
     expect(orden).toEqual({ tipo: "panel", panel: "niveles" });
-    expect(enPausa(panel)).toBe(true);
+    expect(panel.debajo).toBe("jugando");
     expect(transicion(panel, { tipo: "cerrar" }, contexto(0)).flujo).toEqual(empezar("nivel", HOY, 2));
   });
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CLAVE, CLAVE_LIBRE, leerRegistroLibre, leerResultado, leerResultadoV1, type Almacen, type ResultadoDia } from "./registro.ts";
+import { CLAVE, CLAVE_LIBRE, leerRegistroLibre, leerResultadoV1, type Almacen, type ResultadoDia } from "./registro.ts";
 
 function almacenEnMemoria(): Almacen & { datos: Map<string, string> } {
   const datos = new Map<string, string>();
@@ -34,21 +34,18 @@ describe("lector de la v1 (C1)", () => {
   it("lee el resultado que guardó la v1", () => {
     const almacen = almacenEnMemoria();
     almacen.datos.set(CLAVE, JSON.stringify(HOY));
-    expect(leerResultado(almacen, 7)).toEqual(HOY);
     expect(leerResultadoV1(almacen)).toEqual(HOY);
   });
 
-  it("el resultado de ayer no cuenta como jugado hoy, pero se puede migrar", () => {
+  it("lee el resultado de cualquier día, para migrarlo", () => {
     const almacen = almacenEnMemoria();
     almacen.datos.set(CLAVE, JSON.stringify({ ...HOY, dia: 6 }));
-    expect(leerResultado(almacen, 7)).toBeNull();
     expect(leerResultadoV1(almacen)?.dia).toBe(6);
   });
 
   it("un almacenamiento que lanza error no propaga la excepción", () => {
-    expect(leerResultado(roto, 7)).toBeNull();
     expect(leerResultadoV1(roto)).toBeNull();
-    expect(leerResultado(null, 7)).toBeNull();
+    expect(leerResultadoV1(null)).toBeNull();
   });
 
   it.each([
@@ -63,7 +60,6 @@ describe("lector de la v1 (C1)", () => {
   ])("ignora datos corruptos: %s", (texto) => {
     const almacen = almacenEnMemoria();
     almacen.datos.set(CLAVE, texto);
-    expect(leerResultado(almacen, 7)).toBeNull();
     expect(leerResultadoV1(almacen)).toBeNull();
   });
 });

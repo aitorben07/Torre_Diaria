@@ -316,8 +316,3 @@ export async function lienzoDeImagen(datos: DatosImagen): Promise<HTMLCanvasElem
 export function aPNG(lienzo: HTMLCanvasElement): Promise<Blob> {
   return new Promise((listo, falla) => lienzo.toBlob((blob) => (blob ? listo(blob) : falla(new Error("toBlob sin datos"))), "image/png"));
 }
-
-/** La imagen como PNG de 1080×1350. */
-export async function generarPNG(datos: DatosImagen): Promise<Blob> {
-  return aPNG(await lienzoDeImagen(datos));
-}

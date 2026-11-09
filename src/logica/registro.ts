@@ -40,12 +40,6 @@ function esResultado(valor: unknown): valor is ResultadoDia {
   );
 }
 
-/** Resultado oficial de la v1 del día `dia`, o `null` si no es de ese día o no se puede leer. */
-export function leerResultado(almacen: Almacen | null, dia: number): ResultadoDia | null {
-  const resultado = leerResultadoV1(almacen);
-  return resultado && resultado.dia === dia ? resultado : null;
-}
-
 /** El último resultado oficial que guardó la v1, sea del día que sea (para la migración). */
 export function leerResultadoV1(almacen: Almacen | null): ResultadoDia | null {
   try {

@@ -99,11 +99,6 @@ export function aceptaEntrada(flujo: Flujo, ahora: number): boolean {
   return flujo.pantalla !== "fin" || ahora - flujo.finDesde >= ESPERA_FIN_MS;
 }
 
-/** ¿Hay una partida en pausa debajo de un panel? */
-export function enPausa(flujo: Flujo): boolean {
-  return flujo.debajo === "jugando";
-}
-
 /** Siguiente estado y orden tras una acción. Las acciones ignoradas devuelven el mismo estado y `nada`. */
 export function transicion(flujo: Flujo, accion: Accion, { ahora, hoy, jugado, nivelDisponible = () => false }: Contexto): { flujo: Flujo; orden: Orden } {
   if (accion.tipo === "terminar") {
