@@ -2,7 +2,7 @@
 
 Juego web de apilar piezas con un solo toque. Al abrir la página ya se está jugando una partida libre: las piezas van de lado a lado y hay que soltarlas sobre la torre. Acertar de lleno da perfectos y combos; cada caída cuesta una vida. Aparte hay un reto diario con las mismas piezas para todos, 10 niveles con estrellas y una colección de temas y escenarios que se ganan jugando. Cualquier resultado se comparte con una imagen generada y un enlace para retar a un amigo. Se juega sin registrarse, en el móvil o en el ordenador.
 
-No hay servidor ni ranking compartido: todo el progreso se guarda en el navegador. Aún no está desplegado en ningún sitio. El código está en GitHub (`aitorben07/Torre_Diaria`, público).
+No hay servidor ni ranking compartido: todo el progreso se guarda en el navegador. Está publicado en Cloudflare Pages: https://torre-diaria.pages.dev/ (desde el 2026-11-09). El código está en GitHub (`aitorben07/Torre_Diaria`, público).
 
 Diseño completo en [`docs/diseno/diseno-juego.md`](docs/diseno/diseno-juego.md) y plan de anuncios (sin implementar) en [`docs/diseno/anuncios.md`](docs/diseno/anuncios.md). El proceso de cada versión está en `docs/proceso/`.
 
@@ -67,14 +67,16 @@ CAPTURAS=1 npx playwright test e2e/capturas.spec.ts --project=escritorio   # cap
 
 `.github/workflows/pruebas.yml` ejecuta `npm ci`, `npm run check`, `npm test`, `npm run build` y `npm run e2e` (solo Chromium) en cada pull request y al subir a `main`, con caché de npm y de Chromium, `concurrency` que cancela la ejecución anterior de la misma rama y un tope de 30 minutos. Solo corre si el repositorio es público (`if: ${{ !github.event.repository.private }}`): en GitHub Actions los repositorios públicos no gastan cuota, pero uno privado sí. Si el repositorio pasa a privado, el trabajo no se ejecuta.
 
-### Desplegar en Cloudflare Pages (a mano, no se ha hecho)
+### Desplegar en Cloudflare Pages (a mano)
+
+Proyecto `torre-diaria` (Pages clásico, rama de producción `main`, subida directa sin Git), creado el 2026-11-09 con `wrangler pages project create torre-diaria --production-branch main --force`; el `--force` solo hizo falta al crearlo. Para cada nueva versión:
 
 ```sh
 npm run build
 npx wrangler pages deploy dist --project-name torre-diaria
 ```
 
-Requiere iniciar sesión en Cloudflare con la cuenta del propietario (`wrangler` no es dependencia del proyecto: `npx` lo descarga). `public/_headers` pone la CSP (todo de `'self'`, sin orígenes externos ni `'unsafe-inline'`; `img-src` admite además `data:` por el favicon en SVG) y las demás cabeceras de seguridad. La imagen para compartir no necesita nada más: se dibuja en un `<canvas>` y se descarga con un enlace `blob:` temporal. Sin comprobar: que el nombre `torre-diaria.pages.dev` esté libre.
+Requiere iniciar sesión en Cloudflare con la cuenta del propietario (`wrangler` no es dependencia del proyecto: `npx` lo descarga). `public/_headers` pone la CSP (todo de `'self'`, sin orígenes externos ni `'unsafe-inline'`; `img-src` admite además `data:` por el favicon en SVG) y las demás cabeceras de seguridad. La imagen para compartir no necesita nada más: se dibuja en un `<canvas>` y se descarga con un enlace `blob:` temporal. Comprobado tras el primer despliegue: la web responde 200 con la CSP de `public/_headers`, carga sin errores de consola y se puede jugar.
 
 ## Estructura
 
