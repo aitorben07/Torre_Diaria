@@ -228,7 +228,7 @@ test("desde el fin, «Inicio» lleva al inicio y Espacio sigue siendo «Otra vez
   await expect(juego(page)).toHaveAttribute("data-partidas", "3");
 });
 
-test("Créditos y licencias nombra la letra, planck y la privacidad; la versión dice reglas 3 (C2)", async ({ page }, testInfo) => {
+test("Créditos y licencias nombra la letra, planck, la música original y la privacidad; la versión dice reglas 3 (C2)", async ({ page }, testInfo) => {
   test.skip(conTactil(testInfo), "Solo DOM: basta con escritorio (R17)");
   await preparar(page);
   await page.goto("/");
@@ -240,8 +240,10 @@ test("Créditos y licencias nombra la letra, planck y la privacidad; la versión
   await expect(creditos).toHaveAttribute("aria-expanded", "true");
   await expect(page.locator("#creditos")).toContainText("Bricolage Grotesque (OFL-1.1)");
   await expect(page.locator("#creditos")).toContainText("planck (MIT)");
+  await expect(page.locator("#creditos")).toContainText("Música original compuesta en código para Torre Diaria");
   await expect(page.locator("#creditos")).toContainText("Todo se guarda solo en este navegador. No hay cuentas, ni cookies de terceros, ni anuncios.");
   await expect(page.locator("#ajustes-version")).toHaveText("Torre Diaria · reglas 3");
-  // Sin efectos reducidos propios ni «Cómo se juega» (R-1, R-9), y sin Música hasta el bloque D.
-  await expect(page.locator("#ajustes")).not.toContainText(/efectos reducidos|cómo se juega|música/i);
+  // Sin efectos reducidos propios ni «Cómo se juega» (R-1, R-9); Música, Sonidos y Vibración, en ese orden (D).
+  await expect(page.locator("#ajustes")).not.toContainText(/efectos reducidos|cómo se juega/i);
+  expect(await page.locator("#ajustes .interruptor").evaluateAll((botones) => botones.map((b) => b.id))).toEqual(["ajuste-musica", "ajuste-sonidos", "ajuste-vibracion"]);
 });

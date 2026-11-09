@@ -152,15 +152,18 @@ test("antes del primer gesto no hay ningún AudioContext sonando; tras el primer
   expect(errores).toEqual([]);
 });
 
-test("con los sonidos apagados en Ajustes no se crea ningún nodo de audio al soltar piezas (A4, C2)", async ({ page }, testInfo) => {
+test("con sonidos y música apagados en Ajustes no se crea ningún nodo de audio al soltar piezas (A4, C2)", async ({ page }, testInfo) => {
   await espiarAudio(page);
   const { errores } = await preparar(page, undefined, { audioReal: true });
   await page.goto("/");
   await abrirAjustes(page);
-  const boton = page.getByRole("switch", { name: "Sonidos" });
-  if (testInfo.project.use.hasTouch) await boton.tap();
-  else await boton.click();
-  await expect(boton).toHaveAttribute("aria-checked", "false");
+  // La música va aparte desde la v3 (D1): sus nodos se cuentan por salida en `musica.spec.ts`.
+  for (const nombre of ["Sonidos", "Música"]) {
+    const boton = page.getByRole("switch", { name: nombre });
+    if (testInfo.project.use.hasTouch) await boton.tap();
+    else await boton.click();
+    await expect(boton).toHaveAttribute("aria-checked", "false");
+  }
   await page.keyboard.press("Escape");
   await jugarLibre(page);
   const antes = (await audio(page)).nodos;

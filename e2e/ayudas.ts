@@ -9,18 +9,143 @@ export const SEMILLA = "2026-11-20";
 
 export type Vigilancia = { errores: string[]; ajenas: string[] };
 
+/** Lo que cuenta el `AudioContext` falso (`audioFalso`), en `window.__audioFalso`. */
+export type CuentaAudio = {
+  contextos: number;
+  /** Nodos creados de cualquier tipo. */
+  nodos: number;
+  /** Osciladores y fuentes de ruido arrancados que acaban en la salida de música o en la de efectos. */
+  musica: number;
+  efectos: number;
+};
+
 /**
  * Fija la fecha (sin falsear los temporizadores, para que la animación siga) y
  * recoge errores de consola, excepciones y peticiones a otros orígenes.
  *
- * Salvo con `audioReal`, cambia `AudioContext` por uno mudo que nunca llega a
- * sonar: abrir el dispositivo de audio de verdad tarda de 0,4 a 6 s en algunos
- * equipos Windows y bloquea la página, y estas pruebas no prueban el sonido
- * (las de A4, en `arte.spec.ts`, usan el real).
+ * Salvo con `audioReal` o `audioFalso`, cambia `AudioContext` por uno mudo que
+ * nunca llega a sonar: abrir el dispositivo de audio de verdad tarda de 0,4 a
+ * 6 s en algunos equipos Windows y bloquea la página, y estas pruebas no
+ * prueban el sonido (las de A4, en `arte.spec.ts`, usan el real).
+ *
+ * Con `audioFalso`, uno que pasa a `running` al reanudarlo, con un reloj que
+ * avanza solo mientras suena, y que cuenta los nodos por salida (C2, D1).
  */
-export async function preparar(page: Page, fecha: string = FECHA, { audioReal = false }: { audioReal?: boolean } = {}): Promise<Vigilancia> {
+export async function preparar(
+  page: Page,
+  fecha: string = FECHA,
+  { audioReal = false, audioFalso = false }: { audioReal?: boolean; audioFalso?: boolean } = {},
+): Promise<Vigilancia> {
   await page.clock.setFixedTime(new Date(fecha));
-  if (!audioReal) {
+  if (audioFalso) {
+    await page.addInitScript(() => {
+      const cuenta = { contextos: 0, nodos: 0, musica: 0, efectos: 0 };
+      (window as unknown as { __audioFalso: typeof cuenta }).__audioFalso = cuenta;
+      class Parametro {
+        constructor(public value: number) {}
+        setValueAtTime(v: number) {
+          this.value = v;
+          return this;
+        }
+        linearRampToValueAtTime() {
+          return this;
+        }
+        exponentialRampToValueAtTime() {
+          return this;
+        }
+        setTargetAtTime() {
+          return this;
+        }
+        cancelScheduledValues() {
+          return this;
+        }
+      }
+      class Nodo {
+        salidas: Nodo[] = [];
+        constructor(
+          readonly tipo: string,
+          readonly ctx: { destination: Nodo } | null,
+        ) {
+          if (ctx) cuenta.nodos++;
+        }
+        connect(destino: Nodo) {
+          this.salidas.push(destino);
+          return destino;
+        }
+        disconnect() {
+          this.salidas = [];
+        }
+      }
+      /**
+       * La salida general es la que va al destino. La música llega a ella por
+       * su filtro de caída (un BiquadFilter); los efectos, por su ganancia.
+       */
+      function salidaDe(nodo: Nodo, destino: Nodo, vistos = new Set<Nodo>()): "musica" | "efectos" | null {
+        if (vistos.has(nodo)) return null;
+        vistos.add(nodo);
+        for (const siguiente of nodo.salidas) {
+          if (siguiente.salidas.includes(destino)) return nodo.tipo === "filtro" ? "musica" : "efectos";
+          const encontrada = salidaDe(siguiente, destino, vistos);
+          if (encontrada) return encontrada;
+        }
+        return null;
+      }
+      class Fuente extends Nodo {
+        type = "sine";
+        buffer: unknown = null;
+        frequency = new Parametro(440);
+        detune = new Parametro(0);
+        start() {
+          const salida = salidaDe(this, this.ctx!.destination);
+          if (salida) cuenta[salida]++;
+        }
+        stop() {}
+      }
+      class AudioContextFalso {
+        state: "suspended" | "running" = "suspended";
+        sampleRate = 44100;
+        destination = new Nodo("destino", null);
+        private base = 0;
+        private desde = 0;
+        constructor() {
+          cuenta.contextos++;
+        }
+        get currentTime() {
+          return this.state === "running" ? this.base + (performance.now() - this.desde) / 1000 : this.base;
+        }
+        resume() {
+          if (this.state !== "running") {
+            this.desde = performance.now();
+            this.state = "running";
+          }
+          return Promise.resolve();
+        }
+        suspend() {
+          this.base = this.currentTime;
+          this.state = "suspended";
+          return Promise.resolve();
+        }
+        close = () => Promise.resolve();
+        createGain() {
+          return Object.assign(new Nodo("ganancia", this), { gain: new Parametro(1) });
+        }
+        createBiquadFilter() {
+          return Object.assign(new Nodo("filtro", this), { type: "lowpass", frequency: new Parametro(350), Q: new Parametro(1) });
+        }
+        createOscillator() {
+          return new Fuente("oscilador", this);
+        }
+        createBufferSource() {
+          return new Fuente("ruido", this);
+        }
+        createBuffer(_canales: number, largo: number, sampleRate: number) {
+          cuenta.nodos++;
+          return { sampleRate, getChannelData: () => new Float32Array(largo) };
+        }
+      }
+      (window as unknown as { AudioContext: unknown }).AudioContext = AudioContextFalso;
+    });
+  } else if (!audioReal) {
     await page.addInitScript(() => {
       const nodo = () => ({ gain: { value: 1 }, connect: () => nodo() });
       class AudioContextMudo {
@@ -47,6 +172,11 @@ export async function preparar(page: Page, fecha: string = FECHA, { audioReal = 
     if (url.protocol !== "data:" && url.origin !== propio) vigilancia.ajenas.push(peticion.url());
   });
   return vigilancia;
+}
+
+/** Lo contado por el `AudioContext` falso de `preparar(…, { audioFalso: true })`. */
+export function cuentaAudio(page: Page): Promise<CuentaAudio> {
+  return page.evaluate(() => ({ ...(window as unknown as { __audioFalso: CuentaAudio }).__audioFalso }));
 }
 
 export function conTactil(testInfo: TestInfo): boolean {
