@@ -122,7 +122,8 @@ body {
 .combo,
 .record,
 .panel,
-.aviso-toque {
+.aviso-toque,
+.aviso-especial {
   border: var(--borde) solid var(--tinta);
   border-radius: var(--radio);
   box-shadow: 4px 4px 0 var(--tinta);
@@ -301,6 +302,49 @@ body {
   50% {
     transform: translateX(-50%) translateY(-6px);
   }
+}
+
+/* Aviso de la primera pieza especial de cada tipo (H3): 2,5 s, sin pausa y
+   sin recoger toques. Abajo, sobre la barra: arriba taparía la pieza que
+   cuelga, que la cámara deja siempre en la parte alta. */
+.aviso-especial {
+  position: absolute;
+  left: 50%;
+  bottom: 5.4rem;
+  width: max-content;
+  max-width: calc(100% - 2rem);
+  margin: 0;
+  padding: 0.5rem 0.95rem;
+  background: var(--amarillo);
+  color: var(--tinta);
+  font-size: 1rem;
+  font-weight: 800;
+  text-align: center;
+  transform: translateX(-50%);
+  pointer-events: none;
+  animation: aparece-aviso 260ms ease-out;
+}
+
+@keyframes aparece-aviso {
+  0% {
+    transform: translateX(-50%) scale(1.6);
+    opacity: 0;
+  }
+  70% {
+    transform: translateX(-50%) scale(0.95);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(-50%) scale(1);
+  }
+}
+
+.aviso-especial[data-especial="pegajosa"] {
+  background: var(--rosa);
+}
+
+.aviso-especial[data-especial="cemento"] {
+  background: var(--plata);
 }
 
 /* Paneles de papel: reto de un amigo y fin de partida. */
@@ -548,7 +592,8 @@ button.icono[aria-pressed="false"] {
   .vida.rompe,
   .vida.vuelve,
   .combo.late,
-  .aviso-toque {
+  .aviso-toque,
+  .aviso-especial {
     animation: none;
   }
 

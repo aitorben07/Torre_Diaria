@@ -4,12 +4,13 @@
 // reales (hasta 40; luego «+N»), los puntos, una fila de datos y abajo «¿Me
 // superas?» con el dominio. Sin emojis ni texto de la URL: solo datos propios y
 // `location.host` (G5). Estrellas como trazados, nunca como caracteres (G11).
+import { REGLAS_CON_ESPECIALES, type Especial } from "../logica/especiales.ts";
 import type { Pieza } from "../logica/piezas.ts";
 import { fechaDeDia } from "../logica/semilla.ts";
 import { formatearAltura, formatearNumero } from "../logica/tarjeta.ts";
-import { rutaPieza } from "./dibujo.ts";
+import { pintarAdornoEspecial, pintarOjosEspecial, rutaPieza } from "./dibujo.ts";
 import { RUTA_ESTRELLA } from "./mapa.ts";
-import { colorCielo, COLORES, FAMILIA, oscurecer, type Escenario, type Tema } from "./temas.ts";
+import { colorCielo, COLORES, ESPECIALES_DIBUJO, FAMILIA, oscurecer, type Escenario, type Tema } from "./temas.ts";
 
 export const ANCHO_IMAGEN = 1080;
 export const ALTO_IMAGEN = 1350;
@@ -33,13 +34,22 @@ export type DatosImagen = {
   comboMax?: number | null;
   /** Racha del reto de hoy (0 o sin ella, no se escribe). */
   racha?: number;
-  /** Piezas colocadas, de abajo arriba. */
-  formas: ReadonlyArray<Pick<Pieza, "forma" | "ancho" | "alto" | "color">>;
+  /** Piezas colocadas, de abajo arriba; las especiales (H3) con su aspecto, que no cambia con el tema. */
+  formas: ReadonlyArray<Pick<Pieza, "forma" | "ancho" | "alto" | "color"> & { especial?: Especial }>;
   tema: Tema;
   escenario: Escenario;
   /** Dominio de la página (`location.host`). */
   host: string;
 };
+
+/**
+ * Piezas de la imagen de un resultado jugado con las reglas `reglas`: las
+ * especiales solo se pintan desde las reglas 3 (H3, impacto §5); antes no existían.
+ */
+export function formasParaImagen<T extends { especial?: Especial }>(formas: readonly T[], reglas: number): Array<Omit<T, "especial"> & { especial?: Especial }> {
+  if (reglas >= REGLAS_CON_ESPECIALES) return [...formas];
+  return formas.map(({ especial: _especial, ...forma }) => forma);
+}
 
 /** «RETO #16 · 20 NOV», «PARTIDA LIBRE» o «NIVEL 3» (las estrellas van dibujadas al lado). */
 export function etiquetaModo(datos: Pick<DatosImagen, "modo" | "dia" | "nivel">): string {
@@ -185,22 +195,26 @@ function dibujarTorre(ctx: CanvasRenderingContext2D, datos: DatosImagen): void {
   for (const pieza of visibles) {
     const cy = base - (pieza.alto * k) / 2;
     const ruta = rutaPieza(pieza);
-    const color = tema.piezas[pieza.color] ?? tema.piezas[0]!;
+    const especial = pieza.especial ? ESPECIALES_DIBUJO[pieza.especial] : null;
+    const color = especial?.relleno ?? tema.piezas[pieza.color] ?? tema.piezas[0]!;
     ctx.save();
     ctx.translate(ANCHO_IMAGEN / 2, cy);
     ctx.scale(k, -k);
     ctx.save();
     ctx.translate(0.06, -0.06);
-    ctx.fillStyle = oscurecer(color, 0.35);
+    ctx.fillStyle = especial?.sombra ?? oscurecer(color, 0.35);
     ctx.fill(ruta);
     ctx.restore();
     ctx.fillStyle = color;
     ctx.fill(ruta);
+    if (pieza.especial) pintarAdornoEspecial(ctx, pieza, pieza.especial, ruta);
     ctx.lineWidth = Math.max(0.035, 4 / k);
     ctx.lineJoin = "round";
-    ctx.strokeStyle = tema.contorno;
+    ctx.strokeStyle = especial?.contorno ?? tema.contorno;
     ctx.stroke(ruta);
-    if (tema.ojos && (pieza.forma === "bloque" || pieza.forma === "cuadrado")) {
+    if (pieza.especial) {
+      pintarOjosEspecial(ctx, pieza, pieza.especial);
+    } else if (tema.ojos && (pieza.forma === "bloque" || pieza.forma === "cuadrado")) {
       const separacion = Math.min(0.22, pieza.ancho * 0.22);
       const yOjo = Math.min(pieza.alto * 0.14, 0.12);
       for (const lado of [-1, 1]) {

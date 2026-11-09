@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { etiquetaModo, filaDatos, MAX_PIEZAS_IMAGEN } from "./imagen.ts";
+import { etiquetaModo, filaDatos, formasParaImagen, MAX_PIEZAS_IMAGEN } from "./imagen.ts";
 
 describe("imagen para compartir (F1)", () => {
   it("la etiqueta dice el modo, con la fecha corta en el reto diario", () => {
@@ -14,6 +14,16 @@ describe("imagen para compartir (F1)", () => {
     expect(filaDatos({ altura: 18.42, perfectos: 6, comboMax: 5, racha: 5 })).toBe("18,4 m · 6 perfectos · combo ×5 · racha de 5");
     expect(filaDatos({ altura: 3, perfectos: 1, comboMax: 0 })).toBe("3,0 m · 1 perfecto");
     expect(filaDatos({ altura: 4.1, perfectos: null, comboMax: null, racha: 0 })).toBe("4,1 m");
+  });
+
+  it("pinta las piezas especiales solo en resultados con reglas 3 o más (H3)", () => {
+    const formas: Array<{ forma: "bloque"; ancho: number; alto: number; color: number; especial?: "dorada" }> = [
+      { forma: "bloque", ancho: 1, alto: 0.8, color: 0 },
+      { forma: "bloque", ancho: 1, alto: 0.8, color: 1, especial: "dorada" },
+    ];
+    expect(formasParaImagen(formas, 3)).toEqual(formas);
+    expect(formasParaImagen(formas, 2)).toEqual([formas[0], { forma: "bloque", ancho: 1, alto: 0.8, color: 1 }]);
+    expect(formasParaImagen(formas, 1)[1]).not.toHaveProperty("especial");
   });
 
   it("dibuja 40 piezas como mucho; el resto se cuenta en «+N»", () => {

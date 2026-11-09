@@ -121,6 +121,41 @@ describe("contadores de efectos", () => {
   });
 });
 
+describe("efectos de las piezas especiales (H3)", () => {
+  it("cada especial que actúa suma su contador, con partículas acotadas", () => {
+    const e = efectos();
+    for (let i = 0; i < 30; i++) {
+      e.especial("dorada", pieza, 0, 1, i);
+      e.especial("pegajosa", pieza, 0, 1, i);
+      e.especial("cemento", pieza, 0, 1, i);
+    }
+    expect(e.contadores).toMatchObject({ "especial-dorada": 30, "especial-pegajosa": 30, "especial-cemento": 30 });
+    expect(e.vivas).toBeLessThanOrEqual(MAX_PARTICULAS);
+  });
+
+  it("la dorada suelta chispas, la pegajosa gotas y la de cemento ninguna (su efecto es la ola)", () => {
+    for (const [especial, conParticulas] of [["dorada", true], ["pegajosa", true], ["cemento", false]] as const) {
+      const e = efectos();
+      e.especial(especial, pieza, 0, 1, 0);
+      expect(e.vivas > 0).toBe(conParticulas);
+    }
+  });
+
+  it("con movimiento reducido la de cemento no lanza la ola, pero cuenta igual", () => {
+    // Se dibuja el mundo en un contexto falso que apunta los rellenos: sin ola, ningún fillRect.
+    const rellenos = (reducido: boolean) => {
+      const e = efectos(reducido);
+      e.especial("cemento", pieza, 0, 4, 0);
+      let n = 0;
+      const ctx = new Proxy({}, { get: (_, nombre) => (nombre === "fillRect" ? () => n++ : () => undefined), set: () => true });
+      e.dibujarMundo(ctx as CanvasRenderingContext2D, 100);
+      return { n, cuenta: e.contadores["especial-cemento"] };
+    };
+    expect(rellenos(false)).toEqual({ n: 1, cuenta: 1 });
+    expect(rellenos(true)).toEqual({ n: 0, cuenta: 1 });
+  });
+});
+
 describe("azar visual", () => {
   it("es repetible y no depende del azar de la partida", () => {
     const a = crearAzarVisual(7);

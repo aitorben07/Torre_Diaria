@@ -6,6 +6,7 @@
 import { comprar, equipado, equipar, nuevosEscenarios, siguienteObjetivo } from "../logica/catalogo.ts";
 import { actualizarRacha, medallaDe, medallaDePuntos, rachaDeHoy, registrarOficial, UMBRAL_BRONCE, UMBRAL_ORO, UMBRAL_PLATA, type Oficial } from "../logica/diarios.ts";
 import { cobrarLibre, sumarEstadisticas, type LibreCobrada, type Medalla, type PartidaAcabada } from "../logica/economia.ts";
+import { AVISO_ESPECIAL, especialDe, REGLAS_CON_ESPECIALES, type Especial } from "../logica/especiales.ts";
 import { estrellasDe, nivelDisponible, nivelPorNumero, opcionesDeNivel, registrarNivel, textoMeta, textoObjetivo, totalEstrellas, type NivelRegistrado } from "../logica/niveles.ts";
 import { leerLibre, leerReto } from "../logica/reto.ts";
 import { almacenDelNavegador } from "../logica/registro.ts";
@@ -28,7 +29,7 @@ import { Sonido } from "./sonido.ts";
 import { abrir, aceptaEntrada, transicion, type Accion, type Flujo, type Modo, type Orden, type Panel, type Pantalla } from "./flujo.ts";
 import { anunciosDePlataforma, aplicarLlamadas, llamadasAlAbrir, llamadasDeTransicion } from "./anuncios.ts";
 import { compartir, descargar, ImagenCompartida, puedeCompartirArchivos } from "./compartir.ts";
-import type { DatosImagen } from "./imagen.ts";
+import { formasParaImagen, type DatosImagen } from "./imagen.ts";
 import { cambiarEstado, copiar, mostrarTexto, NOMBRE_MEDALLA, pintarBarra, pintarFin, pintarHud, pintarLibreAmigo, pintarReto, ui, type DatosFin as DatosPantallaFin } from "./pantallas.ts";
 import { PanelRetos } from "./retos.ts";
 import { escenarioPorId, temaPorId } from "./temas.ts";
@@ -41,6 +42,8 @@ const OPCIONES_LIBRE: OpcionesPartida = { vidas: VIDAS_INICIALES, modo: "libre" 
 const OPCIONES_RETO: OpcionesPartida = { vidas: VIDAS_INICIALES, modo: "reto" };
 /** Pausa entre estrellas al acabar un nivel (E3). */
 const ESTRELLA_MS = 380;
+/** Lo que dura el aviso de la primera pieza especial de cada tipo (H3). */
+const AVISO_ESPECIAL_MS = 2500;
 
 /** Día de hoy en UTC. Se recalcula en cada acción y al volver a la pestaña. */
 let hoy = numeroDia(fechaUTC(new Date()));
@@ -108,6 +111,7 @@ const imagenDia = new ImagenCompartida();
 /** Día, tema y escenario de la imagen de la ficha: si cambia cualquiera, se vuelve a generar. */
 let claveImagenDia = "";
 let temporizadoresEstrellas: number[] = [];
+let temporizadorAviso = 0;
 
 /** Recalcula `hoy`, por si ha pasado la medianoche UTC. Devuelve si ha cambiado. */
 function actualizarHoy(): boolean {
@@ -155,8 +159,8 @@ type DatosFin = {
   puntos: number;
   altura: number;
   piezas: number;
-  /** Piezas colocadas, de abajo arriba, para la imagen (F1). */
-  formas: Array<Pick<Pieza, "forma" | "ancho" | "alto" | "color">>;
+  /** Piezas colocadas, de abajo arriba, para la imagen (F1), con su especial desde las reglas 3 (H3). */
+  formas: Array<Pick<Pieza, "forma" | "ancho" | "alto" | "color"> & { especial?: Especial }>;
   reglas: number;
   /** Para la fila de datos de la imagen; `null` si no se guardó. */
   perfectos: number | null;
@@ -170,8 +174,16 @@ function resultadoDe(dia: number): DiaJugado | null {
 /** Datos de fin de un día guardado: las piezas se rehacen con la semilla del día y sus índices. */
 function datosDeDia(dia: number, jugado: DiaJugado): DatosFin {
   const indices = deTramos(jugado.colocadas) ?? [];
-  const secuencia = indices.length > 0 ? generarSecuencia(fechaDeDia(dia), indices[indices.length - 1]! + 1) : [];
-  const formas = indices.map((i) => secuencia[i]!).filter(Boolean);
+  const semilla = fechaDeDia(dia);
+  const secuencia = indices.length > 0 ? generarSecuencia(semilla, indices[indices.length - 1]! + 1) : [];
+  // Las especiales salen de la semilla desde las reglas 3 (H3, impacto §5); los días de antes no las tenían.
+  const conEspeciales = jugado.reglas >= REGLAS_CON_ESPECIALES;
+  const formas = indices
+    .filter((i) => secuencia[i])
+    .map((i) => {
+      const especial = conEspeciales ? especialDe(semilla, i) : null;
+      return especial ? { ...secuencia[i]!, especial } : secuencia[i]!;
+    });
   // Desde la v2 hay perfectos; la v1 no los guardaba (R16: se mira la versión, no las reglas actuales).
   const conPerfectos = jugado.reglas >= 2;
   return { dia, puntos: jugado.puntos, altura: jugado.altura, piezas: jugado.piezas, formas, reglas: jugado.reglas, perfectos: conPerfectos ? jugado.perfectos : null, comboMax: null };
@@ -292,6 +304,8 @@ function empezar(modo: Modo, dia: number, numeroNivel: number = 0, codigo?: stri
   delete juego.dataset.victoria;
   delete juego.dataset.estrellas;
   ui.avisoToque().hidden = guardado.actual.ajustes.tutorialVisto;
+  ocultarAvisoEspecial();
+  delete juego.dataset.especial;
   aplicarEquipado();
   lienzo.ponerRecord(modo === "libre" ? guardado.actual.libre.alturaRecord : null);
   lienzo.reiniciarCamara();
@@ -334,7 +348,8 @@ function datosImagen(datos: DatosFin, modoPartida: Modo, premios: Premios): Dato
     perfectos: datos.perfectos,
     comboMax: datos.comboMax,
     racha: modoPartida === "oficial" ? rachaDelDia(datos.dia) : 0,
-    formas: datos.formas,
+    // La imagen pinta las especiales solo con reglas 3 o más (H3, impacto §5).
+    formas: formasParaImagen(datos.formas, datos.reglas),
     tema: temaPorId(tema),
     escenario: escenarioPorId(escenario),
     host: location.host,
@@ -687,9 +702,38 @@ function avanzar(pasos: number): void {
   juego.dataset.objetivo = objetivo.toFixed(2);
   // Velocidad de la pieza que cuelga (B1, reglas 3): la calcula la partida con el ritmo.
   juego.dataset.velocidad = colgada ? String(colgada.velocidad) : "";
+  juego.dataset.pasos = String(actual.pasos);
+  // Especial de la pieza que cuelga (H3), para las pruebas; la primera de cada tipo, con aviso.
+  if (colgada?.especial) {
+    juego.dataset.especial = colgada.especial;
+    avisarEspecial(colgada.especial);
+  } else {
+    delete juego.dataset.especial;
+  }
   if (pasos > 0) observar(estado, pasos);
   actualizarHud();
   pintarEfectos();
+}
+
+/**
+ * La primera vez que cuelga cada tipo de especial en este navegador, un aviso
+ * de 2,5 s que no para la partida (H3). Se guarda en `vistos`; si el
+ * almacenamiento falla, se recuerda solo en memoria.
+ */
+function avisarEspecial(especial: Especial): void {
+  if (guardado.actual.vistos.includes(especial)) return;
+  guardado.cambiar((p) => (p.vistos.includes(especial) ? p : { ...p, vistos: [...p.vistos, especial] }));
+  const aviso = ui.avisoEspecial();
+  aviso.textContent = AVISO_ESPECIAL[especial];
+  aviso.dataset.especial = especial;
+  aviso.hidden = false;
+  clearTimeout(temporizadorAviso);
+  temporizadorAviso = window.setTimeout(ocultarAvisoEspecial, AVISO_ESPECIAL_MS);
+}
+
+function ocultarAvisoEspecial(): void {
+  clearTimeout(temporizadorAviso);
+  ui.avisoEspecial().hidden = true;
 }
 
 /** Centro de los iconos de vidas, en píxeles reales del lienzo: ahí vuela el corazón de vida extra. */
@@ -735,6 +779,10 @@ function reaccionar(actual: Partida, eventos: Evento[]): void {
     } else if (evento.tipo === "hito") {
       efectos.hitoAltura(evento.metros, ahora);
       sonido.hito();
+    } else if (evento.tipo === "especial") {
+      const pieza = soltadas.get(evento.indice);
+      const cuerpo = pieza && estado.cuerpos.find((c) => c.pieza === pieza);
+      if (pieza && cuerpo) efectos.especial(evento.especial, pieza, cuerpo.x, cuerpo.y, ahora);
     }
   }
 }

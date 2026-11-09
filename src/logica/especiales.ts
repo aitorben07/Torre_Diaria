@@ -18,6 +18,14 @@ export const DESDE_ESPECIAL: Record<Especial, number> = { dorada: 8, pegajosa: 1
 export const PESO_ESPECIAL: Record<Especial, number> = { dorada: 0.4, pegajosa: 0.3, cemento: 0.3 };
 /** Monedas de más de una dorada colocada (H2). */
 export const MONEDAS_DORADA = 10;
+/** Primera versión de las reglas con especiales: la imagen de un día de antes no las pinta (H3). */
+export const REGLAS_CON_ESPECIALES = 3;
+/** Aviso de la primera vez que cuelga cada tipo (H3, Anexo G). */
+export const AVISO_ESPECIAL: Record<Especial, string> = {
+  dorada: "Pieza dorada: vale el doble",
+  pegajosa: "Pieza pegajosa: se queda pegada donde cae",
+  cemento: "Pieza de cemento: convierte en piedra lo de debajo",
+};
 
 export type OpcionesEspeciales = {
   /** Con `false` no sale ninguna (niveles 1 a 3). Por defecto, `true`. */

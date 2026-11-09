@@ -1,6 +1,7 @@
 // Paleta «Riso» (Anexo 1, 1.2), temas de piezas y escenarios. La misma tabla
 // da los colores del lienzo y las variables de `estilos.css` (una prueba
 // comprueba que coinciden), así que un color se cambia en los dos sitios.
+import type { Especial } from "../logica/especiales.ts";
 
 /** Colores de tinta y papel de la interfaz. En CSS: `--papel`, `--tinta`, etc. */
 export const COLORES = {
@@ -170,6 +171,17 @@ export const TEMA_ORO: Tema = {
 };
 
 /** Temas de piezas por id, en el orden del catálogo (C3). */
+/**
+ * Aspecto de las piezas especiales (H3, Anexo G), igual en todos los temas:
+ * dorada amarilla con brillo y estrella, pegajosa rosa con miel y cemento gris
+ * claro con saco y franja amarilla. `adorno` es la miel, el brillo o el saco.
+ */
+export const ESPECIALES_DIBUJO: Record<Especial, { relleno: string; sombra: string; adorno: string; contorno: string }> = {
+  dorada: { relleno: mezclar(COLORES.amarillo, COLORES.naranja, 0.18), sombra: oscurecer(COLORES.naranja, 0.3), adorno: COLORES.estrella, contorno: COLORES.tinta },
+  pegajosa: { relleno: COLORES.rosa, sombra: oscurecer(COLORES.rosa, 0.35), adorno: mezclar(COLORES.amarillo, COLORES.naranja, 0.45), contorno: COLORES.tinta },
+  cemento: { relleno: mezclar(COLORES.plata, COLORES.papel, 0.3), sombra: oscurecer(COLORES.plata, 0.4), adorno: COLORES.papelOscuro, contorno: COLORES.tinta },
+};
+
 export const TEMAS_DIBUJO: readonly Tema[] = [TEMA_RISO, TEMA_MADERA, TEMA_CARAMELO, TEMA_NEON, TEMA_MARMOL, TEMA_ORO];
 
 export function temaPorId(id: string): Tema {

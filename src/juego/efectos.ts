@@ -4,11 +4,12 @@
 // funciones puras (se prueban con Vitest). El azar visual tiene su propia
 // semilla, distinta de la de la partida, y nada de aquí toca la simulación:
 // cambiarlo no cambia puntos ni pasos.
+import { MONEDAS_DORADA, type Especial } from "../logica/especiales.ts";
 import type { Pieza } from "../logica/piezas.ts";
 import type { Calidad } from "../logica/puntuacion.ts";
 import type { CuerpoVisible } from "../logica/simulacion.ts";
 import type { CapaEfectos } from "./dibujo.ts";
-import { COLORES, FAMILIA, TEMA_RISO } from "./temas.ts";
+import { COLORES, ESPECIALES_DIBUJO, FAMILIA, TEMA_RISO } from "./temas.ts";
 
 /** Generador mulberry32 de números en [0, 1). Solo para el dibujo. */
 export function crearAzarVisual(semilla: number): () => number {
@@ -38,6 +39,11 @@ export const PUNTOS_MS = 600;
 export const BIEN_MS = 400;
 export const VIDA_MS = 500;
 export const HITO_MS = 700;
+/** La ola de la pieza de cemento baja por la torre en este tiempo (H3). */
+export const OLA_MS = 1300;
+/** Metros que baja la ola como mucho: más abajo ya no se ve con la cámara en la cima. */
+export const OLA_METROS = 8;
+export const ESPECIAL_MS = 900;
 export const MAX_PARTICULAS = 200;
 /** Desde este combo hay confeti al colocar. */
 export const COMBO_CONFETI = 3;
@@ -99,7 +105,9 @@ export function añadirParticulas(lista: Particula[], nuevas: Particula[], maxim
   return todas.length > maximo ? todas.slice(todas.length - maximo) : todas;
 }
 
-type Texto = { texto: string; x: number; y: number; desde: number; vida: number; tipo: "perfecto" | "bien" | "puntos" | "record" };
+type Texto = { texto: string; x: number; y: number; desde: number; vida: number; tipo: "perfecto" | "bien" | "puntos" | "record" | "moneda" | "especial" };
+/** Ola gris de la pieza de cemento: baja de `arriba` hasta `OLA_METROS` más abajo (o hasta 0), por el ancho de la torre. */
+type Ola = { x: number; arriba: number; ancho: number; desde: number };
 type Anillo = { x: number; y: number; desde: number };
 type Corazon = { x: number; y: number; desde: number };
 
@@ -115,7 +123,10 @@ export type TipoEfecto =
   | "chapuzon"
   | "vidaExtra"
   | "hito"
-  | "record";
+  | "record"
+  | "especial-dorada"
+  | "especial-pegajosa"
+  | "especial-cemento";
 
 export type OpcionesEfectos = {
   /** `prefers-reduced-motion: reduce`: sin sacudida ni destellos y la mitad de partículas. */
@@ -135,6 +146,7 @@ export class Efectos implements CapaEfectos {
   /** Ondas del chapuzón en la superficie del mar. */
   private ondas: Anillo[] = [];
   private corazones: Corazon[] = [];
+  private olas: Ola[] = [];
   private readonly deformaciones = new WeakMap<Pieza, { tipo: "soltar" | "aterrizar"; desde: number }>();
   private sacudidaDesde = -Infinity;
   private destelloDesde = -Infinity;
@@ -174,6 +186,7 @@ export class Efectos implements CapaEfectos {
     this.anillos = [];
     this.ondas = [];
     this.corazones = [];
+    this.olas = [];
     this.hito = null;
     this.sacudidaDesde = -Infinity;
     this.destelloDesde = -Infinity;
@@ -309,6 +322,41 @@ export class Efectos implements CapaEfectos {
     this.contar("hito");
   }
 
+  /**
+   * Una especial actúa (H3), con el centro de su pieza en (`x`, `y`): la dorada
+   * brilla y suelta «+10» con una moneda; la pegajosa gotea miel y dice
+   * «¡PEGADA!»; la de cemento lanza una ola gris que baja por la torre (sin ola
+   * con movimiento reducido) y dice «¡A PIEDRA!».
+   */
+  especial(especial: Especial, pieza: Pick<Pieza, "ancho" | "alto">, x: number, y: number, ahora: number): void {
+    const azar = this.azar;
+    const arriba = y + pieza.alto / 2;
+    if (especial === "dorada") {
+      this.anillos.push({ x, y: arriba, desde: ahora });
+      const chispas: Particula[] = [];
+      for (let i = 0, n = this.cuantas(10); i < n; i++) {
+        const angulo = (i / n) * Math.PI * 2 + azar() * 0.4;
+        const v = entreVisual(azar, 1.6, 3);
+        chispas.push({ tipo: "chispa", x, y, vx: Math.cos(angulo) * v, vy: Math.sin(angulo) * v, giro: angulo, vgiro: 0, tam: entreVisual(azar, 0.14, 0.24), color: i % 2 === 0 ? COLORES.amarillo : COLORES.papel, desde: ahora, vida: 420 });
+      }
+      this.emitir(chispas);
+      // A la izquierda de la pieza: arriba va «PERFECTO» y a la derecha los puntos.
+      this.textos.push({ texto: `+${MONEDAS_DORADA}`, x: x - pieza.ancho / 2 - 1.1, y, desde: ahora, vida: ESPECIAL_MS, tipo: "moneda" });
+    } else if (especial === "pegajosa") {
+      const gotas: Particula[] = [];
+      for (let i = 0, n = this.cuantas(8); i < n; i++) {
+        gotas.push({ tipo: "gota", x: x + entreVisual(azar, -0.45, 0.45) * pieza.ancho, y: y - pieza.alto / 2, vx: entreVisual(azar, -0.3, 0.3), vy: entreVisual(azar, -0.4, 0.6), giro: 0, vgiro: 0, tam: entreVisual(azar, 0.05, 0.09), color: ESPECIALES_DIBUJO.pegajosa.adorno, desde: ahora, vida: 650 });
+      }
+      this.emitir(gotas);
+      this.textos.push({ texto: "¡PEGADA!", x, y: arriba + 0.7, desde: ahora, vida: ESPECIAL_MS, tipo: "especial" });
+    } else {
+      if (!this.opciones.reducido()) this.olas.push({ x, arriba, ancho: Math.max(2.4, pieza.ancho + 1), desde: ahora });
+      // Bajo la cima: encima cae la pieza que se acaba de soltar, con su «PERFECTO».
+      this.textos.push({ texto: "¡A PIEDRA!", x, y: Math.max(0.5, arriba - 1.6), desde: ahora, vida: ESPECIAL_MS * 1.4, tipo: "especial" });
+    }
+    this.contar(`especial-${especial}`);
+  }
+
   /** Récord superado: destello y «¡RÉCORD!». */
   record(x: number, y: number, ahora: number): void {
     if (!this.opciones.reducido()) {
@@ -339,6 +387,23 @@ export class Efectos implements CapaEfectos {
   dibujarMundo(ctx: CanvasRenderingContext2D, ahora: number): void {
     const dt = Math.min(0.05, Math.max(0, (ahora - this.ultimo) / 1000));
     this.ultimo = ahora;
+    // Ola de cemento: una banda gris que baja de la pieza a la plataforma, con su borde de tinta.
+    this.olas = this.olas.filter((o) => ahora - o.desde < OLA_MS);
+    for (const o of this.olas) {
+      const t = (ahora - o.desde) / OLA_MS;
+      const y = o.arriba - Math.min(o.arriba, OLA_METROS) * t;
+      // Gris más oscuro que la piedra de la base, para que se vea al pasar por encima.
+      ctx.globalAlpha = 0.8 * (1 - t * 0.5);
+      ctx.fillStyle = ESPECIALES_DIBUJO.cemento.sombra;
+      ctx.fillRect(o.x - o.ancho / 2, y - 0.35, o.ancho, 0.7);
+      ctx.globalAlpha = 1 - t * 0.5;
+      ctx.strokeStyle = COLORES.tinta;
+      ctx.lineWidth = 0.08;
+      ctx.beginPath();
+      ctx.moveTo(o.x - o.ancho / 2, y);
+      ctx.lineTo(o.x + o.ancho / 2, y);
+      ctx.stroke();
+    }
     // Anillos del perfecto: amarillo y, algo desplazado, uno fino de tinta (registro).
     this.anillos = this.anillos.filter((a) => ahora - a.desde < 380);
     for (const a of this.anillos) {
@@ -445,6 +510,18 @@ export class Efectos implements CapaEfectos {
       } else if (t.tipo === "bien") {
         ctx.globalAlpha = 1 - ms / t.vida;
         textoImpreso(ctx, t.texto, p.x, p.y - (ms / t.vida) * 14 * ratio, 20 * ratio, COLORES.papel, COLORES.tinta);
+      } else if (t.tipo === "moneda") {
+        // «+10» de la dorada con una moneda dibujada a la izquierda.
+        const f = ms / t.vida;
+        const y = p.y - f * 50 * ratio;
+        ctx.globalAlpha = Math.min(1, (1 - f) * 2.5);
+        const px = 26 * ratio * escalaTexto(ms);
+        dibujarMoneda(ctx, p.x - px * 1.15, y, px * 0.42);
+        textoImpreso(ctx, t.texto, p.x + px * 0.35, y, px, COLORES.amarillo, COLORES.tinta);
+      } else if (t.tipo === "especial") {
+        const salida = Math.max(0, (ms - (t.vida - 200)) / 200);
+        ctx.globalAlpha = 1 - salida;
+        textoImpreso(ctx, t.texto, p.x, p.y - salida * 16 * ratio, 26 * ratio * escalaTexto(ms), COLORES.papel, COLORES.tinta);
       } else {
         const salida = Math.max(0, (ms - (t.vida - 200)) / 200);
         ctx.globalAlpha = 1 - salida;
@@ -491,6 +568,24 @@ function textoImpreso(ctx: CanvasRenderingContext2D, texto: string, x: number, y
   ctx.fillText(texto, x + desfase, y + desfase);
   ctx.fillStyle = relleno;
   ctx.fillText(texto, x, y);
+}
+
+/** Moneda: círculo amarillo con sombra, contorno de tinta y un brillo, en píxeles. */
+function dibujarMoneda(ctx: CanvasRenderingContext2D, x: number, y: number, radio: number): void {
+  ctx.fillStyle = COLORES.tinta;
+  ctx.beginPath();
+  ctx.arc(x + radio * 0.18, y + radio * 0.18, radio, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = COLORES.amarillo;
+  ctx.beginPath();
+  ctx.arc(x, y, radio, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = COLORES.tinta;
+  ctx.lineWidth = Math.max(1.5, radio * 0.16);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(x, y, radio * 0.58, 0, Math.PI * 2);
+  ctx.stroke();
 }
 
 /** Corazón dibujado con curvas (no es un carácter, G11), con contorno de tinta. */

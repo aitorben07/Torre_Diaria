@@ -33,6 +33,7 @@ export const ui = {
   barraRacha: () => elemento("barra-racha"),
   barraMonedas: () => elemento("barra-monedas"),
   avisoToque: () => elemento("aviso-toque"),
+  avisoEspecial: () => elemento("aviso-especial"),
   botonSonido: () => elemento<HTMLButtonElement>("boton-sonido"),
   botonVibracion: () => elemento<HTMLButtonElement>("boton-vibracion"),
   reto: () => elemento("reto"),

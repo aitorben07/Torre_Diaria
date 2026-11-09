@@ -8,6 +8,7 @@
 // repinta solo cuando se mueve la cámara. El grano va en un elemento encima del
 // lienzo, así que no cuesta nada por fotograma. Solo lee el estado de la
 // partida: no cambia puntos ni pasos.
+import type { Especial } from "../logica/especiales.ts";
 import { ALTO_MAX, verticesPieza, type Pieza } from "../logica/piezas.ts";
 import {
   HUECO_COLGADA,
@@ -16,7 +17,7 @@ import {
   type EstadoPartida,
 } from "../logica/simulacion.ts";
 import { crearAzarVisual, entreVisual } from "./efectos.ts";
-import { COLORES, ESCENARIO_PUERTO, FAMILIA, TEMA_RISO, mezclar, oscurecer, type Escenario, type Tema } from "./temas.ts";
+import { COLORES, ESCENARIO_PUERTO, ESPECIALES_DIBUJO, FAMILIA, TEMA_RISO, mezclar, oscurecer, type Escenario, type Tema } from "./temas.ts";
 
 /** Metros visibles a lo ancho de la columna de juego y a lo alto: el ancho cubre todo el vaivén. */
 export const ANCHO_VISTA = 9.2;
@@ -136,6 +137,173 @@ export function rutaPieza(pieza: Pick<Pieza, "forma" | "ancho" | "alto">): Path2
   return ruta;
 }
 
+/** Margen de la imagen de una especial: la miel de la pegajosa cuelga por debajo. */
+export const MARGEN_ESPECIAL = 0.22;
+
+/**
+ * Adornos de una pieza especial sobre su color (H3, Anexo G), en metros, con
+ * el centro de la pieza en el origen y la y hacia arriba, como en el mundo. Los
+ * usan el lienzo y la imagen de compartir. Dorada: brillo en diagonal y una
+ * estrella en la trama. Pegajosa: miel en el borde de abajo que gotea. Cemento:
+ * franja amarilla arriba y un saco dibujado.
+ */
+export function pintarAdornoEspecial(c: CanvasRenderingContext2D, pieza: Pick<Pieza, "forma" | "ancho" | "alto">, especial: Especial, ruta: Path2D): void {
+  const { adorno } = ESPECIALES_DIBUJO[especial];
+  const w = pieza.ancho / 2;
+  const h = pieza.alto / 2;
+  const lado = Math.min(pieza.ancho, pieza.alto);
+  c.save();
+  c.lineJoin = "round";
+  c.lineCap = "round";
+  if (especial === "dorada") {
+    c.save();
+    c.clip(ruta);
+    c.globalAlpha = 0.7;
+    c.fillStyle = adorno;
+    c.beginPath();
+    for (const [desde, ancho] of [[-0.42, 0.16], [-0.16, 0.06]] as const) {
+      c.moveTo(w * desde - h, -h);
+      c.lineTo(w * desde - h + ancho, -h);
+      c.lineTo(w * desde + h + ancho, h);
+      c.lineTo(w * desde + h, h);
+    }
+    c.fill();
+    c.restore();
+    // Abajo a la derecha, lejos de los ojos, que van sobre el centro.
+    estrellaEspecial(c, w * 0.6, -h * 0.38, Math.min(0.13, lado * 0.28), adorno);
+  } else if (especial === "pegajosa") {
+    const goteo = Math.min(0.18, pieza.alto * 0.5);
+    c.fillStyle = adorno;
+    c.save();
+    c.clip(ruta);
+    c.fillRect(-w, -h, pieza.ancho, Math.min(0.12, pieza.alto * 0.3));
+    c.restore();
+    // Gotas que cuelgan del borde, siempre las mismas para cada pieza.
+    const gotas = Math.max(2, Math.round(pieza.ancho / 0.32));
+    c.strokeStyle = COLORES.tinta;
+    c.lineWidth = CONTORNO * 0.7;
+    for (let i = 0; i < gotas; i++) {
+      const x = -w + (pieza.ancho * (i + 0.5)) / gotas;
+      const largo = goteo * (i % 2 === 0 ? 1 : 0.6);
+      const r = Math.min(0.07, pieza.ancho / gotas / 3);
+      c.beginPath();
+      c.moveTo(x - r, -h + 0.02);
+      c.lineTo(x - r * 0.8, -h - largo);
+      c.arc(x, -h - largo, r * 0.95, Math.PI, 0, true);
+      c.lineTo(x + r, -h + 0.02);
+      c.closePath();
+      c.fill();
+      c.stroke();
+    }
+  } else {
+    const franja = Math.min(0.1, pieza.alto * 0.22);
+    c.save();
+    c.clip(ruta);
+    c.fillStyle = COLORES.amarillo;
+    c.fillRect(-w, h - franja * 1.6, pieza.ancho, franja);
+    c.strokeStyle = COLORES.tinta;
+    c.lineWidth = CONTORNO * 0.6;
+    c.beginPath();
+    for (let x = -w; x < w; x += franja * 1.2) {
+      c.moveTo(x, h - franja * 0.6);
+      c.lineTo(x + franja, h - franja * 1.6);
+    }
+    c.stroke();
+    c.restore();
+    // Saco de cemento, abajo a la izquierda: rectángulo con la boca atada.
+    const ancho = Math.min(0.34, pieza.ancho * 0.34);
+    const alto = Math.min(0.3, pieza.alto * 0.42);
+    const x = -w * 0.5 - ancho / 2;
+    const y = -h + Math.min(0.06, pieza.alto * 0.12);
+    c.fillStyle = adorno;
+    c.strokeStyle = COLORES.tinta;
+    c.lineWidth = CONTORNO * 0.8;
+    c.beginPath();
+    c.roundRect(x, y, ancho, alto, Math.min(ancho, alto) * 0.25);
+    c.fill();
+    c.stroke();
+    c.beginPath();
+    c.moveTo(x + ancho * 0.3, y + alto);
+    c.lineTo(x + ancho * 0.5, y + alto * 0.82);
+    c.lineTo(x + ancho * 0.7, y + alto);
+    c.moveTo(x + ancho * 0.2, y + alto * 0.45);
+    c.lineTo(x + ancho * 0.8, y + alto * 0.45);
+    c.stroke();
+  }
+  c.restore();
+}
+
+/** Estrella de cinco puntas con contorno de tinta, en metros. */
+function estrellaEspecial(c: CanvasRenderingContext2D, x: number, y: number, radio: number, relleno: string): void {
+  c.beginPath();
+  for (let i = 0; i < 10; i++) {
+    const angulo = Math.PI / 2 + (i * Math.PI) / 5;
+    const r = i % 2 === 0 ? radio : radio * 0.45;
+    c.lineTo(x + Math.cos(angulo) * r, y + Math.sin(angulo) * r);
+  }
+  c.closePath();
+  c.fillStyle = relleno;
+  c.fill();
+  c.strokeStyle = COLORES.tinta;
+  c.lineWidth = CONTORNO * 0.7;
+  c.stroke();
+}
+
+/**
+ * Ojos de una especial (Anexo G), en metros como los adornos: la dorada con
+ * pestañas, la pegajosa entornados y la de cemento serios, con cejas rectas.
+ * Salen en todas las formas, para que se distinga ya en el gancho.
+ */
+export function pintarOjosEspecial(c: CanvasRenderingContext2D, pieza: Pick<Pieza, "ancho" | "alto">, especial: Especial): void {
+  const separacion = Math.min(0.2, pieza.ancho * 0.2);
+  const radio = Math.min(RADIO_OJO, pieza.alto * 0.18);
+  const y = Math.min(pieza.alto * 0.12, 0.1);
+  c.save();
+  c.lineCap = "round";
+  c.strokeStyle = COLORES.tinta;
+  for (const lado of [-1, 1]) {
+    const ox = lado * separacion;
+    c.fillStyle = COLORES.tinta;
+    if (especial === "pegajosa") {
+      // Entornados: medio ojo bajo un párpado recto.
+      c.beginPath();
+      c.arc(ox, y, radio, Math.PI, 0, true);
+      c.closePath();
+      c.fill();
+      c.lineWidth = 0.035;
+      c.beginPath();
+      c.moveTo(ox - radio * 1.3, y + 0.005);
+      c.lineTo(ox + radio * 1.3, y + 0.005);
+      c.stroke();
+      continue;
+    }
+    c.beginPath();
+    c.arc(ox, y, radio, 0, Math.PI * 2);
+    c.fill();
+    c.fillStyle = COLORES.papel;
+    c.beginPath();
+    c.arc(ox + radio * 0.35, y + radio * 0.35, radio * 0.32, 0, Math.PI * 2);
+    c.fill();
+    c.lineWidth = 0.025;
+    c.beginPath();
+    if (especial === "dorada") {
+      // Tres pestañas hacia fuera.
+      for (const giro of [-0.5, 0, 0.5]) {
+        const angulo = Math.PI / 2 + giro * lado - lado * 0.25;
+        c.moveTo(ox + Math.cos(angulo) * radio * 1.1, y + Math.sin(angulo) * radio * 1.1);
+        c.lineTo(ox + Math.cos(angulo) * radio * 1.75, y + Math.sin(angulo) * radio * 1.75);
+      }
+    } else {
+      // Ceja recta, algo caída hacia dentro: cara seria.
+      c.lineWidth = 0.035;
+      c.moveTo(ox - lado * radio * 1.1, y + radio * 1.35);
+      c.lineTo(ox + lado * radio * 1.3, y + radio * 1.7);
+    }
+    c.stroke();
+  }
+  c.restore();
+}
+
 /** Lo que el dibujo recuerda de cada pieza: parpadeo y caras (A2) y deformación (A3). */
 export type VistaPieza = {
   proximoParpadeo: number;
@@ -146,6 +314,7 @@ export type VistaPieza = {
 };
 
 type ImagenPieza = { escala: number; tema: Tema; color: HTMLCanvasElement; sombra: HTMLCanvasElement; ancho: number; alto: number };
+type Variante = "normal" | "piedra" | Especial;
 
 /** Decorado que aparece al subir (Anexo 1, 1.4). */
 type Adorno = { tipo: "gaviota" | "globo" | "avion"; x: number; y: number; fase: number; color: string; velocidad: number };
@@ -187,7 +356,8 @@ export class Lienzo {
   private nubes: HTMLCanvasElement | null = null;
   private estrellas: HTMLCanvasElement | null = null;
   private readonly rutas = new WeakMap<Pieza, Path2D>();
-  private readonly imagenes = new WeakMap<Pieza, { normal?: ImagenPieza; piedra?: ImagenPieza }>();
+  /** Imagen de cada pieza por variante: normal, piedra (cementada) o el tipo de especial (H3). */
+  private readonly imagenes = new WeakMap<Pieza, Map<Variante, ImagenPieza>>();
   /** Fondo ya pintado (cielo, capas, muelle y marcas) y la cámara con que se pintó. */
   private fondo: HTMLCanvasElement | null = null;
   private fondoCamara = { y: Number.NaN, zoom: Number.NaN };
@@ -1090,16 +1260,19 @@ export class Lienzo {
    * primera vez y se reutiliza: por fotograma solo hay `drawImage`. Se pinta con
    * la y hacia abajo para que salga derecha en el mundo, que la tiene hacia arriba.
    */
-  private crearImagenPieza(pieza: Pieza, piedra: boolean): ImagenPieza {
+  private crearImagenPieza(pieza: Pieza, variante: Variante): ImagenPieza {
     const { escala, tema } = this;
-    const ancho = pieza.ancho + 2 * MARGEN_IMAGEN;
-    const alto = pieza.alto + 2 * MARGEN_IMAGEN;
+    const piedra = variante === "piedra";
+    const especial = piedra || variante === "normal" ? null : variante;
+    const margen = especial ? MARGEN_ESPECIAL : MARGEN_IMAGEN;
+    const ancho = pieza.ancho + 2 * margen;
+    const alto = pieza.alto + 2 * margen;
     const ruta = this.ruta(pieza);
     const [color, c] = this.lienzoAparte(ancho * escala, alto * escala);
     const centro = () => c.setTransform(escala, 0, 0, escala, color.width / 2, color.height / 2);
     centro();
     c.translate(REGISTRO_X, REGISTRO_Y);
-    c.fillStyle = piedra ? tema.piedra : (tema.piezas[pieza.color] ?? COLORES.papelOscuro);
+    c.fillStyle = especial ? ESPECIALES_DIBUJO[especial].relleno : piedra ? tema.piedra : (tema.piezas[pieza.color] ?? COLORES.papelOscuro);
     c.fill(ruta);
     if (this.trama) {
       this.trama.setTransform(new DOMMatrix().scale(1 / escala).rotate(45));
@@ -1109,7 +1282,7 @@ export class Lienzo {
       c.fillRect(-pieza.ancho / 2, 0, pieza.ancho, pieza.alto / 2);
       c.restore();
     }
-    if (tema.textura && !piedra) {
+    if (tema.textura && !piedra && !especial) {
       c.save();
       c.clip(ruta);
       this.pintarTextura(c, pieza, tema.textura);
@@ -1126,7 +1299,8 @@ export class Lienzo {
         c.fill();
       }
     }
-    if (tema.filo && !piedra) {
+    if (especial) pintarAdornoEspecial(c, pieza, especial, ruta);
+    if (tema.filo && !piedra && !especial) {
       // Filo de luz por dentro del contorno: se pinta ancho, recortado a la pieza.
       c.save();
       c.clip(ruta);
@@ -1136,13 +1310,13 @@ export class Lienzo {
       c.stroke(ruta);
       c.restore();
     }
-    c.strokeStyle = tema.contorno;
-    c.lineWidth = CONTORNO;
+    c.strokeStyle = especial ? ESPECIALES_DIBUJO[especial].contorno : tema.contorno;
+    c.lineWidth = especial ? CONTORNO * 1.5 : CONTORNO;
     c.lineJoin = "round";
     c.stroke(ruta);
     const [sombra, s] = this.lienzoAparte(color.width, color.height);
     s.setTransform(escala, 0, 0, escala, sombra.width / 2, sombra.height / 2);
-    s.fillStyle = piedra ? oscurecer(tema.piedra, 0.35) : (this.sombras[pieza.color] ?? COLORES.tinta);
+    s.fillStyle = especial ? ESPECIALES_DIBUJO[especial].sombra : piedra ? oscurecer(tema.piedra, 0.35) : (this.sombras[pieza.color] ?? COLORES.tinta);
     s.fill(ruta);
     return { escala, tema, color, sombra, ancho, alto };
   }
@@ -1203,17 +1377,16 @@ export class Lienzo {
     c.globalAlpha = 1;
   }
 
-  private imagenPieza(pieza: Pieza, piedra: boolean): ImagenPieza {
-    let par = this.imagenes.get(pieza);
-    if (!par) {
-      par = {};
-      this.imagenes.set(pieza, par);
+  private imagenPieza(pieza: Pieza, variante: Variante): ImagenPieza {
+    let variantes = this.imagenes.get(pieza);
+    if (!variantes) {
+      variantes = new Map();
+      this.imagenes.set(pieza, variantes);
     }
-    const hecha = piedra ? par.piedra : par.normal;
+    const hecha = variantes.get(variante);
     if (hecha && hecha.escala === this.escala && hecha.tema === this.tema) return hecha;
-    const nueva = this.crearImagenPieza(pieza, piedra);
-    if (piedra) par.piedra = nueva;
-    else par.normal = nueva;
+    const nueva = this.crearImagenPieza(pieza, variante);
+    variantes.set(variante, nueva);
     return nueva;
   }
 
@@ -1224,8 +1397,9 @@ export class Lienzo {
    */
   private dibujarPieza(cuerpo: CuerpoVisible, ahora: number, sombra: boolean, giroExtra = 0, pivote = 0): void {
     const { ctx, tema } = this;
-    const { pieza, x, y, angulo, cementada = false } = cuerpo;
-    const imagen = this.imagenPieza(pieza, cementada);
+    const { pieza, x, y, angulo, cementada = false, especial } = cuerpo;
+    // Cementada, cualquier pieza es piedra (también una especial): lo de abajo ya no se mueve.
+    const imagen = this.imagenPieza(pieza, cementada ? "piedra" : (especial ?? "normal"));
     const deformacion = this.efectos?.deformacion(pieza, ahora) ?? { x: 1, y: 1 };
     ctx.save();
     ctx.translate(x + (sombra ? SOMBRA_X : 0), y + (sombra ? SOMBRA_Y : 0) + pivote);
@@ -1235,10 +1409,34 @@ export class Lienzo {
     ctx.scale(deformacion.x, deformacion.y);
     ctx.translate(0, pieza.alto / 2);
     ctx.drawImage(sombra ? imagen.sombra : imagen.color, -imagen.ancho / 2, -imagen.alto / 2, imagen.ancho, imagen.alto);
-    if (!sombra && tema.ojos && !cementada && (pieza.forma === "bloque" || pieza.forma === "cuadrado")) {
+    if (!sombra && especial && !cementada) {
+      pintarOjosEspecial(ctx, pieza, especial);
+      if (especial === "dorada") this.dibujarDestello(pieza, ahora);
+    } else if (!sombra && tema.ojos && !cementada && (pieza.forma === "bloque" || pieza.forma === "cuadrado")) {
       this.dibujarOjos(pieza, ahora, Math.abs(angulo + giroExtra) > SUSTO, giroExtra);
     }
     ctx.restore();
+  }
+
+  /** Destello de la dorada (H3): una chispa de cuatro puntas que aparece y se va en una esquina, cada 1,4 s. */
+  private dibujarDestello(pieza: Pieza, ahora: number): void {
+    const fase = (ahora / 1400 + pieza.ancho) % 1;
+    if (fase > 0.3) return;
+    const { ctx } = this;
+    const tam = Math.sin((fase / 0.3) * Math.PI) * Math.min(0.2, pieza.alto * 0.45);
+    const x = -pieza.ancho / 2 + 0.1;
+    const y = pieza.alto / 2 - 0.06;
+    ctx.fillStyle = COLORES.papel;
+    ctx.strokeStyle = COLORES.tinta;
+    ctx.lineWidth = 0.02;
+    ctx.beginPath();
+    ctx.moveTo(x, y + tam);
+    ctx.quadraticCurveTo(x, y, x + tam, y);
+    ctx.quadraticCurveTo(x, y, x, y - tam);
+    ctx.quadraticCurveTo(x, y, x - tam, y);
+    ctx.quadraticCurveTo(x, y, x, y + tam);
+    ctx.fill();
+    ctx.stroke();
   }
 
   /** Ojos: parpadean, se cierran contentos en un perfecto y se abren mucho si la pieza se inclina. */
@@ -1323,7 +1521,7 @@ export class Lienzo {
     ctx.moveTo(x, arriba);
     ctx.lineTo(x, ganchoY + 0.12);
     ctx.stroke();
-    const cuerpo: CuerpoVisible = { pieza, x, y, angulo: 0 };
+    const cuerpo: CuerpoVisible = colgada.especial ? { pieza, x, y, angulo: 0, especial: colgada.especial } : { pieza, x, y, angulo: 0 };
     const pivote = ganchoY - y;
     this.dibujarPieza(cuerpo, ahora, true, this.inclinacion, pivote);
     this.dibujarPieza(cuerpo, ahora, false, this.inclinacion, pivote);
