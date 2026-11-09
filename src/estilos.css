@@ -46,8 +46,8 @@
 }
 
 /* Interfaz «Riso» (A5, Anexo 1, 1.7): papel, tinta de 3 px y sombras
-   desplazadas sin difuminar. El escenario ocupa toda la pantalla; el HUD, los
-   paneles y la barra de abajo van en la columna de juego, centrada. */
+   desplazadas sin difuminar. El escenario ocupa toda la pantalla; el HUD, la
+   pantalla de inicio y los paneles van en la columna de juego, centrada. */
 *,
 *::before,
 *::after {
@@ -235,12 +235,25 @@ body {
   font-size: 1.6rem;
 }
 
-/* Hueco del botón de pausa (E3), 44×44 px. */
-.hud-pausa {
+/* Botón de pausa (E3), 44×44 px, en el hueco que reservó el marcador (A1).
+   Solo se ve durante la partida. */
+.hud .hud-pausa {
   grid-area: pausa;
   justify-self: end;
   width: 2.75rem;
   height: 2.75rem;
+  pointer-events: auto;
+}
+
+#juego:not([data-estado="jugando"]) .hud-pausa {
+  visibility: hidden;
+}
+
+/* En el inicio, y en los paneles que se abren desde él, no hay marcador (E2).
+   Se oculta sin quitarlo del flujo: el lienzo se encaja con su caja. */
+#juego[data-estado="inicio"] .hud,
+#juego[data-debajo="inicio"] .hud {
+  visibility: hidden;
 }
 
 .lado {
@@ -442,26 +455,6 @@ body {
   flex-basis: 100%;
 }
 
-/* Barra de abajo. */
-.abajo {
-  bottom: 0;
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 0.5rem;
-  padding: 0 0.75rem max(0.75rem, env(safe-area-inset-bottom));
-  pointer-events: none;
-}
-
-.abajo button {
-  pointer-events: auto;
-}
-
-.ajustes {
-  display: flex;
-  gap: 0.5rem;
-}
-
 /* Botones gruesos de tinta que bajan al pulsarlos. */
 button {
   min-width: 44px;
@@ -597,7 +590,8 @@ button.icono[aria-pressed="false"] {
     animation: none;
   }
 
-  button {
+  button,
+  .pildora::after {
     transition: none;
   }
 }
@@ -636,28 +630,12 @@ svg.llama path {
   stroke-linejoin: round;
 }
 
-/* Barra de abajo (C2, D2): Retos con la racha y Colección con las monedas. */
-.modos {
-  display: flex;
-  gap: 0.5rem;
-}
-
+/* Botón con icono y cifra: la ficha de monedas del inicio. */
 button.con-icono {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
   padding: 0.45rem 0.7rem;
-}
-
-.insignia {
-  min-width: 1.6rem;
-  padding: 0 0.35rem;
-  border: 2px solid var(--tinta);
-  border-radius: 999px;
-  background: var(--rosa);
-  font-size: 0.85rem;
-  font-weight: 800;
-  text-align: center;
 }
 
 /* Premios del fin (C2, D1). */
@@ -1067,40 +1045,6 @@ button.dia.futuro {
 @media (prefers-reduced-motion: reduce) {
   .sello {
     animation: none;
-  }
-}
-
-/* Barra de abajo con Niveles (E3): en el móvil, solo iconos con su cifra
-   (el nombre va en `aria-label`); en pantallas anchas la barra se ensancha
-   más allá de la columna y lleva también los nombres. */
-.abajo {
-  --barra: max(var(--columna), min(100vw, 36rem));
-  left: calc(50% - var(--barra) / 2);
-  width: var(--barra);
-}
-
-.abajo .etiqueta {
-  display: none;
-}
-
-@media (min-width: 36rem) {
-  .abajo .etiqueta {
-    display: inline;
-  }
-}
-
-@media (max-width: 26rem) {
-  .abajo {
-    padding-left: 0.5rem;
-    padding-right: 0.5rem;
-  }
-
-  .modos {
-    gap: 0.4rem;
-  }
-
-  button.con-icono {
-    padding: 0.45rem 0.55rem;
   }
 }
 
@@ -1565,4 +1509,237 @@ svg.candado {
   .compartir-botones button {
     flex: none;
   }
+}
+
+/* Pantalla de inicio (E2, Anexo B): monedas y ajustes arriba, el logo y, sobre
+   el puerto, «Jugar» y las tarjetas. En medio queda el escenario con la pieza
+   que se mece. No recoge toques fuera de sus botones. */
+.inicio {
+  top: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: max(0.75rem, env(safe-area-inset-top)) 0.9rem max(1rem, env(safe-area-inset-bottom));
+  pointer-events: none;
+}
+
+.inicio button {
+  pointer-events: auto;
+}
+
+.inicio-arriba {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.ficha-monedas {
+  font-size: 1.1rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.inicio-arriba svg .rueda {
+  fill: var(--amarillo);
+}
+
+/* Logo provisional (hasta el bloque G): dos líneas impresas fuera de registro. */
+.logo {
+  align-self: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 0.2rem 0 0;
+  padding: 0.3rem 1.1rem 0.45rem;
+  border: var(--borde) solid var(--tinta);
+  border-radius: var(--radio);
+  background: var(--papel);
+  box-shadow: 6px 6px 0 var(--tinta);
+  font-size: min(3.4rem, calc(var(--columna) * 0.13));
+  font-weight: 800;
+  line-height: 0.95;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  transform: rotate(-2deg);
+}
+
+.logo span:first-child {
+  text-shadow: 3px 3px 0 var(--rosa);
+}
+
+.logo span:last-child {
+  color: var(--rosa);
+  text-shadow: 3px 3px 0 var(--tinta);
+}
+
+.inicio-abajo {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.inicio .siguiente {
+  align-self: center;
+  max-width: 100%;
+  padding: 0.25rem 0.75rem;
+  border: 2px solid var(--tinta);
+  border-radius: 999px;
+  background: var(--papel);
+  font-size: 0.9rem;
+}
+
+/* «Jugar»: el botón dominante, rosa y grande. */
+button.jugar {
+  padding: 0.8rem 1rem;
+  font-size: 1.75rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  box-shadow: 0 6px 0 var(--tinta);
+}
+
+button.jugar:active {
+  transform: translateY(4px);
+  box-shadow: 0 2px 0 var(--tinta);
+}
+
+.tarjetas {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+button.tarjeta {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  padding: 0.45rem 0.55rem 0.5rem;
+  text-align: left;
+}
+
+.tarjeta-cabeza {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 1.3rem;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.tarjeta-cabeza svg {
+  width: 1.45rem;
+  height: 1.45rem;
+}
+
+.tarjeta-nombre {
+  font-size: 0.95rem;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.tarjeta-estado {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.15;
+}
+
+/* Reto de hoy sin jugar: un punto rosa. */
+.punto {
+  flex: none;
+  width: 0.65rem;
+  height: 0.65rem;
+  border: 2px solid var(--tinta);
+  border-radius: 50%;
+  background: var(--rosa);
+}
+
+.tarjeta-estado .medalla {
+  width: 0.85rem;
+  height: 0.85rem;
+}
+
+.tarjeta-estado .medalla::before {
+  display: none;
+}
+
+svg.bolsa path {
+  fill: var(--turquesa);
+  stroke: var(--tinta);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+/* Pausa (E3): botones en columna, «Seguir» el primero. */
+.pausa .acciones {
+  flex-direction: column;
+}
+
+.pausa .acciones button {
+  flex: none;
+}
+
+/* Ajustes (C2): interruptores con `role="switch"`, de una fila entera. */
+.interruptores {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+button.interruptor {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  text-align: left;
+  font-size: 1.05rem;
+}
+
+.pildora {
+  position: relative;
+  flex: none;
+  width: 3.2rem;
+  height: 1.8rem;
+  border: var(--borde) solid var(--tinta);
+  border-radius: 999px;
+  background: var(--papel-oscuro);
+}
+
+.pildora::after {
+  content: "";
+  position: absolute;
+  top: 0.15rem;
+  left: 0.15rem;
+  width: 1.15rem;
+  height: 1.15rem;
+  border-radius: 50%;
+  background: var(--tinta);
+  transition: transform 120ms ease-out;
+}
+
+button.interruptor[aria-checked="true"] .pildora {
+  background: var(--turquesa);
+}
+
+button.interruptor[aria-checked="true"] .pildora::after {
+  border: 2px solid var(--tinta);
+  background: var(--papel);
+  transform: translateX(1.4rem);
+}
+
+.creditos {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.6rem 0.75rem;
+  border: 2px solid var(--tinta);
+  border-radius: 8px;
+  background: var(--papel-oscuro);
+  font-size: 0.92rem;
 }

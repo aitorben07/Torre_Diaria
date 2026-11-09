@@ -32,7 +32,7 @@ const favicon =
     <link rel="icon" type="image/svg+xml" href={favicon} />
   </head>
   <body>
-    <main id="juego" data-estado="jugando" data-modo="libre">
+    <main id="juego" data-estado="inicio" data-modo="libre">
       <h1 class="solo-lectores">Torre Diaria</h1>
       <div id="zona" class="zona">
         <canvas id="lienzo" aria-label="Zona de juego: toca o pulsa Espacio para soltar la pieza"></canvas>
@@ -49,9 +49,71 @@ const favicon =
             <p id="record" class="record" hidden></p>
             <p id="hud-meta" class="record meta" hidden></p>
           </div>
+          {/* Pausa (E3): en el hueco que el marcador ya reservaba (A1). */}
+          <button id="boton-pausa" type="button" class="icono hud-pausa" aria-label="Pausa">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path class="cuerpo" d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z" /></svg>
+          </button>
         </header>
         <p id="aviso-toque" class="aviso-toque" hidden>Toca para soltar</p>
         <p id="aviso-especial" class="aviso-especial" role="status" hidden></p>
+
+        {/* Pantalla de inicio (E2, Anexo B): monedas y ajustes arriba, el logo, «Jugar» sobre el puerto y las tarjetas. */}
+        <section id="inicio" class="inicio columna" aria-label="Inicio">
+          <div class="inicio-arriba">
+            <button id="inicio-monedas" type="button" class="con-icono ficha-monedas" aria-label="Colección: 0 monedas">
+              <svg class="moneda" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><circle class="canto" cx="12" cy="12" r="5.5" /></svg>
+              <span id="inicio-monedas-numero" aria-hidden="true">0</span>
+            </button>
+            <button id="inicio-ajustes" type="button" class="icono" aria-label="Ajustes">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path class="rueda" d="M10.3 2.5h3.4l.5 2.6 1.7.7 2.2-1.5 2.4 2.4-1.5 2.2.7 1.7 2.6.5v3.4l-2.6.5-.7 1.7 1.5 2.2-2.4 2.4-2.2-1.5-1.7.7-.5 2.6h-3.4l-.5-2.6-1.7-.7-2.2 1.5-2.4-2.4 1.5-2.2-.7-1.7-2.6-.5v-3.4l2.6-.5.7-1.7-1.5-2.2 2.4-2.4 2.2 1.5 1.7-.7z" />
+                <circle cx="12" cy="12" r="3.2" />
+              </svg>
+            </button>
+          </div>
+          {/* Logo provisional en texto hasta el bloque G; el título para lectores es el <h1>. */}
+          <p class="logo" aria-hidden="true"><span>Torre</span><span>Diaria</span></p>
+          <div class="inicio-abajo">
+            <p id="inicio-siguiente" class="siguiente" hidden></p>
+            <button id="inicio-jugar" type="button" class="principal jugar">Jugar</button>
+            <div class="tarjetas">
+              <button id="tarjeta-reto" type="button" class="tarjeta" aria-label="Reto de hoy">
+                <span class="tarjeta-cabeza" aria-hidden="true">
+                  <svg class="llama" viewBox="0 0 24 24"><path d="M12 2c1 4 6 6 6 12a6 6 0 0 1-12 0c0-3 2-5 3-6 0 2 1 3 2 3 0-4-1-6 1-9z" /></svg>
+                  <span id="tarjeta-racha" class="tarjeta-cifra">0</span>
+                </span>
+                <span class="tarjeta-nombre" aria-hidden="true">Reto de hoy</span>
+                <span class="tarjeta-estado" aria-hidden="true"><span id="tarjeta-reto-marca" class="punto"></span><span id="tarjeta-reto-texto">Sin jugar</span></span>
+              </button>
+              <button id="tarjeta-niveles" type="button" class="tarjeta" aria-label="Niveles">
+                <span class="tarjeta-cabeza" aria-hidden="true">
+                  <svg class="estrella llena" viewBox="0 0 24 24"><path d="M12 2.6l2.8 5.9 6.5.8-4.8 4.5 1.2 6.4L12 17l-5.7 3.2 1.2-6.4-4.8-4.5 6.5-.8z" /></svg>
+                  <span id="tarjeta-estrellas" class="tarjeta-cifra">0</span>
+                </span>
+                <span class="tarjeta-nombre" aria-hidden="true">Niveles</span>
+                <span id="tarjeta-nivel" class="tarjeta-estado" aria-hidden="true">Nivel 1</span>
+              </button>
+              <button id="tarjeta-coleccion" type="button" class="tarjeta" aria-label="Colección: piezas y escenarios">
+                <span class="tarjeta-cabeza" aria-hidden="true">
+                  <svg class="bolsa" viewBox="0 0 24 24"><path d="M5 8h14l-1 13H6zM9 8V6a3 3 0 0 1 6 0v2" /></svg>
+                </span>
+                <span class="tarjeta-nombre" aria-hidden="true">Colección</span>
+                <span class="tarjeta-estado" aria-hidden="true">Piezas y escenarios</span>
+              </button>
+            </div>
+          </div>
+        </section>
+
+        {/* Pausa (E3): en el reto diario, sin «Inicio» (impacto §5, R-3). */}
+        <section id="pausa" class="panel columna pausa" aria-labelledby="pausa-titulo" hidden>
+          <h2 id="pausa-titulo">Pausa</h2>
+          <p id="pausa-texto" class="suave"></p>
+          <div class="acciones">
+            <button id="boton-seguir" type="button" class="principal">Seguir</button>
+            <button id="pausa-ajustes" type="button">Ajustes</button>
+            <button id="pausa-inicio" type="button">Inicio</button>
+          </div>
+        </section>
 
         <section id="reto" class="panel columna" aria-labelledby="reto-titulo" hidden>
           <h2 id="reto-titulo">Reto de un amigo</h2>
@@ -94,6 +156,7 @@ const favicon =
             <button id="boton-repetir-nivel" type="button" hidden>Repetir</button>
             <button id="boton-mapa" type="button" hidden>Mapa</button>
             <button id="boton-libre-nivel" type="button" hidden>Partida libre</button>
+            <button id="boton-inicio" type="button">Inicio</button>
           </div>
           {/* Compartir (F1, F3): vista previa de la imagen en un canvas (no <img>, S17), el texto y sus botones. */}
           <div class="compartir">
@@ -221,41 +284,32 @@ const favicon =
           <p id="coleccion-mensaje" role="status"></p>
         </section>
 
-        {/* Barra de abajo: retos (con la racha), niveles (con las estrellas) y colección (con las monedas) a la izquierda; sonido y vibración a la derecha. */}
-        <nav class="abajo columna" aria-label="Juego">
-          <div class="modos">
-            <button id="boton-retos" type="button" class="con-icono" aria-label="Retos">
-              <svg class="llama" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2c1 4 6 6 6 12a6 6 0 0 1-12 0c0-3 2-5 3-6 0 2 1 3 2 3 0-4-1-6 1-9z" /></svg>
-              <span class="etiqueta" aria-hidden="true">Retos</span>
-              <span id="barra-racha" class="insignia" aria-hidden="true">0</span>
-            </button>
-            <button id="boton-niveles" type="button" class="con-icono" aria-label="Niveles">
-              <svg class="estrella llena" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.6l2.8 5.9 6.5.8-4.8 4.5 1.2 6.4L12 17l-5.7 3.2 1.2-6.4-4.8-4.5 6.5-.8z" /></svg>
-              <span class="etiqueta" aria-hidden="true">Niveles</span>
-              <span id="barra-estrellas" aria-hidden="true">0</span>
-            </button>
-            <button id="boton-coleccion" type="button" class="con-icono" aria-label="Colección">
-              <svg class="moneda" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><circle class="canto" cx="12" cy="12" r="5.5" /></svg>
-              <span id="barra-monedas" aria-hidden="true">0</span>
+        {/* Ajustes (C2, Anexo C con impacto §5): interruptores, créditos con la privacidad y la versión. */}
+        <section id="ajustes" class="panel columna" aria-labelledby="ajustes-titulo" hidden>
+          <div class="cabecera">
+            <h2 id="ajustes-titulo">Ajustes</h2>
+            <button id="cerrar-ajustes" type="button" class="icono" aria-label="Cerrar">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
             </button>
           </div>
-          <div class="ajustes">
-            <button id="boton-sonido" type="button" class="icono" aria-pressed="true" aria-label="Sonido">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path class="cuerpo" d="M4 9h4l5-4v14l-5-4H4z" />
-                <path class="si" d="M16 9a4 4 0 0 1 0 6M18.5 6.5a7.5 7.5 0 0 1 0 11" />
-                <path class="no" d="M16 9l5 6M21 9l-5 6" />
-              </svg>
+          <div class="interruptores">
+            <button id="ajuste-sonidos" type="button" role="switch" aria-checked="true" class="interruptor">
+              <span>Sonidos</span><span class="pildora" aria-hidden="true"></span>
             </button>
-            <button id="boton-vibracion" type="button" class="icono" aria-pressed="true" aria-label="Vibración" hidden>
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <rect class="cuerpo" x="8" y="4" width="8" height="16" rx="1.5" />
-                <path class="si" d="M5 8v8M2.5 10v4M19 8v8M21.5 10v4" />
-                <path class="no" d="M4 4l16 16" />
-              </svg>
+            <button id="ajuste-vibracion" type="button" role="switch" aria-checked="true" class="interruptor" hidden>
+              <span>Vibración</span><span class="pildora" aria-hidden="true"></span>
             </button>
           </div>
-        </nav>
+          <button id="boton-creditos" type="button" aria-expanded="false" aria-controls="creditos">Créditos y licencias</button>
+          <div id="creditos" class="creditos" hidden>
+            <p>Letra: Bricolage Grotesque (OFL-1.1).</p>
+            <p>Física: planck (MIT).</p>
+            <p>Sonidos sintetizados en código para Torre Diaria.</p>
+            <p><strong>Privacidad.</strong> Todo se guarda solo en este navegador. No hay cuentas, ni cookies de terceros, ni anuncios.</p>
+          </div>
+          <p id="ajustes-version" class="suave"></p>
+        </section>
+
         <div id="grano" class="grano" aria-hidden="true"></div>
       </div>
     </main>

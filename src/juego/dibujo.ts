@@ -406,6 +406,11 @@ export class Lienzo {
     return { escala: this.escala, zoom: this.zoom };
   }
 
+  /** Metros que se ven sobre la plataforma con la cámara de ahora (escena de inicio, E2). */
+  get metrosVisibles(): number {
+    return this.canvas.height / (this.escala * this.zoom) - (MARGEN_SUELO - this.camaraY);
+  }
+
   usarEfectos(efectos: CapaEfectos): void {
     this.efectos = efectos;
   }

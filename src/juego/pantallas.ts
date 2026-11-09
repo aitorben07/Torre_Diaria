@@ -1,4 +1,4 @@
-// HUD, barra de abajo, aviso del reto de un amigo, pantalla de fin y copiar
+// HUD, pantalla de inicio, aviso del reto de un amigo, pantalla de fin y copiar
 // (compartir y descargar la imagen, en `compartir.ts`). Todo texto que viene del enlace o del almacenamiento se escribe
 // con `textContent`, nunca como HTML.
 import type { Medalla } from "../logica/economia.ts";
@@ -26,16 +26,35 @@ export const ui = {
   combo: () => elemento("combo"),
   record: () => elemento("record"),
   meta: () => elemento("hud-meta"),
-  botonRetos: () => elemento<HTMLButtonElement>("boton-retos"),
-  botonNiveles: () => elemento<HTMLButtonElement>("boton-niveles"),
-  barraEstrellas: () => elemento("barra-estrellas"),
-  botonColeccion: () => elemento<HTMLButtonElement>("boton-coleccion"),
-  barraRacha: () => elemento("barra-racha"),
-  barraMonedas: () => elemento("barra-monedas"),
+  botonPausa: () => elemento<HTMLButtonElement>("boton-pausa"),
+  inicio: () => elemento("inicio"),
+  inicioMonedas: () => elemento<HTMLButtonElement>("inicio-monedas"),
+  inicioMonedasNumero: () => elemento("inicio-monedas-numero"),
+  inicioAjustes: () => elemento<HTMLButtonElement>("inicio-ajustes"),
+  inicioSiguiente: () => elemento("inicio-siguiente"),
+  botonJugar: () => elemento<HTMLButtonElement>("inicio-jugar"),
+  tarjetaReto: () => elemento<HTMLButtonElement>("tarjeta-reto"),
+  tarjetaRacha: () => elemento("tarjeta-racha"),
+  tarjetaRetoMarca: () => elemento("tarjeta-reto-marca"),
+  tarjetaRetoTexto: () => elemento("tarjeta-reto-texto"),
+  tarjetaNiveles: () => elemento<HTMLButtonElement>("tarjeta-niveles"),
+  tarjetaEstrellas: () => elemento("tarjeta-estrellas"),
+  tarjetaNivel: () => elemento("tarjeta-nivel"),
+  tarjetaColeccion: () => elemento<HTMLButtonElement>("tarjeta-coleccion"),
+  pausa: () => elemento("pausa"),
+  pausaTexto: () => elemento("pausa-texto"),
+  botonSeguir: () => elemento<HTMLButtonElement>("boton-seguir"),
+  pausaAjustes: () => elemento<HTMLButtonElement>("pausa-ajustes"),
+  pausaInicio: () => elemento<HTMLButtonElement>("pausa-inicio"),
+  ajustes: () => elemento("ajustes"),
+  ajusteSonidos: () => elemento<HTMLButtonElement>("ajuste-sonidos"),
+  ajusteVibracion: () => elemento<HTMLButtonElement>("ajuste-vibracion"),
+  botonCreditos: () => elemento<HTMLButtonElement>("boton-creditos"),
+  creditos: () => elemento("creditos"),
+  ajustesVersion: () => elemento("ajustes-version"),
+  botonCerrarAjustes: () => elemento<HTMLButtonElement>("cerrar-ajustes"),
   avisoToque: () => elemento("aviso-toque"),
   avisoEspecial: () => elemento("aviso-especial"),
-  botonSonido: () => elemento<HTMLButtonElement>("boton-sonido"),
-  botonVibracion: () => elemento<HTMLButtonElement>("boton-vibracion"),
   reto: () => elemento("reto"),
   avisoReto: () => elemento("aviso-reto"),
   comparacion: () => elemento("comparacion"),
@@ -76,6 +95,7 @@ export const ui = {
   finImagen: () => elemento<HTMLCanvasElement>("fin-imagen"),
   mensaje: () => elemento("mensaje"),
   botonOtraVez: () => elemento<HTMLButtonElement>("boton-otra-vez"),
+  botonInicio: () => elemento<HTMLButtonElement>("boton-inicio"),
   retos: () => elemento("retos"),
   niveles: () => elemento("niveles"),
   coleccion: () => elemento("coleccion"),
@@ -85,8 +105,19 @@ export const ui = {
   mensajeColeccion: () => elemento("coleccion-mensaje"),
 };
 
-export function cambiarEstado(estado: Pantalla): void {
-  ui.juego().dataset.estado = estado;
+/**
+ * Muestra la pantalla `estado`. `debajo` es la pantalla sobre la que se abre
+ * un panel: si es el inicio, el HUD sigue oculto (lo oculta el CSS con
+ * `data-debajo`).
+ */
+export function cambiarEstado(estado: Pantalla, debajo: Pantalla | null = null): void {
+  const juego = ui.juego();
+  juego.dataset.estado = estado;
+  if (debajo) juego.dataset.debajo = debajo;
+  else delete juego.dataset.debajo;
+  ui.inicio().hidden = estado !== "inicio";
+  ui.pausa().hidden = estado !== "pausa";
+  ui.ajustes().hidden = estado !== "ajustes";
   ui.reto().hidden = estado !== "reto";
   ui.fin().hidden = estado !== "fin";
   ui.retos().hidden = estado !== "retos";
@@ -167,16 +198,59 @@ export function pintarHud({ puntos, vidas, vidasMax, combo, record, meta = null 
   mostrarTexto(ui.meta(), meta);
 }
 
-/** Barra de abajo (C2, D2, E3): racha en Retos, estrellas en Niveles y monedas en Colección, también para lectores. */
-export function pintarBarra({ racha, monedas, estrellas }: { racha: number; monedas: number; estrellas: number }): void {
-  ui.barraRacha().textContent = String(racha);
-  ui.barraEstrellas().textContent = String(estrellas);
-  ui.botonNiveles().setAttribute("aria-label", `Niveles: ${estrellas} ${estrellas === 1 ? "estrella" : "estrellas"}`);
-  ui.barraMonedas().textContent = formatearNumero(monedas);
-  ui.botonRetos().setAttribute("aria-label", racha > 0 ? `Retos: racha de ${racha} ${racha === 1 ? "día" : "días"}` : "Retos");
-  ui.botonColeccion().setAttribute("aria-label", `Colección: ${formatearNumero(monedas)} ${monedas === 1 ? "moneda" : "monedas"}`);
+export type DatosInicio = {
+  monedas: number;
+  racha: number;
+  /** Día de hoy y, si ya se jugó su oficial, su medalla y sus puntos. */
+  hoy: number;
+  jugadoHoy: { medalla: Medalla | null; puntos: number } | null;
+  /** Siguiente nivel disponible y estrellas totales. */
+  nivel: number;
+  estrellas: number;
+  /** Objetivo cercano («Te faltan 120 monedas para Madera»), o `null` (Anexo B). */
+  siguiente: string | null;
+};
+
+/**
+ * Pantalla de inicio (E2, Anexo B): monedas, reto de hoy (sin jugar con un
+ * punto rosa, o su medalla y puntos; la racha sobre la llama), niveles
+ * (siguiente nivel y estrellas) y el objetivo cercano. También para lectores.
+ */
+export function pintarInicio({ monedas, racha, hoy, jugadoHoy, nivel, estrellas, siguiente }: DatosInicio): void {
+  const textoMonedas = formatearNumero(monedas);
+  ui.inicioMonedasNumero().textContent = textoMonedas;
+  ui.inicioMonedas().setAttribute("aria-label", `Colección: ${textoMonedas} ${monedas === 1 ? "moneda" : "monedas"}`);
+  ui.tarjetaRacha().textContent = String(racha);
+  const marca = ui.tarjetaRetoMarca();
+  if (jugadoHoy) {
+    pintarMedalla(marca, jugadoHoy.medalla);
+    ui.tarjetaRetoTexto().textContent = formatearNumero(jugadoHoy.puntos);
+  } else {
+    marca.className = "punto";
+    ui.tarjetaRetoTexto().textContent = "Sin jugar";
+  }
+  const estadoReto = jugadoHoy
+    ? `${jugadoHoy.medalla ? NOMBRE_MEDALLA[jugadoHoy.medalla] : "sin medalla"}, ${formatearPuntos(jugadoHoy.puntos)}`
+    : "sin jugar";
+  const textoRacha = racha > 0 ? `. Racha de ${racha} ${racha === 1 ? "día" : "días"}` : "";
+  ui.tarjetaReto().setAttribute("aria-label", `Reto de hoy #${hoy}: ${estadoReto}${textoRacha}`);
+  ui.tarjetaEstrellas().textContent = String(estrellas);
+  ui.tarjetaNivel().textContent = `Nivel ${nivel}`;
+  ui.tarjetaNiveles().setAttribute("aria-label", `Niveles: nivel ${nivel}, ${estrellas} ${estrellas === 1 ? "estrella" : "estrellas"}`);
+  mostrarTexto(ui.inicioSiguiente(), siguiente);
   ui.juego().dataset.monedas = String(monedas);
   ui.juego().dataset.racha = String(racha);
+}
+
+/** Pausa (E3): en el reto diario no hay «Inicio» (R-3) y se recuerda que cuenta al acabar. */
+export function pintarPausa({ titulo, sinSalida }: { titulo: string; sinSalida: boolean }): void {
+  ui.pausaTexto().textContent = sinSalida ? `${titulo}: cuenta al acabar la partida.` : titulo;
+  ui.pausaInicio().hidden = sinSalida;
+}
+
+/** Interruptor de Ajustes (C2): `aria-checked` dice si está encendido. */
+export function pintarInterruptor(boton: HTMLButtonElement, encendido: boolean): void {
+  boton.setAttribute("aria-checked", String(encendido));
 }
 
 export type DatosReto = {

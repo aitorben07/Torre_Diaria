@@ -7,7 +7,7 @@ import { comprar, equipado, equipar, nuevosEscenarios, siguienteObjetivo } from 
 import { actualizarRacha, medallaDe, medallaDePuntos, rachaDeHoy, registrarOficial, UMBRAL_BRONCE, UMBRAL_ORO, UMBRAL_PLATA, type Oficial } from "../logica/diarios.ts";
 import { cobrarLibre, sumarEstadisticas, type LibreCobrada, type Medalla, type PartidaAcabada } from "../logica/economia.ts";
 import { AVISO_ESPECIAL, especialDe, REGLAS_CON_ESPECIALES, type Especial } from "../logica/especiales.ts";
-import { estrellasDe, nivelDisponible, nivelPorNumero, opcionesDeNivel, registrarNivel, textoMeta, textoObjetivo, totalEstrellas, type NivelRegistrado } from "../logica/niveles.ts";
+import { estrellasDe, nivelDisponible, nivelPorNumero, opcionesDeNivel, registrarNivel, textoMeta, textoObjetivo, totalEstrellas, ultimoDisponible, type NivelRegistrado } from "../logica/niveles.ts";
 import { leerLibre, leerReto } from "../logica/reto.ts";
 import { almacenDelNavegador } from "../logica/registro.ts";
 import { deTramos, Guardado, type DiaJugado } from "../logica/progreso.ts";
@@ -26,11 +26,12 @@ import { Caidas, Efectos } from "./efectos.ts";
 import { Haptica, puedeVibrar } from "./haptica.ts";
 import { pintarMuestra } from "./muestras.ts";
 import { Sonido } from "./sonido.ts";
-import { abrir, aceptaEntrada, transicion, type Accion, type Flujo, type Modo, type Orden, type Panel, type Pantalla } from "./flujo.ts";
+import { abrir, aceptaEntrada, sinSalida, transicion, type Accion, type Flujo, type Modo, type Orden, type Panel, type Pantalla } from "./flujo.ts";
+import { estadoDeInicio } from "./inicio.ts";
 import { anunciosDePlataforma, aplicarLlamadas, llamadasAlAbrir, llamadasDeTransicion } from "./anuncios.ts";
 import { compartir, descargar, ImagenCompartida, puedeCompartirArchivos } from "./compartir.ts";
 import { formasParaImagen, type DatosImagen } from "./imagen.ts";
-import { cambiarEstado, copiar, mostrarTexto, NOMBRE_MEDALLA, pintarBarra, pintarFin, pintarHud, pintarLibreAmigo, pintarReto, ui, type DatosFin as DatosPantallaFin } from "./pantallas.ts";
+import { cambiarEstado, copiar, mostrarTexto, NOMBRE_MEDALLA, pintarFin, pintarHud, pintarInicio, pintarInterruptor, pintarLibreAmigo, pintarPausa, pintarReto, ui, type DatosFin as DatosPantallaFin } from "./pantallas.ts";
 import { PanelRetos } from "./retos.ts";
 import { escenarioPorId, temaPorId } from "./temas.ts";
 
@@ -112,6 +113,12 @@ const imagenDia = new ImagenCompartida();
 let claveImagenDia = "";
 let temporizadoresEstrellas: number[] = [];
 let temporizadorAviso = 0;
+/** Momento en que se mostró el inicio, para el vaivén de su pieza (E2). */
+let inicioDesde = performance.now();
+/** ¿Se ha mostrado ya el inicio en esta página? Al volver a él se recuerda el objetivo cercano (Anexo B). */
+let inicioVisto = false;
+/** Botón que abrió el panel o la pausa: al cerrarlos, el foco vuelve a él. */
+let abridor: HTMLElement | null = null;
 
 /** Recalcula `hoy`, por si ha pasado la medianoche UTC. Devuelve si ha cambiado. */
 function actualizarHoy(): boolean {
@@ -127,14 +134,25 @@ function aplicarEquipado(): void {
   lienzo.cambiarTema(temaPorId(tema), escenarioPorId(escenario));
 }
 
-function pintarBarraActual(): void {
-  pintarBarra({ racha: rachaDeHoy(guardado.actual, hoy), monedas: guardado.actual.monedas, estrellas: totalEstrellas(guardado.actual) });
+/** Monedas, reto de hoy, niveles y objetivo cercano de la pantalla de inicio (E2). */
+function pintarInicioActual(): void {
+  const p = guardado.actual;
+  const deHoy = resultadoDe(hoy);
+  pintarInicio({
+    monedas: p.monedas,
+    racha: rachaDeHoy(p, hoy),
+    hoy,
+    jugadoHoy: deHoy ? { medalla: medallaDe(deHoy), puntos: deHoy.puntos } : null,
+    nivel: ultimoDisponible(p),
+    estrellas: totalEstrellas(p),
+    siguiente: inicioVisto ? siguienteObjetivo(p) : null,
+  });
 }
 
 /** Al abrir y al cambiar de día: gasta congeladores o corta la racha (D1). Solo guarda si cambia algo. */
 function revisarRacha(): void {
   if (actualizarRacha(guardado.actual, hoy) !== guardado.actual) guardado.cambiar((p) => actualizarRacha(p, hoy));
-  pintarBarraActual();
+  pintarInicioActual();
 }
 
 /** El día cambió con un reto oficial en marcha: la racha se revisa cuando acabe, ya guardado su día. */
@@ -145,7 +163,8 @@ let rachaPendiente = false;
  * aún puede alargarla (si se cortara antes, el reto de ayer sumaría desde 0).
  */
 function revisarRachaAlCambiarDeDia(): void {
-  if (flujo.pantalla === "jugando" && flujo.modo === "oficial") {
+  const base = flujo.debajo ?? flujo.pantalla;
+  if ((base === "jugando" || base === "pausa") && flujo.modo === "oficial") {
     rachaPendiente = true;
     return;
   }
@@ -211,6 +230,8 @@ function ejecutar(orden: Orden): void {
   if (orden.tipo === "jugar") empezar(orden.modo, orden.dia, orden.nivel, orden.codigo);
   else if (orden.tipo === "resultado") verGuardado(orden.dia);
   else if (orden.tipo === "reto") mostrarReto();
+  else if (orden.tipo === "inicio") mostrarInicio();
+  else if (orden.tipo === "pausa") mostrarPausa();
   else if (orden.tipo === "panel") mostrarPanel(orden.panel);
   else if (orden.tipo === "volver") volver(orden.pantalla);
 }
@@ -227,9 +248,41 @@ function mostrarReto(): void {
   }
   pintarHud({ puntos: 0, vidas: VIDAS_INICIALES, vidasMax: VIDAS_MAX, combo: 0, record: null });
   cambiarEstado("reto");
-  actualizarBotones();
   lienzo.reservarArriba(0);
   lienzo.ponerRecord(null);
+}
+
+/**
+ * Pantalla de inicio (E2): se deja la partida que hubiera y se ve el escenario
+ * equipado con la pieza meciéndose. El foco va a «Jugar».
+ */
+function mostrarInicio(): void {
+  partida = null;
+  escena = null;
+  pendiente = false;
+  pararEstrellas();
+  ocultarAvisoEspecial();
+  ui.avisoToque().hidden = true;
+  efectos.reiniciar();
+  caidas.reiniciar();
+  aplicarEquipado();
+  lienzo.ponerRecord(null);
+  lienzo.reiniciarCamara();
+  lienzo.reservarArriba(0);
+  inicioDesde = performance.now();
+  pintarInicioActual();
+  inicioVisto = true;
+  cambiarEstado("inicio");
+  hudPintado = "";
+  ui.botonJugar().focus();
+}
+
+/** Pausa (E3): la partida se queda quieta con su panel; en el reto diario, sin «Inicio» (R-3). */
+function mostrarPausa(): void {
+  pintarPausa({ titulo: tituloFin(flujo.modo, flujo.dia), sinSalida: sinSalida(flujo.modo) });
+  ui.avisoToque().hidden = true;
+  cambiarEstado("pausa");
+  ui.botonSeguir().focus();
 }
 
 /** Texto de la medalla de un día: el metal (o «Sin medalla») y si sumó racha o fue atrasado. */
@@ -259,14 +312,6 @@ function verGuardado(dia: number): void {
   mostrarFin(datosDeDia(dia, jugado), "oficial", { diario: { medalla, texto: textoDiario(medalla, cola) }, monedas: null });
 }
 
-/** Retos, Niveles y Colección se ven siempre salvo mientras se juega un reto diario. */
-function actualizarBotones(): void {
-  const ocultar = flujo.pantalla === "jugando" && (flujo.modo === "oficial" || flujo.modo === "repeticion");
-  ui.botonRetos().hidden = ocultar;
-  ui.botonNiveles().hidden = ocultar;
-  ui.botonColeccion().hidden = ocultar;
-}
-
 function empezar(modo: Modo, dia: number, numeroNivel: number = 0, codigo?: string): void {
   const nivel = modo === "nivel" ? nivelPorNumero(numeroNivel) : null;
   const semilla = nivel ? nivel.semilla : modo === "libre" ? semillaLibre(codigo) : fechaDeDia(dia);
@@ -278,6 +323,7 @@ function empezar(modo: Modo, dia: number, numeroNivel: number = 0, codigo?: stri
   }
   partida = new Partida(semilla, opciones);
   partidasEmpezadas++;
+  ui.juego().dataset.partidas = String(partidasEmpezadas);
   idPartida = `${semilla}#${partidasEmpezadas}.${codigoLibre()}`;
   diaEmpezada = hoy;
   pararEstrellas();
@@ -313,7 +359,6 @@ function empezar(modo: Modo, dia: number, numeroNivel: number = 0, codigo?: stri
   bucle.reiniciar();
   (document.activeElement as HTMLElement | null)?.blur();
   cambiarEstado("jugando");
-  actualizarBotones();
   hudPintado = "";
   actualizarHud();
 }
@@ -439,8 +484,7 @@ function mostrarFin(datos: DatosFin, modoPartida: Modo, premios: Premios = {}): 
   juego.dataset.puntos = String(datos.puntos);
   juego.dataset.altura = String(datos.altura);
   cambiarEstado("fin");
-  actualizarBotones();
-  pintarBarraActual();
+  pintarInicioActual();
   if (premios.nivel) celebrarEstrellas(premios.nivel.estrellas);
   // La imagen se genera ya, con el panel visible, para que «Compartir» no tenga que esperar (impacto, F3).
   imagenFin.preparar(datosImagen(datos, modoPartida, premios), nombreImagen(modoPartida), ui.finImagen());
@@ -566,23 +610,34 @@ function terminar(actual: Partida): void {
   mostrarFin({ dia, puntos, altura, piezas, formas, reglas: REGLAS, perfectos, comboMax }, modo, premios);
 }
 
-/** Abre Retos, Niveles o Colección encima de la pantalla que hubiera (si era una partida, queda en pausa). */
+/** Abre Retos, Niveles, Colección o Ajustes encima de la pantalla que hubiera (si era una partida, queda en pausa). */
 function mostrarPanel(panel: Panel): void {
-  cambiarEstado(panel);
+  abridor = document.activeElement instanceof HTMLButtonElement ? document.activeElement : null;
+  cambiarEstado(panel, flujo.debajo);
   ui.avisoToque().hidden = true;
   if (panel === "retos") panelRetos.abrir();
   else if (panel === "niveles") panelNiveles.abrir();
-  else panelColeccion.pintar(guardado.actual);
-  pintarBarraActual();
+  else if (panel === "coleccion") panelColeccion.pintar(guardado.actual);
+  else pintarAjustes();
+  pintarInicioActual();
 }
 
-/** Cierra el panel y vuelve a la pantalla de debajo; la partida en pausa sigue sin saltos. */
+/** Cierra el panel o la pausa y vuelve a la pantalla de debajo; la partida en pausa sigue sin saltos. */
 function volver(pantalla: Exclude<Pantalla, Panel>): void {
   cambiarEstado(pantalla);
-  actualizarBotones();
+  const anterior = abridor;
+  abridor = null;
   if (pantalla === "jugando") {
     bucle.reiniciar();
     ui.avisoToque().hidden = guardado.actual.ajustes.tutorialVisto;
+    // Sin foco en ningún botón: Espacio vuelve a soltar la pieza.
+    (document.activeElement as HTMLElement | null)?.blur();
+    return;
+  }
+  // El foco vuelve al botón que abrió el panel, si se sigue viendo.
+  if (anterior?.isConnected && anterior.checkVisibility()) anterior.focus();
+  if (pantalla === "inicio") {
+    pintarInicioActual();
   } else if (pantalla === "fin") {
     if (modoFin === "libre") mostrarTexto(ui.finSiguiente(), siguienteObjetivo(guardado.actual));
     reservarTarjeta();
@@ -593,7 +648,7 @@ function volver(pantalla: Exclude<Pantalla, Panel>): void {
 function cambiarColeccion(cambio: (p: typeof guardado.actual) => typeof guardado.actual, mensaje: string): void {
   guardado.cambiar(cambio);
   aplicarEquipado();
-  pintarBarraActual();
+  pintarInicioActual();
   ui.mensajeColeccion().textContent = mensaje;
   if (flujo.pantalla === "coleccion") panelColeccion.pintar(guardado.actual);
   if (flujo.pantalla === "retos") panelRetos.pintar();
@@ -677,7 +732,7 @@ function actualizarHud(): void {
 /** Aplica los pasos que tocan. Un toque se aplica en el siguiente paso y se anota su número. */
 function avanzar(pasos: number): void {
   const actual = partida;
-  // Con Retos o Colección abiertos encima, la partida queda en pausa.
+  // En la pausa o con un panel abierto encima, la partida queda quieta.
   if (!actual || flujo.pantalla !== "jugando") return;
   for (let i = 0; i < pasos; i++) {
     if (pendiente) {
@@ -857,11 +912,17 @@ function pedirSoltar(): void {
 }
 
 
+/** En el inicio (y con un panel abierto encima), la pieza que se mece; si no, nada. */
+function escenaInicio(ahora: number): EstadoPartida | null {
+  if (flujo.pantalla !== "inicio" && flujo.debajo !== "inicio") return null;
+  return estadoDeInicio((ahora - inicioDesde) / 1000, lienzo.metrosVisibles);
+}
+
 const bucle = new Bucle(avanzar, () => {
   const ahora = performance.now();
   const sueltas = caidas.avanzar(ahora, ahora - ultimoFotograma);
   ultimoFotograma = ahora;
-  lienzo.dibujar(escena?.estado() ?? null, ahora, sueltas);
+  lienzo.dibujar(escena?.estado() ?? escenaInicio(ahora), ahora, sueltas);
   pintarEfectos();
 });
 
@@ -875,42 +936,63 @@ function focoEnControl(): boolean {
 document.addEventListener("pointerdown", () => sonido.despertar(), { capture: true });
 document.addEventListener("keydown", () => sonido.despertar(), { capture: true });
 
-/** Botón de sonido o vibración: `aria-pressed` dice si está encendido. */
-function pintarInterruptor(boton: HTMLButtonElement, encendido: boolean): void {
-  boton.setAttribute("aria-pressed", String(encendido));
+/** Ajustes (C2): Sonidos y Vibración (si el navegador vibra), créditos y la versión de las reglas. */
+function pintarAjustes(): void {
+  pintarInterruptor(ui.ajusteSonidos(), sonido.activo);
+  pintarInterruptor(ui.ajusteVibracion(), haptica.activa);
+  ui.ajusteVibracion().hidden = !puedeVibrar();
 }
-pintarInterruptor(ui.botonSonido(), sonido.activo);
-pintarInterruptor(ui.botonVibracion(), haptica.activa);
-ui.botonSonido().addEventListener("click", () => {
+ui.ajustesVersion().textContent = `Torre Diaria · reglas ${REGLAS}`;
+ui.ajusteSonidos().addEventListener("click", () => {
   sonido.cambiar(!sonido.activo);
-  pintarInterruptor(ui.botonSonido(), sonido.activo);
   const activo = sonido.activo;
   guardado.cambiar((p) => ({ ...p, ajustes: { ...p.ajustes, sonido: activo } }));
+  pintarAjustes();
 });
-ui.botonVibracion().hidden = !puedeVibrar();
-ui.botonVibracion().addEventListener("click", () => {
+ui.ajusteVibracion().addEventListener("click", () => {
   haptica.cambiar(!haptica.activa);
-  pintarInterruptor(ui.botonVibracion(), haptica.activa);
   const activa = haptica.activa;
   guardado.cambiar((p) => ({ ...p, ajustes: { ...p.ajustes, vibracion: activa } }));
+  pintarAjustes();
+});
+ui.botonCreditos().addEventListener("click", () => {
+  const abiertos = ui.creditos().hidden;
+  ui.creditos().hidden = !abiertos;
+  ui.botonCreditos().setAttribute("aria-expanded", String(abiertos));
 });
 
 ui.zona().addEventListener("pointerdown", (evento) => {
   if (flujo.pantalla !== "jugando") return;
-  // Los botones de la zona (sonido, vibración, retos, colección) no sueltan la pieza.
+  // Los botones de la zona (la pausa) no sueltan la pieza.
   if (evento.target instanceof Element && evento.target.closest("button")) return;
   evento.preventDefault();
   pedirSoltar();
 });
+/** ¿Es un panel que se abre encima de otra pantalla? */
+function esPanel(pantalla: Pantalla): pantalla is Panel {
+  return pantalla === "retos" || pantalla === "niveles" || pantalla === "coleccion" || pantalla === "ajustes";
+}
+
 document.addEventListener("keydown", (evento) => {
-  if (evento.key === "Escape" && (flujo.pantalla === "retos" || flujo.pantalla === "niveles" || flujo.pantalla === "coleccion")) {
-    actuar({ tipo: "cerrar" });
+  // Escape cierra los paneles y la pausa; durante la partida, como P, la pausa (E3).
+  const pausaConP = (evento.key === "p" || evento.key === "P") && !evento.ctrlKey && !evento.metaKey && !evento.altKey;
+  if (evento.key === "Escape" || pausaConP) {
+    if (evento.repeat) return;
+    if (evento.key === "Escape" && esPanel(flujo.pantalla)) actuar({ tipo: "cerrar" });
+    else if (flujo.pantalla === "pausa") actuar({ tipo: "seguirPartida" });
+    else if (flujo.pantalla === "jugando") actuar({ tipo: "pausar" });
     return;
   }
   if (evento.repeat || !(evento.code === "Space" || evento.key === " " || evento.key === "Enter")) return;
   if (flujo.pantalla === "jugando") {
+    // Con el foco en un botón (la pausa, con Tab), la tecla es suya y no suelta la pieza.
+    if (focoEnControl()) return;
     evento.preventDefault();
     pedirSoltar();
+  } else if (flujo.pantalla === "inicio" && !focoEnControl()) {
+    // En el inicio, Espacio o Intro equivalen a «Jugar». Con el foco en «Jugar», lo pulsa el propio botón (E2).
+    evento.preventDefault();
+    actuar({ tipo: "libre" });
   } else if (flujo.pantalla === "fin" && !focoEnControl()) {
     // En el fin, Espacio o Intro equivalen al botón principal (pasados 700 ms).
     evento.preventDefault();
@@ -923,16 +1005,23 @@ ui.botonRepetirNivel().addEventListener("click", () => actuar({ tipo: "jugarNive
 ui.botonMapa().addEventListener("click", () => actuar({ tipo: "abrir", panel: "niveles" }));
 ui.botonLibreNivel().addEventListener("click", () => actuar({ tipo: "libre" }));
 ui.botonLibreReto().addEventListener("click", () => actuar({ tipo: "libre" }));
-/** Retos, Niveles y Colección abren su panel; si ya está abierto, lo cierran. */
-function alternarPanel(panel: Panel): void {
-  actuar(flujo.pantalla === panel ? { tipo: "cerrar" } : { tipo: "abrir", panel });
-}
-ui.botonRetos().addEventListener("click", () => alternarPanel("retos"));
-ui.botonNiveles().addEventListener("click", () => alternarPanel("niveles"));
-ui.botonColeccion().addEventListener("click", () => alternarPanel("coleccion"));
+ui.botonInicio().addEventListener("click", () => actuar({ tipo: "inicio" }));
+// Inicio (E2): «Jugar», las tarjetas, la ficha de monedas y la rueda de Ajustes.
+ui.botonJugar().addEventListener("click", () => actuar({ tipo: "libre" }));
+ui.tarjetaReto().addEventListener("click", () => actuar({ tipo: "abrir", panel: "retos" }));
+ui.tarjetaNiveles().addEventListener("click", () => actuar({ tipo: "abrir", panel: "niveles" }));
+ui.tarjetaColeccion().addEventListener("click", () => actuar({ tipo: "abrir", panel: "coleccion" }));
+ui.inicioMonedas().addEventListener("click", () => actuar({ tipo: "abrir", panel: "coleccion" }));
+ui.inicioAjustes().addEventListener("click", () => actuar({ tipo: "abrir", panel: "ajustes" }));
+// Pausa (E3).
+ui.botonPausa().addEventListener("click", () => actuar({ tipo: "pausar" }));
+ui.botonSeguir().addEventListener("click", () => actuar({ tipo: "seguirPartida" }));
+ui.pausaAjustes().addEventListener("click", () => actuar({ tipo: "abrir", panel: "ajustes" }));
+ui.pausaInicio().addEventListener("click", () => actuar({ tipo: "inicio" }));
 ui.botonCerrarRetos().addEventListener("click", () => actuar({ tipo: "cerrar" }));
 ui.botonCerrarNiveles().addEventListener("click", () => actuar({ tipo: "cerrar" }));
 ui.botonCerrarColeccion().addEventListener("click", () => actuar({ tipo: "cerrar" }));
+ui.botonCerrarAjustes().addEventListener("click", () => actuar({ tipo: "cerrar" }));
 ui.botonReto().addEventListener("click", () => {
   if (reto) actuar({ tipo: "jugarReto", reto });
   else if (libreAmigo) actuar({ tipo: "libre", codigo: libreAmigo.semilla });
@@ -983,6 +1072,8 @@ ui.botonDescargar().addEventListener("click", async () => {
 
 document.addEventListener("visibilitychange", () => {
   sonido.visibilidad(document.hidden);
+  // Al ocultar la pestaña, la partida queda en pausa con su panel: al volver no sigue sola (E3, T29).
+  if (document.hidden && flujo.pantalla === "jugando") actuar({ tipo: "pausar" });
   if (document.visibilityState !== "visible") return;
   guardado.releer();
   if (!actualizarHoy()) return;
@@ -1005,8 +1096,9 @@ observador.observe(ui.lienzo());
 observador.observe(ui.hud());
 aplicarEquipado();
 revisarRacha();
-const inicio = abrir(reto, hoy, libreAmigo);
-flujo = inicio.flujo;
-aplicarLlamadas(anuncios, llamadasAlAbrir(inicio.orden), () => ejecutar(inicio.orden));
+const apertura = abrir(reto, hoy, libreAmigo);
+flujo = apertura.flujo;
+if (flujo.pantalla === "inicio") mostrarInicio();
+aplicarLlamadas(anuncios, llamadasAlAbrir(apertura.orden), () => ejecutar(apertura.orden));
 ajustarLienzo();
 bucle.iniciar();
