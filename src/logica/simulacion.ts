@@ -10,7 +10,7 @@
 // orden; y aquí no se lee el reloj ni se usa azar. planck sí usa seno y coseno
 // por dentro, así que el resultado solo se garantiza igual en el mismo motor.
 import { Box, Polygon, Vec2, World, type Body, type Fixture } from "planck";
-import { Secuencia, verticesPieza, type Forma, type Pieza } from "./piezas.ts";
+import { Secuencia, verticesPieza, type Forma, type FormasSecuencia, type Pieza } from "./piezas.ts";
 import { calidadDeSuelta, Marcador, VIDAS_INICIALES, type Calidad } from "./puntuacion.ts";
 
 /** Versión de las reglas: se guarda con cada resultado para distinguir las partidas de la v1 (B1). */
@@ -97,11 +97,55 @@ export type Evento =
   | { tipo: "vidaExtra"; paso: number; vidas: number }
   | { tipo: "hito"; paso: number; metros: number }
   | { tipo: "cementada"; paso: number; piezas: number }
-  | { tipo: "fin"; paso: number; puntos: number };
+  | { tipo: "fin"; paso: number; puntos: number; victoria: boolean };
 
+/**
+ * Objetivo de un nivel (E1, Anexo 1, 6): coloca N piezas, llega a N m, haz N
+ * perfectos, combo de N, consigue N puntos o llega a N m con como mucho M piezas.
+ */
+export type Objetivo =
+  | { tipo: "piezas"; piezas: number }
+  | { tipo: "altura"; metros: number }
+  | { tipo: "perfectos"; perfectos: number }
+  | { tipo: "combo"; combo: number }
+  | { tipo: "puntos"; puntos: number }
+  | { tipo: "alturaConPiezas"; metros: number; piezas: number };
+
+/** Lo que mira un objetivo justo después de colocar una pieza. */
+export type Marca = { piezas: number; altura: number; perfectos: number; combo: number; puntos: number };
+
+/**
+ * ¿Se cumple el objetivo con esta marca? `"fallado"` solo en «N m con como
+ * mucho M piezas», al colocar la pieza M sin llegar.
+ */
+export function evaluarObjetivo(objetivo: Objetivo, marca: Marca): "cumplido" | "fallado" | "sigue" {
+  switch (objetivo.tipo) {
+    case "piezas":
+      return marca.piezas >= objetivo.piezas ? "cumplido" : "sigue";
+    case "altura":
+      return marca.altura >= objetivo.metros ? "cumplido" : "sigue";
+    case "perfectos":
+      return marca.perfectos >= objetivo.perfectos ? "cumplido" : "sigue";
+    case "combo":
+      return marca.combo >= objetivo.combo ? "cumplido" : "sigue";
+    case "puntos":
+      return marca.puntos >= objetivo.puntos ? "cumplido" : "sigue";
+    case "alturaConPiezas":
+      if (marca.altura >= objetivo.metros) return "cumplido";
+      return marca.piezas >= objetivo.piezas ? "fallado" : "sigue";
+  }
+}
+
+/** Opciones de una partida. Todas son datos (van en `data-opciones` para repetirla con `jugar`, G3). */
 export type OpcionesPartida = {
   /** Vidas al empezar (por defecto `VIDAS_INICIALES`). */
   vidas?: number;
+  /** Velocidad de la primera pieza (niveles, E1; por defecto `VEL_MIN`). */
+  velocidad?: number;
+  /** Formas de la secuencia (niveles, E1; por defecto todas). */
+  formas?: FormasSecuencia;
+  /** Objetivo del nivel: al cumplirse, la partida acaba con `victoria` (E1). */
+  objetivo?: Objetivo;
 };
 
 export type OpcionesJugar = OpcionesPartida & {
@@ -125,6 +169,8 @@ export type Resultado = {
   vidas: number;
   monedas: number;
   terminada: boolean;
+  /** Objetivo de nivel cumplido; sin objetivo, siempre `false`. */
+  victoria: boolean;
   pasos: number;
   /** Posición final de cada pieza que sigue en el mundo, en el orden en que se soltó. */
   posiciones: Array<{ x: number; y: number; angulo: number }>;
@@ -178,10 +224,13 @@ export class Partida {
   private pasoCaida = 0;
   private enEspera: EnEspera | null = null;
   private colgadaY = 0;
+  private readonly objetivoNivel: Objetivo | null;
+  private victoria = false;
 
   constructor(semilla: string, opciones: OpcionesPartida = {}) {
-    this.secuencia = new Secuencia(semilla);
+    this.secuencia = new Secuencia(semilla, { velocidad: opciones.velocidad, formas: opciones.formas });
     this.marcador = new Marcador(opciones.vidas ?? VIDAS_INICIALES);
+    this.objetivoNivel = opciones.objetivo ?? null;
     const plataforma = this.mundo.createBody({ type: "static", position: new Vec2(0, -PLATAFORMA_ALTO / 2) });
     plataforma.createFixture({ shape: new Box(PLATAFORMA_MEDIO_ANCHO, PLATAFORMA_ALTO / 2), friction: FRICCION });
     this.colgarPieza();
@@ -251,7 +300,7 @@ export class Partida {
       if ((espera >= ESPERA_MIN && this.quieta(this.soltadas.at(-1)!)) || espera >= ESPERA_MAX) {
         this.colocarEnEspera();
         this.indice++;
-        this.colgarPieza();
+        if (!this.revisarObjetivo()) this.colgarPieza();
       }
     }
   }
@@ -295,6 +344,7 @@ export class Partida {
       vidas: m.vidas,
       monedas: m.monedas,
       terminada: this.terminada,
+      victoria: this.victoria,
       pasos: this.pasosHechos,
       posiciones: this.soltadas.map(({ cuerpo }) => {
         const p = cuerpo.getPosition();
@@ -335,6 +385,27 @@ export class Partida {
   }
 
   /**
+   * Con objetivo de nivel, tras colocar una pieza (ya asentada): si se cumple,
+   * la partida acaba con victoria; si ya no se puede cumplir, sin ella.
+   * Devuelve si ha acabado.
+   */
+  private revisarObjetivo(): boolean {
+    if (!this.objetivoNivel) return false;
+    const m = this.marcador;
+    const marca = { piezas: m.piezas, altura: this.alturaTorre(this.sobrePlataforma()), perfectos: m.perfectos, combo: m.combo, puntos: m.puntos };
+    const estado = evaluarObjetivo(this.objetivoNivel, marca);
+    if (estado === "sigue") return false;
+    this.acabar(estado === "cumplido");
+    return true;
+  }
+
+  private acabar(victoria: boolean): void {
+    this.victoria = victoria;
+    this.faseActual = "fin";
+    this.eventos.push({ tipo: "fin", paso: this.pasosHechos, puntos: this.marcador.puntos, victoria });
+  }
+
+  /**
    * Fin de un episodio de caída (B1): retira, en el orden en que se soltaron, las
    * piezas caídas, las que quedan fuera de la plataforma y las que siguen
    * bajando deprisa, para que un derrumbe que aún resbala no cueste otra vida.
@@ -352,8 +423,7 @@ export class Partida {
       this.indice++;
     }
     if (vidas <= 0) {
-      this.faseActual = "fin";
-      this.eventos.push({ tipo: "fin", paso: this.pasosHechos, puntos: this.marcador.puntos });
+      this.acabar(false);
       return;
     }
     this.colgarPieza();

@@ -78,8 +78,9 @@ function entre(azar: () => number, [min, max]: [number, number]): number {
   return centesimas(min + azar() * (max - min));
 }
 
-export function velocidadDePieza(indice: number): number {
-  return Math.min(VEL_TOPE, centesimas(VEL_MIN + VEL_INCREMENTO * indice));
+/** Velocidad de la pieza `indice`; un nivel puede empezar con otra velocidad (`desde`, E1). */
+export function velocidadDePieza(indice: number, desde: number = VEL_MIN): number {
+  return Math.min(VEL_TOPE, centesimas(desde + VEL_INCREMENTO * indice));
 }
 
 /** Probabilidad de triángulo (y la misma de columna) de la pieza `indice`; 0 en las iniciales. */
@@ -89,9 +90,19 @@ export function probabilidadDificil(indice: number): number {
   return Math.min(PROB_DIFICIL_TOPE, PROB_DIFICIL_INICIAL + PROB_DIFICIL_TRAMO * tramo);
 }
 
+/** Formas de una secuencia: todas, con la curva de B3, o solo las iniciales (niveles fáciles, E1). */
+export type FormasSecuencia = "todas" | "faciles";
+
+/** Opciones de la secuencia de un nivel (E1). Sin ellas, la secuencia es la de siempre. */
+export type OpcionesSecuencia = {
+  /** Velocidad de la primera pieza en m/s (por defecto `VEL_MIN`). */
+  velocidad?: number;
+  formas?: FormasSecuencia;
+};
+
 /** Forma de la pieza `indice` a partir de un valor de azar en [0, 1). */
-function elegirForma(indice: number, valor: number): Forma {
-  const dificil = probabilidadDificil(indice);
+function elegirForma(indice: number, valor: number, formas: FormasSecuencia): Forma {
+  const dificil = formas === "faciles" ? 0 : probabilidadDificil(indice);
   if (valor < dificil) return "triangulo";
   if (valor < 2 * dificil) return "columna";
   const resto = (valor - 2 * dificil) / (1 - 2 * dificil);
@@ -106,9 +117,14 @@ function elegirForma(indice: number, valor: number): Forma {
 export class Secuencia {
   private readonly azar: () => number;
   private readonly piezas: Pieza[] = [];
+  private readonly velocidad: number;
+  private readonly formas: FormasSecuencia;
 
-  constructor(semilla: string) {
+  /** Con las opciones por defecto, las piezas de siempre: las doradas de `piezas.test.ts` no cambian. */
+  constructor(semilla: string, opciones: OpcionesSecuencia = {}) {
     this.azar = crearGenerador(semilla);
+    this.velocidad = opciones.velocidad ?? VEL_MIN;
+    this.formas = opciones.formas ?? "todas";
   }
 
   pieza(indice: number): Pieza {
@@ -118,12 +134,12 @@ export class Secuencia {
 
   private siguiente(i: number): Pieza {
     const { azar } = this;
-    const forma = elegirForma(i, azar());
+    const forma = elegirForma(i, azar(), this.formas);
     const medidas = CATALOGO[forma];
     const ancho = entre(azar, medidas.ancho);
     const alto = forma === "cuadrado" ? ancho : entre(azar, medidas.alto);
     const color = Math.floor(azar() * PALETA.length);
-    return { forma, ancho, alto, color, velocidad: velocidadDePieza(i) };
+    return { forma, ancho, alto, color, velocidad: velocidadDePieza(i, this.velocidad) };
   }
 }
 
