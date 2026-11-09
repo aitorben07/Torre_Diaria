@@ -1,7 +1,7 @@
 // Bloque C: guardado v2, migración de la v1, monedas, récord, colección y
 // ajustes guardados.
 import { expect, test } from "@playwright/test";
-import { CLAVE_PROGRESO, conTactil, DIA, empezarHoy, esperarFinListo, esperarLibre, juego, jugarHastaElFin, leerProgreso, preparar, sembrarProgreso, tocar } from "./ayudas.ts";
+import { abrirAjustes, abrirColeccion, abrirRetos, CLAVE_PROGRESO, conTactil, DIA, empezarHoy, esperarFinListo, esperarInicio, irAlInicio, juego, jugarHastaElFin, jugarLibre, leerProgreso, preparar, sembrarProgreso, tocar } from "./ayudas.ts";
 
 test("solo se escribe torre-diaria:progreso, y un día de la v1 se ve en piezas, sin medalla (C1)", async ({ page }, testInfo) => {
   const v1 = JSON.stringify({ dia: DIA, puntos: 7, altura: 4.2, formas: [{ forma: "bloque", color: 0 }] });
@@ -23,7 +23,7 @@ test("solo se escribe torre-diaria:progreso, y un día de la v1 se ve en piezas,
   }, v1);
   const { errores } = await preparar(page);
   await page.goto("/");
-  await esperarLibre(page);
+  await jugarLibre(page);
   // El récord libre y el aviso visto vienen de la clave vieja.
   await expect(page.locator("#record")).toHaveText("Récord 540");
   await expect(page.getByText("Toca para soltar")).toBeHidden();
@@ -47,7 +47,7 @@ test("solo se escribe torre-diaria:progreso, y un día de la v1 se ve en piezas,
 test("las monedas de la partida libre se suman una vez: recargar en el fin no las vuelve a sumar (C2)", async ({ page }, testInfo) => {
   await preparar(page);
   await page.goto("/");
-  await esperarLibre(page);
+  await jugarLibre(page);
   await jugarHastaElFin(page, conTactil(testInfo), { centradas: 2 });
   const ganadas = Number(await juego(page).getAttribute("data-ganadas"));
   expect(ganadas).toBeGreaterThan(0);
@@ -56,9 +56,10 @@ test("las monedas de la partida libre se suman una vez: recargar en el fin no la
   expect(monedas).toBe(ganadas);
   await expect(juego(page)).toHaveAttribute("data-monedas", String(monedas));
   await page.reload();
-  await esperarLibre(page);
+  await esperarInicio(page);
   expect((await leerProgreso(page))!.monedas).toBe(monedas);
-  await expect(page.getByRole("button", { name: /^Colección/ })).toHaveAccessibleName(`Colección: ${monedas} ${monedas === 1 ? "moneda" : "monedas"}`);
+  // La ficha de monedas del inicio (E2).
+  await expect(page.locator("#inicio-monedas")).toHaveAccessibleName(`Colección: ${monedas} ${monedas === 1 ? "moneda" : "monedas"}`);
 });
 
 for (const [record, nuevo] of [
@@ -69,7 +70,7 @@ for (const [record, nuevo] of [
     await sembrarProgreso(page, { libre: { record, alturaRecord: 1, partidas: 1 }, ajustes: { sonido: true, vibracion: true, tutorialVisto: true } });
     await preparar(page);
     await page.goto("/");
-    await esperarLibre(page);
+    await jugarLibre(page);
     await jugarHastaElFin(page, conTactil(testInfo), { centradas: 2 });
     const puntos = Number(await juego(page).getAttribute("data-puntos"));
     expect(puntos).toBeGreaterThan(5);
@@ -87,10 +88,8 @@ test("comprar Madera resta su precio, la pone en el lienzo y sigue tras recargar
   await sembrarProgreso(page, { monedas: 1000 });
   const { errores } = await preparar(page);
   await page.goto("/");
-  await esperarLibre(page);
   await expect(page.locator("#lienzo")).toHaveAttribute("data-tema", "riso");
-  await page.getByRole("button", { name: /^Colección/ }).click();
-  await expect(juego(page)).toHaveAttribute("data-estado", "coleccion");
+  await abrirColeccion(page);
   // Cada artículo de la pestaña tiene su muestra dibujada.
   for (const pestana of ["Escenarios", "Piezas"]) {
     await page.getByRole("tab", { name: pestana }).click();
@@ -114,7 +113,7 @@ test("comprar Madera resta su precio, la pone en el lienzo y sigue tras recargar
   expect((await leerProgreso(page))!).toMatchObject({ monedas: 700, catalogo: { comprados: ["madera"], equipado: { tema: "madera" } } });
 
   await page.reload();
-  await esperarLibre(page);
+  await esperarInicio(page);
   await expect(page.locator("#lienzo")).toHaveAttribute("data-tema", "madera");
   expect((await leerProgreso(page))!.monedas).toBe(700);
   expect(errores).toEqual([]);
@@ -124,21 +123,19 @@ test("una racha de 3 desbloquea la Ciudad aunque la altura récord sea menor de 
   await sembrarProgreso(page, { libre: { record: 100, alturaRecord: 3, partidas: 1 }, racha: { actual: 0, mejor: 3, ultimoDia: 1, congeladores: 0 } });
   await preparar(page);
   await page.goto("/");
-  await esperarLibre(page);
-  await page.getByRole("button", { name: /^Colección/ }).click();
+  await abrirColeccion(page);
   await page.getByRole("tab", { name: "Escenarios" }).click();
   await expect(page.locator('[data-articulo="nubes"]')).toHaveAttribute("data-estado-articulo", "bloqueado");
   await page.getByRole("button", { name: "Usar Ciudad" }).click();
   await expect(page.locator("#lienzo")).toHaveAttribute("data-escenario", "ciudad");
   await page.getByRole("button", { name: "Cerrar" }).first().click();
-  await expect(juego(page)).toHaveAttribute("data-estado", "jugando");
+  await expect(juego(page)).toHaveAttribute("data-estado", "inicio");
 });
 
 test("«Usar» vuelve a salir con el segundo escenario nuevo de la misma sesión (C3)", async ({ page }, testInfo) => {
   await sembrarProgreso(page, { racha: { actual: 2, mejor: 2, ultimoDia: DIA - 1, congeladores: 0 } });
   await preparar(page);
   await page.goto("/");
-  await esperarLibre(page);
   const usar = page.getByRole("button", { name: "Usar", exact: true });
 
   // Racha de 3 en el reto de hoy: la Ciudad.
@@ -157,6 +154,7 @@ test("«Usar» vuelve a salir con el segundo escenario nuevo de la misma sesión
     progreso.racha = { ...progreso.racha, actual: 6, mejor: 6, ultimoDia: progreso.racha.ultimoDia - 1 };
     localStorage.setItem(clave, JSON.stringify(progreso));
   }, CLAVE_PROGRESO);
+  await irAlInicio(page);
   await empezarHoy(page);
   await jugarHastaElFin(page, conTactil(testInfo));
   await esperarFinListo(page);
@@ -166,36 +164,25 @@ test("«Usar» vuelve a salir con el segundo escenario nuevo de la misma sesión
   await expect(page.locator("#lienzo")).toHaveAttribute("data-escenario", "nubes");
 });
 
-test("abrir la colección durante la partida libre la deja en pausa y al cerrar sigue (C3)", async ({ page }) => {
-  await preparar(page);
-  await page.goto("/");
-  await esperarLibre(page);
-  await expect(juego(page)).toHaveAttribute("data-x", /\d/);
-  await page.getByRole("button", { name: /^Colección/ }).click();
-  const x = await juego(page).getAttribute("data-x");
-  await page.waitForTimeout(600);
-  expect(await juego(page).getAttribute("data-x")).toBe(x);
-  // Un toque en el panel no suelta la pieza.
-  await page.locator("#coleccion h2").click();
-  await page.keyboard.press("Escape");
-  await expect(juego(page)).toHaveAttribute("data-estado", "jugando");
-  await expect(juego(page)).toHaveAttribute("data-fase", "apuntando");
-  await expect(juego(page)).not.toHaveAttribute("data-x", x!);
-});
-
-test("sonido y vibración apagados se guardan y siguen apagados tras recargar (C1)", async ({ page }) => {
+test("sonidos y vibración apagados en Ajustes se guardan y siguen apagados tras recargar (C1, C2)", async ({ page }) => {
   await page.addInitScript(() => {
     Object.defineProperty(navigator, "vibrate", { configurable: true, value: () => true });
   });
   await preparar(page);
   await page.goto("/");
-  await esperarLibre(page);
-  await page.getByRole("button", { name: "Sonido" }).click();
-  await page.getByRole("button", { name: "Vibración" }).click();
+  await abrirAjustes(page);
+  const sonidos = page.getByRole("switch", { name: "Sonidos" });
+  const vibracion = page.getByRole("switch", { name: "Vibración" });
+  await expect(sonidos).toHaveAttribute("aria-checked", "true");
+  await expect(vibracion).toHaveAttribute("aria-checked", "true");
+  await sonidos.click();
+  await expect(sonidos).toHaveAttribute("aria-checked", "false");
+  await vibracion.click();
+  await expect(vibracion).toHaveAttribute("aria-checked", "false");
   await page.reload();
-  await esperarLibre(page);
-  await expect(page.getByRole("button", { name: "Sonido" })).toHaveAttribute("aria-pressed", "false");
-  await expect(page.getByRole("button", { name: "Vibración" })).toHaveAttribute("aria-pressed", "false");
+  await abrirAjustes(page);
+  await expect(sonidos).toHaveAttribute("aria-checked", "false");
+  await expect(vibracion).toHaveAttribute("aria-checked", "false");
   expect((await leerProgreso(page))!.ajustes).toMatchObject({ sonido: false, vibracion: false });
 });
 
@@ -214,10 +201,11 @@ test("un progreso con texto hostil no inyecta nada y el juego sigue (G5, G10)", 
   });
   const { errores } = await preparar(page);
   await page.goto("/");
-  await esperarLibre(page);
-  await page.getByRole("button", { name: /^Retos/ }).click();
-  await page.getByRole("button", { name: /^Colección/ }).click();
+  await abrirRetos(page);
   await page.keyboard.press("Escape");
+  await abrirColeccion(page);
+  await page.keyboard.press("Escape");
+  await jugarLibre(page);
   await tocar(page, conTactil(testInfo));
   expect(await page.locator("img").count()).toBe(0);
   expect(await page.locator("body").innerHTML()).not.toContain("onerror");

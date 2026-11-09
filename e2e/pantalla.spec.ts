@@ -1,11 +1,11 @@
 // T8: pantalla de juego, entrada de un toque y nitidez del lienzo.
 import { expect, test } from "@playwright/test";
-import { conTactil, datosFin, esperarLibre, juego, jugarHastaElFin, preparar, tocar } from "./ayudas.ts";
+import { conTactil, datosFin, juego, jugarHastaElFin, jugarLibre, preparar, tocar } from "./ayudas.ts";
 
 test("un toque o un clic sobre el lienzo suelta la pieza", async ({ page }, testInfo) => {
   await preparar(page);
   await page.goto("/");
-  await esperarLibre(page);
+  await jugarLibre(page);
   await expect(juego(page)).toHaveAttribute("data-fase", "apuntando");
   await tocar(page, conTactil(testInfo));
   await expect(juego(page)).not.toHaveAttribute("data-fase", "apuntando");
@@ -15,7 +15,7 @@ test("en escritorio la tecla Espacio suelta la pieza", async ({ page }, testInfo
   test.skip(conTactil(testInfo), "Solo en escritorio");
   await preparar(page);
   await page.goto("/");
-  await esperarLibre(page);
+  await jugarLibre(page);
   await expect(juego(page)).toHaveAttribute("data-fase", "apuntando");
   await page.keyboard.press("Space");
   await expect(juego(page)).not.toHaveAttribute("data-fase", "apuntando");
@@ -25,7 +25,8 @@ test("en 390×844 no hay desplazamiento horizontal", async ({ page }, testInfo) 
   await page.setViewportSize({ width: 390, height: 844 });
   await preparar(page);
   await page.goto("/");
-  for (const paso of ["jugando", "fin"]) {
+  for (const paso of ["inicio", "jugando", "fin"]) {
+    if (paso === "jugando") await jugarLibre(page);
     if (paso === "fin") await jugarHastaElFin(page, conTactil(testInfo));
     const { ancho, vista } = await page.evaluate(() => ({
       ancho: document.documentElement.scrollWidth,
@@ -67,7 +68,7 @@ test("en una pantalla táctil el lienzo usa como mucho 1,5 píxeles por píxel C
 test("al acabar, data-toques es una lista de enteros crecientes", async ({ page }, testInfo) => {
   await preparar(page);
   await page.goto("/");
-  await esperarLibre(page);
+  await jugarLibre(page);
   await jugarHastaElFin(page, conTactil(testInfo), { conRetraso: 2, retrasoMs: 1600 });
   const { toques } = await datosFin(page);
   expect(toques.length).toBeGreaterThan(0);
@@ -81,7 +82,7 @@ test("en 390×844 la tarjeta de fin va arriba y deja libre la parte baja para la
   await page.setViewportSize({ width: 390, height: 844 });
   await preparar(page);
   await page.goto("/");
-  await esperarLibre(page);
+  await jugarLibre(page);
   await jugarHastaElFin(page, conTactil(testInfo));
   await expect(juego(page)).toHaveAttribute("data-estado", "fin");
   const { zona, fin, hud } = await page.evaluate(() => ({

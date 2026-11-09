@@ -3,7 +3,7 @@
 // corren al final y de uno en uno: en paralelo con el resto de pruebas, la
 // carga del equipo falsea la medida. No se mide en CI (máquinas compartidas).
 import { expect, test, type Page } from "@playwright/test";
-import { conTactil, esperarLibre, preparar } from "./ayudas.ts";
+import { conTactil, jugarLibre, preparar } from "./ayudas.ts";
 
 /**
  * Durante `ms` juega sola (suelta cada pieza cerca del objetivo) y mide los
@@ -42,7 +42,7 @@ test("fotogramas en 20 s de partida: escritorio mediana ≤ 17,5 ms y p95 ≤ 25
   test.setTimeout(90_000);
   await preparar(page);
   await page.goto("/");
-  await esperarLibre(page);
+  await jugarLibre(page);
   if (conTactil(testInfo)) {
     // Móvil con la CPU 4 veces más lenta: objetivo p95 ≤ 33 ms (impacto, A2).
     const cdp = await page.context().newCDPSession(page);

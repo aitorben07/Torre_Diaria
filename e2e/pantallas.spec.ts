@@ -1,7 +1,7 @@
 // T9 y T6 (adaptadas a B5, C1 y D): reto de hoy, pantalla de fin, copiar,
 // compartir y reto de un amigo.
 import { expect, test, type Page } from "@playwright/test";
-import { abrirRetos, CLAVE_PROGRESO, conTactil, DIA, empezarHoy, esperarFinListo, esperarLibre, juego, jugarHastaElFin, leerProgreso, preparar, sembrarProgreso, SEMILLA } from "./ayudas.ts";
+import { abrirRetos, CLAVE_PROGRESO, conTactil, DIA, empezarHoy, esperarFinListo, esperarInicio, juego, jugarHastaElFin, leerProgreso, preparar, sembrarProgreso, SEMILLA } from "./ayudas.ts";
 
 async function jugarOficialRapida(page: Page, tactil: boolean): Promise<void> {
   await empezarHoy(page);
@@ -21,7 +21,6 @@ test("tras la partida oficial, recargar y abrir Retos muestra el mismo resultado
   const tarjeta = await page.locator("#tarjeta").textContent();
 
   await page.reload();
-  await esperarLibre(page);
   await abrirRetos(page);
   await expect(page.locator("#ficha-titulo")).toHaveText(`Reto de hoy #${DIA}`);
   await expect(page.locator("#ficha-texto")).toContainText(`${puntos} punto`);
@@ -139,7 +138,8 @@ test("un reto con HTML se trata como enlace inválido y no se interpreta", async
   await page.waitForTimeout(500);
   expect(dialogos).toBe(0);
   await expect(page.locator("#aviso-reto")).toBeHidden();
-  await esperarLibre(page);
+  // Sin enlace válido, la pantalla de inicio (E2).
+  await esperarInicio(page);
   await expect(page.locator("img")).toHaveCount(0);
   expect(errores).toEqual([]);
 });
@@ -164,7 +164,7 @@ test("tras jugar la oficial, el reto de hoy muestra los dos resultados sin otra 
 test("pasada la medianoche UTC, el reto de hoy juega y guarda el día nuevo", async ({ page }, testInfo) => {
   await preparar(page, "2026-11-20T23:59:50Z");
   await page.goto("/");
-  await esperarLibre(page);
+  await esperarInicio(page);
 
   await page.clock.setFixedTime(new Date("2026-11-21T00:00:10Z"));
   await empezarHoy(page);
@@ -177,7 +177,6 @@ test("pasada la medianoche UTC, el reto de hoy juega y guarda el día nuevo", as
 test("el reto de hoy que cruza la medianoche UTC con cambio de pestaña cuenta en su día, no como atrasado", async ({ page }, testInfo) => {
   await preparar(page, "2026-11-20T23:59:50Z");
   await page.goto("/");
-  await esperarLibre(page);
   await empezarHoy(page);
   await expect(juego(page)).toHaveAttribute("data-semilla", SEMILLA);
 
@@ -198,7 +197,6 @@ test("con racha de ayer, el reto de hoy que cruza la medianoche con cambio de pe
   await sembrarProgreso(page, { racha: { actual: 2, mejor: 2, ultimoDia: DIA - 1, congeladores: 0 } });
   await preparar(page, "2026-11-20T23:59:50Z");
   await page.goto("/");
-  await esperarLibre(page);
   await empezarHoy(page);
 
   await page.clock.setFixedTime(new Date("2026-11-21T00:00:10Z"));

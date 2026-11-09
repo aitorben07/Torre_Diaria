@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
 import { COLORES, TEMA_RISO } from "../src/juego/temas.ts";
 import { deTramos } from "../src/logica/progreso.ts";
-import { abrirRetos, conTactil, datosFin, DIA, esperarFinListo, esperarLibre, juego, jugarHastaElFin, preparar, sembrarProgreso } from "./ayudas.ts";
+import { abrirColeccion, abrirNiveles, abrirRetos, conTactil, datosFin, DIA, esperarFinListo, esperarLibre, juego, jugarHastaElFin, jugarLibre, preparar, sembrarProgreso } from "./ayudas.ts";
 
 test("abrir /?libre=<código>.300 avisa con 300 y hace jugar esa semilla, que cuenta como libre (F2)", async ({ page }, testInfo) => {
   test.setTimeout(90_000);
@@ -27,7 +27,7 @@ test("abrir /?libre=<código>.300 avisa con 300 y hace jugar esa semilla, que cu
 test("la tarjeta de texto no lleva emojis en el fin libre (F2)", async ({ page }, testInfo) => {
   await preparar(page);
   await page.goto("/");
-  await esperarLibre(page);
+  await jugarLibre(page);
   await jugarHastaElFin(page, conTactil(testInfo));
   const texto = (await page.locator("#tarjeta").textContent()) ?? "";
   expect(texto).toMatch(/^Torre Diaria: .+ en partida libre\.\n¿Me superas\? http.+\/\?libre=[0-9a-z]{1,7}\.\d+$/);
@@ -67,7 +67,7 @@ test("la imagen de la partida libre es un PNG de 1080×1350 de 600 KB como mucho
   await page.addInitScript(sinShare);
   const vigilancia = await preparar(page);
   await page.goto("/");
-  await esperarLibre(page);
+  await jugarLibre(page);
   await jugarHastaElFin(page, conTactil(testInfo), { centradas: 3 });
   await esperarFinListo(page);
   const { png, nombre } = await descargarCon(page, "#boton-descargar");
@@ -95,8 +95,7 @@ test("la imagen de un nivel es un PNG de 1080×1350 de 600 KB como mucho (F1)", 
   await page.addInitScript(sinShare);
   const vigilancia = await preparar(page);
   await page.goto("/");
-  await esperarLibre(page);
-  await page.getByRole("button", { name: /^Niveles/ }).click();
+  await abrirNiveles(page);
   await page.getByRole("button", { name: "Jugar el nivel 1" }).click();
   await jugarHastaElFin(page, conTactil(testInfo), { centradas: 10 });
   await esperarFinListo(page);
@@ -112,7 +111,6 @@ test("con 0, 1 y 200 piezas la imagen del día se genera sin errores desde la fi
   await sembrarProgreso(page, { diarios: { 13: dia(""), 14: dia("0"), 15: dia("0-199", 9000) } });
   const vigilancia = await preparar(page);
   await page.goto("/");
-  await esperarLibre(page);
   await abrirRetos(page);
   for (const d of [13, 14, 15]) {
     await page.locator(`#dia-${d}`).click();
@@ -129,14 +127,15 @@ test("la imagen de la ficha del día se vuelve a generar al cambiar de tema (F3)
   await sembrarProgreso(page, { diarios: { [DIA]: dia("0-29", 1240) }, catalogo: { comprados: ["madera"], equipado: { tema: "riso", escenario: "puerto" } } });
   await preparar(page);
   await page.goto("/");
-  await esperarLibre(page);
   await abrirRetos(page);
   await page.locator(`#dia-${DIA}`).click();
   const { png: conRiso } = await descargarCon(page, "#ficha-descargar");
 
-  await page.getByRole("button", { name: /^Colección/ }).click();
+  await page.keyboard.press("Escape");
+  await abrirColeccion(page);
   await page.getByRole("button", { name: "Usar Madera" }).click();
   await expect(page.locator("#lienzo")).toHaveAttribute("data-tema", "madera");
+  await page.keyboard.press("Escape");
   await abrirRetos(page);
   await page.locator(`#dia-${DIA}`).click();
   const { png: conMadera } = await descargarCon(page, "#ficha-descargar");
@@ -206,7 +205,7 @@ test("con canShare y share que aceptan archivos, Compartir llama una vez a share
   });
   const vigilancia = await preparar(page);
   await page.goto("/");
-  await esperarLibre(page);
+  await jugarLibre(page);
   await jugarHastaElFin(page, conTactil(testInfo));
   await esperarFinListo(page);
   // Con archivos en share no hace falta «Descargar imagen».
@@ -233,7 +232,7 @@ test("sin archivos pero con share, se comparte solo el texto y se ofrece «Desca
   });
   await preparar(page);
   await page.goto("/");
-  await esperarLibre(page);
+  await jugarLibre(page);
   await jugarHastaElFin(page, conTactil(testInfo));
   await esperarFinListo(page);
   await expect(page.locator("#boton-descargar")).toBeVisible();
@@ -246,7 +245,7 @@ test("sin navigator.share, «Descargar imagen» descarga un .png y «Copiar text
   await page.addInitScript(sinShare);
   await preparar(page);
   await page.goto("/");
-  await esperarLibre(page);
+  await jugarLibre(page);
   await jugarHastaElFin(page, conTactil(testInfo));
   await esperarFinListo(page);
   await expect(page.locator("#boton-compartir")).toBeHidden();
@@ -264,7 +263,7 @@ test("tras «Descargar imagen» el foco vuelve al botón principal y Espacio emp
   await page.addInitScript(sinShare);
   await preparar(page);
   await page.goto("/");
-  await esperarLibre(page);
+  await jugarLibre(page);
   await jugarHastaElFin(page, false);
   await esperarFinListo(page);
   await page.locator("#boton-descargar").focus();
@@ -291,7 +290,7 @@ test("un share que rechaza con NotAllowedError muestra «Descargar imagen» sin 
   });
   const vigilancia = await preparar(page);
   await page.goto("/");
-  await esperarLibre(page);
+  await jugarLibre(page);
   await jugarHastaElFin(page, conTactil(testInfo));
   await esperarFinListo(page);
   await expect(page.locator("#boton-descargar")).toBeHidden();

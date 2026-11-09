@@ -1,7 +1,7 @@
 // Casos límite que no cubre la partida normal: almacenamiento bloqueado,
 // pestaña oculta a mitad de partida y enlaces de reto inválidos.
 import { expect, test, type Page } from "@playwright/test";
-import { conTactil, datosFin, empezarHoy, esperarLibre, juego, jugarHastaElFin, preparar } from "./ayudas.ts";
+import { conTactil, datosFin, empezarHoy, irAlInicio, juego, jugarHastaElFin, jugarLibre, preparar } from "./ayudas.ts";
 
 test("con localStorage bloqueado se juega entera y sin errores en consola", async ({ page }, testInfo) => {
   await page.addInitScript(() => {
@@ -14,14 +14,14 @@ test("con localStorage bloqueado se juega entera y sin errores en consola", asyn
   });
   const { errores, ajenas } = await preparar(page);
   await page.goto("/");
-  await esperarLibre(page);
+  await jugarLibre(page);
   await jugarHastaElFin(page, conTactil(testInfo), { conRetraso: 1, retrasoMs: 1600 });
   let fin = await datosFin(page);
   expect(fin.toques.length).toBeGreaterThan(0);
   await expect(page.locator("#tarjeta")).toContainText("Torre Diaria");
 
-  // El reto de hoy también se juega entero.
-  await page.waitForTimeout(800);
+  // El reto de hoy también se juega entero (desde el inicio, E2).
+  await irAlInicio(page);
   await empezarHoy(page);
   await jugarHastaElFin(page, conTactil(testInfo));
   fin = await datosFin(page);
@@ -29,7 +29,6 @@ test("con localStorage bloqueado se juega entera y sin errores en consola", asyn
 
   // Sin almacenamiento no se guarda nada: al recargar se puede volver a jugar.
   await page.reload();
-  await esperarLibre(page);
   await empezarHoy(page);
   expect(errores).toEqual([]);
   expect(ajenas).toEqual([]);
@@ -44,25 +43,33 @@ async function ocultarPestana(page: Page, oculta: boolean): Promise<void> {
   }, oculta);
 }
 
-test("con la pestaña oculta la simulación se para y al volver sigue", async ({ page }) => {
+test("con la pestaña oculta la partida queda en pausa y al volver sigue en pausa hasta «Seguir» (E3)", async ({ page }) => {
   const { errores } = await preparar(page);
   await page.goto("/");
-  await esperarLibre(page);
+  await jugarLibre(page);
   await expect(juego(page)).toHaveAttribute("data-fase", "apuntando");
   await expect(juego(page)).toHaveAttribute("data-x", /\d/);
 
   await ocultarPestana(page, true);
+  await expect(juego(page)).toHaveAttribute("data-estado", "pausa");
   // Deja pasar un fotograma por si ya había pasos pendientes.
   await page.evaluate(() => new Promise((listo) => requestAnimationFrame(() => requestAnimationFrame(listo))));
   const xOculta = await juego(page).getAttribute("data-x");
+  const pasosOculta = await juego(page).getAttribute("data-pasos");
   await page.waitForTimeout(800);
   expect(await juego(page).getAttribute("data-x")).toBe(xOculta);
-  await expect(juego(page)).toHaveAttribute("data-estado", "jugando");
 
-  // Al volver no recupera de golpe el tiempo oculto: sigue cerca de donde
+  // Al volver, sigue en pausa con su panel: la pieza no se mueve sola (T29).
+  await ocultarPestana(page, false);
+  await expect(juego(page)).toHaveAttribute("data-estado", "pausa");
+  await expect(page.locator("#pausa")).toBeVisible();
+  await page.waitForTimeout(800);
+  expect(await juego(page).getAttribute("data-x")).toBe(xOculta);
+  expect(await juego(page).getAttribute("data-pasos")).toBe(pasosOculta);
+
+  // «Seguir»: no recupera de golpe el tiempo en pausa, sigue cerca de donde
   // estaba. Se lee la x en el primer fotograma en que cambia, dentro de la
-  // página: leerla después desde Playwright, con el equipo cargado, llegaba
-  // tarde (1,04 m a 1,3 m/s con las reglas 3).
+  // página: leerla después desde Playwright, con el equipo cargado, llegaba tarde.
   const xVuelta = await page.evaluate(
     (antes) =>
       new Promise<number>((listo) => {
@@ -71,9 +78,7 @@ test("con la pestaña oculta la simulación se para y al volver sigue", async ({
           if (x && x !== antes) return listo(Number(x));
           requestAnimationFrame(mirar);
         };
-        Object.defineProperty(document, "hidden", { configurable: true, get: () => false });
-        Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "visible" });
-        document.dispatchEvent(new Event("visibilitychange"));
+        document.getElementById("boton-seguir")!.click();
         mirar();
       }),
     xOculta,
@@ -136,7 +141,8 @@ test("un enlace de partida libre inválido o con HTML se ignora sin inyectar nad
   for (const libre of LIBRES_INVALIDOS) {
     await page.goto(`/?libre=${encodeURIComponent(libre)}`);
     await expect(page.locator("#aviso-reto"), libre).toBeHidden();
-    await expect(juego(page), libre).toHaveAttribute("data-estado", "jugando");
+    // Sin enlace válido, la pantalla de inicio (E2).
+    await expect(juego(page), libre).toHaveAttribute("data-estado", "inicio");
     await expect(juego(page), libre).toHaveAttribute("data-modo", "libre");
     await expect(page.locator('img, svg:not([aria-hidden="true"]), b'), libre).toHaveCount(0);
     expect(await page.locator("script").count(), libre).toBe(scripts);

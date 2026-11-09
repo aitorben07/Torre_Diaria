@@ -2,7 +2,7 @@
 // 999.999 en todas las pantallas, con combo, récord y meta a la vista y el
 // hueco del botón de pausa (E3) ya reservado. Solo maquetación: va en escritorio (R17).
 import { expect, test, type Page } from "@playwright/test";
-import { conTactil, esperarFinListo, esperarLibre, juego, jugarHastaElFin, preparar } from "./ayudas.ts";
+import { abrirColeccion, conTactil, esperarFinListo, irAlInicio, jugarHastaElFin, jugarLibre, preparar } from "./ayudas.ts";
 
 const PANTALLAS = [
   { width: 320, height: 568 },
@@ -65,7 +65,7 @@ for (const pantalla of PANTALLAS) {
     await page.setViewportSize(pantalla);
     await preparar(page);
     await page.goto("/");
-    await esperarLibre(page);
+    await jugarLibre(page);
     for (const texto of PUNTOS) {
       const m = await medirHud(page, texto);
       const caso = `${texto} en ${pantalla.width}×${pantalla.height}`;
@@ -95,7 +95,7 @@ test("en 320×568 «999.999 puntos» cabe en el fin y el saldo de monedas, en su
   await page.setViewportSize({ width: 320, height: 568 });
   await preparar(page);
   await page.goto("/");
-  await esperarLibre(page);
+  await jugarLibre(page);
   await jugarHastaElFin(page, false);
   // El fin ignora toques y clics los primeros 700 ms.
   await esperarFinListo(page);
@@ -117,8 +117,8 @@ test("en 320×568 «999.999 puntos» cabe en el fin y el saldo de monedas, en su
   expect(m.marcador.derecha).toBeLessThanOrEqual(m.marcador.panel);
   expect(m.documento).toBeLessThanOrEqual(320);
 
-  await page.getByRole("button", { name: /^Colección/ }).click();
-  await expect(juego(page)).toHaveAttribute("data-estado", "coleccion");
+  await irAlInicio(page);
+  await abrirColeccion(page);
   const saldo = await page.evaluate(() => {
     document.getElementById("coleccion-monedas")!.textContent = "999.999";
     const panel = document.getElementById("coleccion")!;

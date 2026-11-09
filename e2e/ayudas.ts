@@ -63,19 +63,67 @@ export async function tocar(page: Page, tactil: boolean): Promise<void> {
 
 export const juego = (page: Page) => page.locator("#juego");
 
-/** Al abrir `/` la partida libre ya está en marcha, sin ningún clic (B5). */
+/** La partida libre está en marcha (tras «Jugar», «Otra vez» o el enlace de un amigo). */
 export async function esperarLibre(page: Page): Promise<void> {
   await expect(juego(page)).toHaveAttribute("data-estado", "jugando");
   await expect(juego(page)).toHaveAttribute("data-modo", "libre");
 }
 
-/** Abre Retos desde la barra de abajo (D2). */
+/** Espera la pantalla de inicio, que se ve siempre al abrir `/` sin enlaces (E2). */
+export async function esperarInicio(page: Page): Promise<void> {
+  await expect(juego(page)).toHaveAttribute("data-estado", "inicio");
+}
+
+/** Desde el inicio, «Jugar» y la partida libre en marcha (E4). */
+export async function jugarLibre(page: Page): Promise<void> {
+  await esperarInicio(page);
+  await page.locator("#inicio-jugar").click();
+  await esperarLibre(page);
+}
+
+/** Desde el fin (pasados los 700 ms) o la pausa, «Inicio» y la pantalla de inicio (E3). */
+export async function irAlInicio(page: Page): Promise<void> {
+  const estado = await juego(page).getAttribute("data-estado");
+  if (estado === "fin") await esperarFinListo(page);
+  await page.locator(estado === "pausa" ? "#pausa-inicio" : "#boton-inicio").click();
+  await esperarInicio(page);
+}
+
+/** Pausa la partida con su botón del HUD (E3). */
+export async function pausar(page: Page): Promise<void> {
+  await page.getByRole("button", { name: "Pausa", exact: true }).click();
+  await expect(juego(page)).toHaveAttribute("data-estado", "pausa");
+}
+
+/** Abre Retos desde la tarjeta «Reto de hoy» del inicio (E4). */
 export async function abrirRetos(page: Page): Promise<void> {
-  await page.getByRole("button", { name: /^Retos/ }).click();
+  await esperarInicio(page);
+  await page.getByRole("button", { name: /^Reto de hoy/ }).click();
   await expect(juego(page)).toHaveAttribute("data-estado", "retos");
 }
 
-/** Empieza el reto de hoy: Retos en la barra de abajo y «Jugar el reto de hoy» en la ficha de hoy. */
+/** Abre Niveles desde su tarjeta del inicio (E4). */
+export async function abrirNiveles(page: Page): Promise<void> {
+  await esperarInicio(page);
+  await page.getByRole("button", { name: /^Niveles/ }).click();
+  await expect(juego(page)).toHaveAttribute("data-estado", "niveles");
+}
+
+/** Abre Colección desde su tarjeta del inicio (E4). */
+export async function abrirColeccion(page: Page): Promise<void> {
+  await esperarInicio(page);
+  await page.locator("#tarjeta-coleccion").click();
+  await expect(juego(page)).toHaveAttribute("data-estado", "coleccion");
+}
+
+/** Abre Ajustes con la rueda del inicio (C2). */
+export async function abrirAjustes(page: Page): Promise<void> {
+  await esperarInicio(page);
+  await page.getByRole("button", { name: "Ajustes" }).click();
+  await expect(juego(page)).toHaveAttribute("data-estado", "ajustes");
+}
+
+/** Empieza el reto de hoy: la tarjeta «Reto de hoy» del inicio y «Jugar el reto de hoy» en la ficha de hoy. */
 export async function empezarHoy(page: Page): Promise<void> {
   await abrirRetos(page);
   await page.getByRole("button", { name: "Jugar el reto de hoy" }).click();

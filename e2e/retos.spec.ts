@@ -1,13 +1,12 @@
 // Bloque D: pantalla Retos con calendario, rachas, congeladores, atrasados y
 // el enlace de reto v2.
 import { expect, test } from "@playwright/test";
-import { abrirRetos, conTactil, DIA, empezarHoy, esperarLibre, juego, jugarHastaElFin, leerProgreso, preparar, sembrarProgreso } from "./ayudas.ts";
+import { abrirRetos, conTactil, DIA, empezarHoy, esperarInicio, juego, jugarHastaElFin, leerProgreso, preparar, sembrarProgreso } from "./ayudas.ts";
 
 test("con la fecha en el día 40, el calendario muestra diciembre, deja ir a noviembre de 2026 y no más atrás, y los días futuros no se pulsan (D2)", async ({ page }) => {
   // Día 40: 14 de diciembre de 2026.
   const { errores } = await preparar(page, "2026-12-14T12:00:00Z");
   await page.goto("/");
-  await esperarLibre(page);
   await abrirRetos(page);
   await expect(page.locator("#mes-nombre")).toHaveText("diciembre 2026");
   await expect(page.locator("#ficha-titulo")).toHaveText("Reto de hoy #40");
@@ -29,14 +28,13 @@ test("con la fecha en el día 40, el calendario muestra diciembre, deja ir a nov
 test("jugar el reto de hoy desde el calendario y recargar: el día sale jugado en su día, la racha es 1 y no hay otro intento oficial (D2)", async ({ page }, testInfo) => {
   await preparar(page);
   await page.goto("/");
-  await esperarLibre(page);
   await empezarHoy(page);
   await jugarHastaElFin(page, conTactil(testInfo));
   await expect(page.locator("#fin-medalla-texto")).toContainText("racha de 1 día");
   await expect(page.locator("#fin-monedas")).toBeVisible();
 
   await page.reload();
-  await esperarLibre(page);
+  await esperarInicio(page);
   await expect(juego(page)).toHaveAttribute("data-racha", "1");
   await abrirRetos(page);
   await expect(page.locator(`#dia-${DIA}`)).toHaveAttribute("data-estado-dia", "enSuDia");
@@ -66,7 +64,6 @@ test("jugar un día pasado lo marca como atrasado y no cambia la racha (D2)", as
   });
   await preparar(page);
   await page.goto("/");
-  await esperarLibre(page);
   await abrirRetos(page);
   await page.locator("#dia-5").click();
   await page.getByRole("button", { name: "Jugar el día #5" }).click();
@@ -89,7 +86,6 @@ test("un día jugado con las reglas 2 conserva su medalla y sus puntos en Retos 
   await sembrarProgreso(page, { diarios: { 5: v2 } });
   await preparar(page);
   await page.goto("/");
-  await esperarLibre(page);
   await abrirRetos(page);
   await expect(page.locator("#dia-5")).toHaveAttribute("aria-label", /: plata$/);
   await page.locator("#dia-5").click();
@@ -105,7 +101,6 @@ test("comprar un congelador con 250 monedas deja 50 y 1 congelador; con 2 el bot
   await sembrarProgreso(page, { monedas: 250 });
   await preparar(page);
   await page.goto("/");
-  await esperarLibre(page);
   await abrirRetos(page);
   const comprar = page.getByRole("button", { name: "Comprar congelador de racha por 200 monedas" });
   await comprar.click();
@@ -130,7 +125,6 @@ test("comprar un congelador con 250 monedas deja 50 y 1 congelador; con 2 el bot
 test("la cabecera de Retos muestra el siguiente desbloqueo por racha (impacto, D2)", async ({ page }) => {
   await preparar(page);
   await page.goto("/");
-  await esperarLibre(page);
   await abrirRetos(page);
   await expect(page.locator("#racha-siguiente")).toHaveText("Racha de 3: Ciudad");
 });
@@ -159,7 +153,7 @@ test("si falta un día y hay congelador, al abrir se gasta y la racha sigue (D1)
   await sembrarProgreso(page, { racha: { actual: 4, mejor: 4, ultimoDia: DIA - 2, congeladores: 1 } });
   await preparar(page);
   await page.goto("/");
-  await esperarLibre(page);
+  await esperarInicio(page);
   await expect(juego(page)).toHaveAttribute("data-racha", "4");
   expect((await leerProgreso(page))!.racha).toMatchObject({ actual: 4, congeladores: 0, ultimoDia: DIA - 1 });
 });

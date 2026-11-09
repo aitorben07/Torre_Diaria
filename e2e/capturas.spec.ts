@@ -1,12 +1,14 @@
 // A2: capturas para el revisor (inicio, partida a mitad, perfecto, caída y fin)
 // en 390×844 y 1280×800. Solo con `CAPTURAS=1`: no es una prueba, guarda PNG en
-// docs/proceso/segunda-version/capturas/ (fuera de dist/).
+// docs/proceso/segunda-version/capturas/ (fuera de dist/). Las de la tercera
+// versión (inicio, pausa y ajustes, E y C2) van a docs/proceso/tercera-version/capturas/.
 import { mkdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { expect, test, type Page } from "@playwright/test";
-import { esperarLibre, juego, preparar } from "./ayudas.ts";
+import { abrirAjustes, abrirColeccion, abrirNiveles, abrirRetos, esperarInicio, juego, jugarLibre, pausar, preparar } from "./ayudas.ts";
 
 const CARPETA = new URL("../docs/proceso/segunda-version/capturas/", import.meta.url);
+const CARPETA_V3 = new URL("../docs/proceso/tercera-version/capturas/", import.meta.url);
 
 test.skip(!process.env.CAPTURAS, "Solo con CAPTURAS=1");
 
@@ -74,7 +76,7 @@ for (const [nombre, ancho, alto] of [
     const page = await contexto.newPage();
     await preparar(page);
     await page.goto("/");
-    await esperarLibre(page);
+    await jugarLibre(page);
     await page.evaluate(() => document.fonts.ready);
     await page.waitForTimeout(600);
     const guardar = (paso: string) => page.screenshot({ path: fileURLToPath(new URL(`${nombre}-${paso}.png`, CARPETA)) });
@@ -153,14 +155,14 @@ for (const [nombre, ancho, alto] of [
       await page.addInitScript((valor) => localStorage.setItem("torre-diaria:progreso", valor), JSON.stringify(progresoDeMuestra(escenario, mejorRacha)));
       await preparar(page);
       await page.goto("/");
-      await esperarLibre(page);
+      await esperarInicio(page);
       await page.evaluate(() => document.fonts.ready);
       return page;
     };
 
     // Colección: pestaña de piezas y de escenarios.
     let page = await abrirCon("puerto", 2);
-    await page.getByRole("button", { name: /^Colección/ }).click();
+    await abrirColeccion(page);
     await page.waitForTimeout(400);
     await guardarEn(page, "6-coleccion-piezas");
     await page.getByRole("tab", { name: "Escenarios" }).click();
@@ -169,7 +171,7 @@ for (const [nombre, ancho, alto] of [
     await page.getByRole("button", { name: "Cerrar" }).first().click();
 
     // Retos: calendario con medallas, racha y congeladores.
-    await page.getByRole("button", { name: /^Retos/ }).click();
+    await abrirRetos(page);
     await page.waitForTimeout(300);
     await guardarEn(page, "8-retos");
 
@@ -190,6 +192,7 @@ for (const [nombre, ancho, alto] of [
       ["nubes", "11-nubes"],
     ] as const) {
       page = await abrirCon(escenario, 7);
+      await jugarLibre(page);
       for (let i = 0; i < 9; i++) await soltarCentrada(page);
       await page.waitForFunction(() => document.getElementById("juego")!.dataset.fase === "apuntando");
       await page.waitForTimeout(400);
@@ -219,11 +222,10 @@ for (const [nombre, ancho, alto] of [
     await page.addInitScript((valor) => localStorage.setItem("torre-diaria:progreso", valor), JSON.stringify(progreso));
     await preparar(page);
     await page.goto("/");
-    await esperarLibre(page);
     await page.evaluate(() => document.fonts.ready);
 
     // Mapa con el nivel 8 disponible, centrado al abrir.
-    await page.getByRole("button", { name: /^Niveles/ }).click();
+    await abrirNiveles(page);
     await page.waitForTimeout(400);
     await guardarEn(page, "12-niveles");
 
@@ -264,7 +266,7 @@ for (const [nombre, ancho, alto] of [
     await page.addInitScript((valor) => localStorage.setItem("torre-diaria:progreso", valor), JSON.stringify(progresoDeMuestra("puerto", 2)));
     await preparar(page);
     await page.goto("/");
-    await esperarLibre(page);
+    await jugarLibre(page);
     await page.evaluate(() => document.fonts.ready);
     for (let i = 0; i < 9; i++) await soltarCentrada(page);
     while ((await juego(page).getAttribute("data-estado")) !== "fin") {
@@ -276,6 +278,45 @@ for (const [nombre, ancho, alto] of [
     const descarga = page.waitForEvent("download");
     await page.locator("#boton-descargar").click();
     await (await descarga).saveAs(ruta(`${nombre}-16-imagen-libre.png`));
+    await contexto.close();
+  });
+}
+
+// Tercera versión (E y C2): inicio, pausa y ajustes, con el progreso de muestra.
+for (const [nombre, ancho, alto] of [
+  ["movil", 390, 844],
+  ["movil-360", 360, 640],
+  ["escritorio", 1280, 800],
+] as const) {
+  test(`capturas de inicio, pausa y ajustes ${nombre} ${ancho}x${alto}`, async ({ browser }, testInfo) => {
+    test.skip(testInfo.project.name !== "escritorio", "Una vez basta");
+    mkdirSync(CARPETA_V3, { recursive: true });
+    const contexto = await browser.newContext({
+      viewport: { width: ancho, height: alto },
+      deviceScaleFactor: nombre === "escritorio" ? 1 : 2,
+      hasTouch: nombre !== "escritorio",
+    });
+    const page = await contexto.newPage();
+    const guardar = (paso: string) => page.screenshot({ path: fileURLToPath(new URL(`${nombre}-${paso}.png`, CARPETA_V3)) });
+    const progreso = { ...progresoDeMuestra("puerto", 2), niveles: { 1: 3, 2: 3, 3: 2, 4: 1 } };
+    await page.addInitScript((valor) => localStorage.setItem("torre-diaria:progreso", valor), JSON.stringify(progreso));
+    await preparar(page);
+    await page.goto("/");
+    await esperarInicio(page);
+    await page.evaluate(() => document.fonts.ready);
+    await page.waitForTimeout(600);
+    await guardar("inicio");
+    await abrirAjustes(page);
+    await page.locator("#boton-creditos").click();
+    await page.waitForTimeout(200);
+    await guardar("ajustes");
+    await page.keyboard.press("Escape");
+    await jugarLibre(page);
+    for (let i = 0; i < 4; i++) await soltarCentrada(page);
+    await page.waitForFunction(() => document.getElementById("juego")!.dataset.fase === "apuntando");
+    await pausar(page);
+    await page.waitForTimeout(300);
+    await guardar("pausa");
     await contexto.close();
   });
 }

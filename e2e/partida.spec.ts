@@ -3,7 +3,7 @@
 // perfectos con imán y combos).
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
 import { jugar } from "../src/logica/simulacion.ts";
-import { conTactil, datosFin, DIA, empezarHoy, esperarFinListo, esperarLibre, jugarHastaElFin, preparar, SEMILLA } from "./ayudas.ts";
+import { conTactil, datosFin, DIA, empezarHoy, esperarFinListo, jugarHastaElFin, jugarLibre, pausar, preparar, SEMILLA } from "./ayudas.ts";
 
 test("partida completa del reto de hoy tocando cada pieza en cuanto aparece", async ({ page, context }, testInfo) => {
   test.setTimeout(90_000);
@@ -65,11 +65,16 @@ test("tocando sobre el objetivo, el reto de hoy en pantalla equivale a jugar() e
   expect(vigilancia.ajenas).toEqual([]);
 });
 
-test("tocando sobre el objetivo, la partida libre en pantalla equivale a jugar() en Node", async ({ page }, testInfo) => {
+test("tocando sobre el objetivo, la partida libre con una pausa en medio equivale a jugar() en Node (R3, E3)", async ({ page }, testInfo) => {
   test.setTimeout(90_000);
   const vigilancia = await preparar(page);
   await page.goto("/");
-  await esperarLibre(page);
+  await jugarLibre(page);
+  // Una pausa a mitad del vaivén de la primera pieza: la pieza se queda quieta y sigue al volver.
+  await expect.poll(async () => Number(await page.locator("#juego").getAttribute("data-pasos"))).toBeGreaterThan(20);
+  await pausar(page);
+  await page.getByRole("button", { name: "Seguir" }).click();
+  await expect(page.locator("#juego")).toHaveAttribute("data-estado", "jugando");
   await compararConNode(page, testInfo, "libre");
   expect(await page.locator("#juego").getAttribute("data-semilla")).toMatch(/^libre-[0-9a-z]+$/);
   expect(vigilancia.errores).toEqual([]);

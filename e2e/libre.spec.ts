@@ -1,7 +1,8 @@
-// B5: partida libre al abrir, «Otra vez» con la espera de 700 ms, aviso del
-// primer toque, vidas en el HUD y sin la palabra «Práctica».
+// B5 (con el inicio de E2): «Jugar» empieza la partida libre, «Otra vez» con
+// la espera de 700 ms, aviso del primer toque, vidas en el HUD y sin la
+// palabra «Práctica».
 import { expect, test, type Page } from "@playwright/test";
-import { conTactil, esperarFinListo, esperarLibre, juego, jugarHastaElFin, preparar, soltarEnExtremo, tocar } from "./ayudas.ts";
+import { conTactil, esperarFinListo, juego, jugarHastaElFin, jugarLibre, preparar, soltarEnExtremo, tocar } from "./ayudas.ts";
 
 /**
  * Dentro de la página: en cuanto se muestra el fin (un `MutationObserver` lo ve
@@ -34,10 +35,10 @@ function pulsarTrasElFin(page: Page, ms: number, conTecla: boolean): Promise<{ e
   );
 }
 
-test("al cargar / ya se juega la partida libre, sin ningún clic, y un toque suelta la pieza", async ({ page }, testInfo) => {
+test("tras «Jugar» se juega la partida libre y un toque suelta la pieza", async ({ page }, testInfo) => {
   const { errores } = await preparar(page);
   await page.goto("/");
-  await esperarLibre(page);
+  await jugarLibre(page);
   await expect(juego(page)).toHaveAttribute("data-fase", "apuntando");
   await expect(juego(page)).toHaveAttribute("data-semilla", /^libre-/);
   await expect(juego(page)).toHaveAttribute("data-vidas", "3");
@@ -49,7 +50,7 @@ test("al cargar / ya se juega la partida libre, sin ningún clic, y un toque sue
 test("tras el fin, un toque a los 300 ms no reinicia; a los 800 ms, «Otra vez» empieza otra semilla", async ({ page }, testInfo) => {
   await preparar(page);
   await page.goto("/");
-  await esperarLibre(page);
+  await jugarLibre(page);
   const primera = await juego(page).getAttribute("data-semilla");
   const fin = pulsarTrasElFin(page, 300, false);
   await jugarHastaElFin(page, conTactil(testInfo));
@@ -89,7 +90,7 @@ test("tras el fin, Copiar, Compartir, Descargar y Usar también ignoran un toque
   });
   await preparar(page);
   await page.goto("/");
-  await esperarLibre(page);
+  await jugarLibre(page);
   let descargas = 0;
   page.on("download", () => descargas++);
   const botones = ["boton-copiar", "boton-compartir", "boton-descargar", "boton-equipar-nuevo"];
@@ -137,7 +138,7 @@ test("en escritorio, Espacio en el fin empieza otra partida", async ({ page }, t
   test.skip(conTactil(testInfo), "Solo en escritorio");
   await preparar(page);
   await page.goto("/");
-  await esperarLibre(page);
+  await jugarLibre(page);
   const primera = await juego(page).getAttribute("data-semilla");
   await jugarHastaElFin(page, false);
   await esperarFinListo(page);
@@ -149,7 +150,7 @@ test("en escritorio, Espacio en el fin empieza otra partida", async ({ page }, t
 test("el aviso «Toca para soltar» solo sale hasta el primer toque de la primera partida", async ({ page }, testInfo) => {
   await preparar(page);
   await page.goto("/");
-  await esperarLibre(page);
+  await jugarLibre(page);
   const aviso = page.getByText("Toca para soltar");
   await expect(aviso).toBeVisible();
   await tocar(page, conTactil(testInfo));
@@ -161,15 +162,17 @@ test("el aviso «Toca para soltar» solo sale hasta el primer toque de la primer
   await expect(juego(page)).toHaveAttribute("data-estado", "jugando");
   await expect(aviso).toBeHidden();
 
+  // Tampoco al recargar, en la primera partida de la página.
   await page.reload();
-  await esperarLibre(page);
+  await jugarLibre(page);
+  await expect(juego(page)).toHaveAttribute("data-partidas", "1");
   await expect(aviso).toBeHidden();
 });
 
 test("el HUD muestra las vidas que quedan tras una caída", async ({ page }, testInfo) => {
   await preparar(page);
   await page.goto("/");
-  await esperarLibre(page);
+  await jugarLibre(page);
   await expect(page.locator("#vidas .vida:not(.perdida)")).toHaveCount(3);
   // La pieza aparece en el extremo, fuera de la plataforma: soltarla ahí la tira.
   await soltarEnExtremo(page);
@@ -182,7 +185,7 @@ test("el HUD muestra las vidas que quedan tras una caída", async ({ page }, tes
 test("ningún botón ni texto de la interfaz dice «Práctica»", async ({ page }, testInfo) => {
   await preparar(page);
   await page.goto("/");
-  await esperarLibre(page);
+  await jugarLibre(page);
   const textos = async () => (await page.locator("body").innerText()) + (await page.locator("button").allTextContents()).join(" ");
   expect(await textos()).not.toMatch(/pr[aá]ctica/i);
   await jugarHastaElFin(page, conTactil(testInfo));

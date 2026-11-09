@@ -1,11 +1,11 @@
 // Bloque A: fuente local, efectos, sonido, háptica e interfaz.
 import { expect, test, type Page } from "@playwright/test";
-import { conTactil, esperarFinListo, esperarLibre, juego, jugarHastaElFin, preparar } from "./ayudas.ts";
+import { abrirAjustes, abrirColeccion, abrirNiveles, abrirRetos, conTactil, esperarFinListo, esperarInicio, esperarLibre, juego, jugarHastaElFin, jugarLibre, pausar, preparar } from "./ayudas.ts";
 
 test("la fuente local se carga sin peticiones a otros orígenes (A1)", async ({ page }) => {
   const vigilancia = await preparar(page);
   await page.goto("/");
-  await esperarLibre(page);
+  await jugarLibre(page);
   const cargada = await page.evaluate(async () => {
     await document.fonts.ready;
     return document.fonts.check('16px "Bricolage Grotesque Variable"');
@@ -56,7 +56,7 @@ test("cada evento lanza su efecto: colocada de cada calidad, caída, vida extra 
   test.setTimeout(240_000);
   const { errores } = await preparar(page);
   await page.goto("/");
-  await esperarLibre(page);
+  await jugarLibre(page);
   // Cada pieza se suelta a por el efecto que aún falta, leyendo los contadores
   // con la pieza anterior ya resuelta, así que no depende de lo que tarde el
   // equipo: un normal (de 0,38 a 0,45 m del objetivo), un bueno (a 0,3 m o
@@ -98,7 +98,7 @@ test("con movimiento reducido no hay sacudida de cámara (A3)", async ({ page })
   await page.emulateMedia({ reducedMotion: "reduce" });
   const { errores } = await preparar(page);
   await page.goto("/");
-  await esperarLibre(page);
+  await jugarLibre(page);
   await soltarA(page, 0, 0, true);
   await expect(page.locator("#juego")).toHaveAttribute("data-vidas", "2");
   await page.waitForTimeout(400);
@@ -141,23 +141,28 @@ test("antes del primer gesto no hay ningún AudioContext sonando; tras el primer
   await espiarAudio(page);
   const { errores } = await preparar(page, undefined, { audioReal: true });
   await page.goto("/");
-  await esperarLibre(page);
+  // En el inicio aún no ha habido ningún gesto: nada suena (E2).
+  await esperarInicio(page);
   await page.waitForTimeout(500);
   expect((await audio(page)).sonando).toBe(0);
+  // «Jugar» es el primer gesto; el primer toque ya suena.
+  await jugarLibre(page);
   await soltarA(page, 0, 0.05);
   await expect.poll(async () => (await audio(page)).nodos).toBeGreaterThan(1);
   expect(errores).toEqual([]);
 });
 
-test("con el sonido apagado no se crea ningún nodo de audio al soltar piezas (A4)", async ({ page }, testInfo) => {
+test("con los sonidos apagados en Ajustes no se crea ningún nodo de audio al soltar piezas (A4, C2)", async ({ page }, testInfo) => {
   await espiarAudio(page);
   const { errores } = await preparar(page, undefined, { audioReal: true });
   await page.goto("/");
-  await esperarLibre(page);
-  const boton = page.getByRole("button", { name: "Sonido" });
+  await abrirAjustes(page);
+  const boton = page.getByRole("switch", { name: "Sonidos" });
   if (testInfo.project.use.hasTouch) await boton.tap();
   else await boton.click();
-  await expect(boton).toHaveAttribute("aria-pressed", "false");
+  await expect(boton).toHaveAttribute("aria-checked", "false");
+  await page.keyboard.press("Escape");
+  await jugarLibre(page);
   const antes = (await audio(page)).nodos;
   for (let i = 0; i < 3; i++) await soltarA(page, 0, 0.05);
   await soltarA(page, 0, 0, true);
@@ -187,16 +192,24 @@ function espiarVibracion(page: Page, quitar = false) {
 
 const vibraciones = (page: Page) => page.evaluate(() => (window as unknown as { __vibraciones: unknown[] }).__vibraciones);
 
-test("un perfecto vibra con 15 ms; con la vibración apagada no vibra (A4)", async ({ page }) => {
+test("un perfecto vibra con 15 ms; con la vibración apagada desde la pausa no vibra (A4, C2)", async ({ page }) => {
   await espiarVibracion(page);
   const { errores } = await preparar(page);
   await page.goto("/");
-  await esperarLibre(page);
+  await jugarLibre(page);
   await soltarA(page, 0, 0.05);
   await expect.poll(() => vibraciones(page)).toContain(15);
-  const boton = page.getByRole("button", { name: "Vibración" });
+  // Ajustes desde la pausa: al cerrarlos se vuelve a la pausa y «Seguir» sigue la partida.
+  await pausar(page);
+  await page.locator("#pausa-ajustes").click();
+  await expect(page.locator("#juego")).toHaveAttribute("data-estado", "ajustes");
+  const boton = page.getByRole("switch", { name: "Vibración" });
   await boton.dispatchEvent("click");
-  await expect(boton).toHaveAttribute("aria-pressed", "false");
+  await expect(boton).toHaveAttribute("aria-checked", "false");
+  await page.keyboard.press("Escape");
+  await expect(page.locator("#juego")).toHaveAttribute("data-estado", "pausa");
+  await page.getByRole("button", { name: "Seguir" }).click();
+  await expect(page.locator("#juego")).toHaveAttribute("data-estado", "jugando");
   const antes = (await vibraciones(page)).length;
   for (let i = 0; i < 2; i++) await soltarA(page, 0, 0.05);
   await soltarA(page, 0, 0, true);
@@ -205,12 +218,15 @@ test("un perfecto vibra con 15 ms; con la vibración apagada no vibra (A4)", asy
   expect(errores).toEqual([]);
 });
 
-test("sin navigator.vibrate no hay error y no se ofrece el botón de vibración (A4)", async ({ page }) => {
+test("sin navigator.vibrate no hay error y Ajustes no ofrece la vibración (A4, C2)", async ({ page }) => {
   await espiarVibracion(page, true);
   const { errores } = await preparar(page);
   await page.goto("/");
-  await esperarLibre(page);
-  await expect(page.getByRole("button", { name: "Vibración" })).toBeHidden();
+  await abrirAjustes(page);
+  await expect(page.getByRole("switch", { name: "Sonidos" })).toBeVisible();
+  await expect(page.locator("#ajuste-vibracion")).toBeHidden();
+  await page.keyboard.press("Escape");
+  await jugarLibre(page);
   await soltarA(page, 0, 0.05);
   await soltarA(page, 0, 0, true);
   await page.waitForTimeout(800);
@@ -231,7 +247,7 @@ test("en 1280×800 la columna de juego mide al menos 400 px y el escenario ocupa
   await page.setViewportSize({ width: 1280, height: 800 });
   await preparar(page);
   await page.goto("/");
-  await esperarLibre(page);
+  await jugarLibre(page);
   const hud = await page.locator("#hud").boundingBox();
   expect(hud!.width).toBeGreaterThanOrEqual(400);
   expect(hud!.width).toBeCloseTo(800 * 0.5625, 0);
@@ -239,10 +255,9 @@ test("en 1280×800 la columna de juego mide al menos 400 px y el escenario ocupa
   expect(lienzo!.width).toBe(1280);
 });
 
-test("todos los botones visibles miden al menos 44×44 px, jugando, en el fin, en el reto de un amigo, en Retos, en Niveles y en Colección (A5, E3)", async ({ page }, testInfo) => {
+test("todos los botones visibles miden al menos 44×44 px en el inicio, jugando, en la pausa, en el fin, en el reto de un amigo, en Retos, en Niveles, en Colección y en Ajustes (A5, E3, R15)", async ({ page }, testInfo) => {
   await preparar(page);
   await page.goto("/");
-  await esperarLibre(page);
   const comprobar = async (pantalla: string) => {
     const botones = await botonesVisibles(page);
     expect(botones.length, pantalla).toBeGreaterThan(0);
@@ -251,43 +266,64 @@ test("todos los botones visibles miden al menos 44×44 px, jugando, en el fin, e
       expect(b.alto, `${pantalla} #${b.id}`).toBeGreaterThanOrEqual(44);
     }
   };
+  await esperarInicio(page);
+  await comprobar("inicio");
+  await jugarLibre(page);
   await comprobar("jugando");
+  await pausar(page);
+  await comprobar("pausa");
+  await page.getByRole("button", { name: "Seguir" }).click();
   await jugarHastaElFin(page, conTactil(testInfo));
   await comprobar("fin");
   await page.goto("/?reto=1.5");
   await expect(page.locator("#juego")).toHaveAttribute("data-estado", "reto");
   await comprobar("reto");
-  await page.getByRole("button", { name: /^Retos/ }).click();
-  await expect(page.locator("#juego")).toHaveAttribute("data-estado", "retos");
+  await page.goto("/");
+  await abrirRetos(page);
   await comprobar("retos");
-  await page.getByRole("button", { name: /^Niveles/ }).click();
-  await expect(page.locator("#juego")).toHaveAttribute("data-estado", "niveles");
+  await page.keyboard.press("Escape");
+  await abrirNiveles(page);
   await comprobar("niveles");
-  await page.getByRole("button", { name: /^Colección/ }).click();
-  await expect(page.locator("#juego")).toHaveAttribute("data-estado", "coleccion");
+  await page.keyboard.press("Escape");
+  await abrirColeccion(page);
   await comprobar("coleccion");
+  await page.keyboard.press("Escape");
+  await abrirAjustes(page);
+  await page.locator("#boton-creditos").click();
+  await comprobar("ajustes");
 });
 
 test("con el teclado, Tab llega a todos los botones visibles y el foco se ve (A5)", async ({ page }, testInfo) => {
   test.skip(conTactil(testInfo), "Teclado: solo en escritorio");
   await preparar(page);
   await page.goto("/");
-  await esperarLibre(page);
+  const recorrer = async (pantalla: string) => {
+    const esperados = (await botonesVisibles(page)).map((b) => b.id).sort();
+    const vistos = new Set<string>();
+    for (let i = 0; i < esperados.length + 3; i++) {
+      await page.keyboard.press("Tab");
+      const foco = await page.evaluate(() => {
+        const el = document.activeElement as HTMLElement | null;
+        if (!el || el.tagName !== "BUTTON") return null;
+        const estilo = getComputedStyle(el);
+        return { id: el.id, visible: el.matches(":focus-visible") && estilo.outlineStyle !== "none" && parseFloat(estilo.outlineWidth) >= 2 };
+      });
+      if (!foco) continue;
+      expect(foco.visible, `${pantalla}: foco visible en #${foco.id}`).toBe(true);
+      vistos.add(foco.id);
+    }
+    expect([...vistos].sort(), pantalla).toEqual(esperados);
+  };
+  await esperarInicio(page);
+  await recorrer("inicio");
+  await abrirAjustes(page);
+  await recorrer("ajustes");
+  await page.keyboard.press("Escape");
+  await jugarLibre(page);
+  await pausar(page);
+  await recorrer("pausa");
+  await page.keyboard.press("Escape");
   await jugarHastaElFin(page, false);
   await esperarFinListo(page);
-  const esperados = (await botonesVisibles(page)).map((b) => b.id).sort();
-  const vistos = new Set<string>();
-  for (let i = 0; i < esperados.length + 3; i++) {
-    await page.keyboard.press("Tab");
-    const foco = await page.evaluate(() => {
-      const el = document.activeElement as HTMLElement | null;
-      if (!el || el.tagName !== "BUTTON") return null;
-      const estilo = getComputedStyle(el);
-      return { id: el.id, visible: el.matches(":focus-visible") && estilo.outlineStyle !== "none" && parseFloat(estilo.outlineWidth) >= 2 };
-    });
-    if (!foco) continue;
-    expect(foco.visible, `foco visible en #${foco.id}`).toBe(true);
-    vistos.add(foco.id);
-  }
-  expect([...vistos].sort()).toEqual(esperados);
+  await recorrer("fin");
 });
