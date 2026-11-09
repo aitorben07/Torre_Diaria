@@ -2,7 +2,9 @@
 
 Nada de esto se implementa en la segunda versión. El bloque G solo deja los huecos.
 
-**Estado en el código (2026-11-09):** no hay ningún anuncio activo, ni SDK, ni peticiones a otros orígenes, ni botones de anuncio. Existen solo los puntos de llamada de `src/juego/anuncios.ts`, que con `anunciosNulos` no hacen nada: `partidaEmpieza` y `partidaPara` (al empezar, seguir, acabar o pausar una partida) y el intersticial de los puntos 4 («Otra vez» desde el fin de una partida libre) y 5 («Siguiente nivel»). Los puntos 1 a 3 (recompensados: «Seguir con 1 vida», «×2 monedas», «Congelador gratis») solo tienen sus tipos en la interfaz (`recompensado`, `MotivoRecompensado`): no se llaman desde ninguna parte y no hay botones. Tampoco existe la política del apartado 3: las llamadas se hacen siempre y, si hubiera un anuncio listo, el juego lo espera. `anunciosDePlataforma` ignora `PUBLIC_PLATAFORMA` y devuelve siempre `anunciosNulos`; el reto diario no tiene ninguna llamada de intersticial.
+**Estado en el código (2026-11-09):** no hay ningún anuncio activo, ni SDK, ni peticiones a otros orígenes, ni botones de anuncio. Existen solo los puntos de llamada de `src/juego/anuncios.ts`, que con `anunciosNulos` no hacen nada: `partidaEmpieza` y `partidaPara` (al empezar, seguir, acabar o pausar una partida) y el intersticial de los puntos 4 («Otra vez» desde el fin de una partida libre) y 5 («Siguiente nivel»). En la v2, los puntos 1 a 3 (recompensados) solo tenían sus tipos en la interfaz (`recompensado`, `MotivoRecompensado`) y ningún botón. Tampoco existe la política del apartado 3: las llamadas se hacen siempre y, si hubiera un anuncio listo, el juego lo espera. `anunciosDePlataforma` ignora `PUBLIC_PLATAFORMA` y devuelve siempre `anunciosNulos`; el reto diario no tiene ninguna llamada de intersticial.
+
+**Cambiado en la v3 (plan del 2026-11-09, `docs/proceso/tercera-version/`):** los recompensados pasan a tener llamada y botón, pero **solo se ven con un adaptador de anuncios disponible** (`anuncios.disponible()`). En la web, con `anunciosNulos`, no se ve ningún botón de vídeo (apartado 4). Los motivos son `"monedas"` (60 monedas cada 4 h, en Tienda > Monedas), `"objeto"` (1 objeto al día) y `"seguir"` (1 vida en «¿Seguir?», una vez por partida y solo en la partida libre). El premio solo se da con `"visto"` y la política vive en `src/logica/recompensas.ts`. Diseño completo en [`tienda-y-pagos.md`](tienda-y-pagos.md). Los puntos 2 («×2 monedas») y 3 («Congelador gratis») de la tabla siguen sin hacerse.
 
 ## 1. Papel de los anuncios
 
@@ -55,7 +57,7 @@ Compra única (orientativo, 2,99 €) que quita los intersticiales y mantiene lo
 ## 7. Huecos en el código (bloque G)
 
 - `src/juego/anuncios.ts`: interfaz `Anuncios` (`disponible`, `intersticial`, `recompensado`, `partidaEmpieza`, `partidaPara`) y `anunciosNulos`, que no hace nada.
-- Llamadas puestas (probadas con Vitest en `src/juego/anuncios.test.ts`): `partidaEmpieza`, `partidaPara` e intersticial en los puntos 4 y 5. *Diferencia con el plan original:* los puntos 1 a 3 (recompensados) no tienen llamada ni botón todavía, porque un botón que no hace nada incumple el apartado 4; se añadirán con el primer adaptador real.
+- Llamadas puestas (probadas con Vitest en `src/juego/anuncios.test.ts`): `partidaEmpieza`, `partidaPara` e intersticial en los puntos 4 y 5. *Diferencia con el plan original:* en la v2, los puntos 1 a 3 (recompensados) no tenían llamada ni botón, porque un botón que no hace nada incumple el apartado 4. *Cambiado en la v3:* el punto 1 y los vídeos de monedas y de objeto tienen llamada y botón, visibles solo con un adaptador; en la web no se ven.
 - Para implementar más adelante: una política pura (`src/logica/politica-anuncios.ts`) con las reglas del apartado 3, probada con Vitest, y un adaptador por plataforma que cargue su SDK solo en esa compilación.
 
 ## 8. Lo que necesitará al usuario

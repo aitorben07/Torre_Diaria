@@ -2,6 +2,10 @@
 
 Principio que manda sobre todo lo demás (punto 6 del usuario): **un toque, se entiende al instante, y siempre hay un siguiente objetivo cerca** (un perfecto más, el récord, la misión, la medalla, la estrella, el siguiente desbloqueo).
 
+## Tercera versión (plan del 2026-11-09)
+
+La tercera versión (rama `tercera-version`) cambia varios apartados de este documento. Cada uno lleva una nota «Cambiado en la v3» y el diseño nuevo está en el apartado 10. Tienda, monedas, vídeos y pagos están en [`tienda-y-pagos.md`](tienda-y-pagos.md). Las cifras de este diseño son la propuesta medida antes de programar; las definitivas se anotan en el `README.md` al cerrar el cambio.
+
 ## Qué cambió en la implementación (2026-11-09)
 
 Este documento es el diseño de partida. La implementación de la rama `segunda-version` lo sigue salvo en lo siguiente; en cada apartado afectado hay una nota «Implementado». Los motivos están en `docs/proceso/segunda-version/` (`impacto.md`, `estado.md`) y los valores medidos, en el `README.md`.
@@ -91,6 +95,8 @@ Con movimiento reducido: sin sacudida ni destellos, la mitad de partículas.
 
 Volumen general 0,5. Sonido y vibración se pueden apagar; iOS no vibra (se ignora en silencio).
 
+*Cambiado en la v3:* hay música sintetizada (apartado 10.5) y Ajustes separa «Música» y «Sonidos» (10.2). La estrella pasa a 784, 880 y 1.047 Hz para no salir de la escala pentatónica.
+
 ### 1.7. Interfaz
 
 - Tipografía Bricolage Grotesque: títulos 800, botones 700, números con cifras tabulares.
@@ -98,6 +104,7 @@ Volumen general 0,5. Sonido y vibración se pueden apagar; iOS no vibra (se igno
 - Botón principal: rosa con texto de tinta, borde de tinta; al pulsar baja 3 px y la sombra se reduce.
 - HUD: puntos grandes arriba al centro; vidas como tres bloquecitos con ojos a la izquierda; combo y récord a la derecha.
 - Barra inferior en el inicio y el fin: Retos (con la racha), Niveles, Colección (con las monedas), Ajustes.
+- *Cambiado en la v3:* desaparece la barra inferior. Se llega a Retos, Niveles y Tienda (antes Colección) desde la pantalla de inicio (10.1), y a Ajustes desde la rueda del inicio y desde la pausa. El HUD pone «Récord» y «Meta» bajo los puntos para que quepan 999.999 en 320 px.
 
 ## 2. Núcleo de juego
 
@@ -131,6 +138,7 @@ Ejemplos:
 
 - Velocidad: 1,3 m/s + 0,035 por pieza, tope 4,2 m/s en la pieza 83.
 - *Implementado:* 1,0 m/s + 0,03 por pieza, tope 3,4 m/s (se alcanza en la pieza 80). Ajustado con `npm run medir:duracion` (B4) para las duraciones de 2.5.
+- *Cambiado en la v3:* la velocidad la calcula la partida con un «ritmo» que sube al soltar y baja al caer, con recorrido y caída más cortos (apartado 10.9).
 - Formas: piezas 1 a 5, solo bloque, tablón y cuadrado. Desde la 6, trapecio y columna con probabilidad 10 % cada una, +3 puntos por tramo de 10 piezas, tope 25 % cada una.
 - Desde la pieza 100, perfecto más estrecho.
 - Cementado: como mucho 12 piezas dinámicas; las de abajo se vuelven piedra.
@@ -238,6 +246,8 @@ Fondo de papel con grano y el escenario equipado en suave; arriba, «TORRE DIARI
 
 Abrir → partida libre en marcha → fin (puntos, monedas, récord, siguiente desbloqueo, Otra vez, Compartir, barra con Retos, Niveles y Colección). El primer contacto no tiene menús.
 
+*Cambiado en la v3:* abrir → pantalla de inicio con «Jugar» dominante (responde a Espacio e Intro) sobre el escenario vivo → partida → fin con «Inicio». La partida se puede pausar. Ver apartado 10.1. Los enlaces `?reto=` y `?libre=` siguen abriendo su aviso, como en la v2.
+
 ## 9. Características de los juegos casuales con más descargas
 
 | Característica | Veredicto | Motivo |
@@ -259,9 +269,213 @@ Abrir → partida libre en marcha → fin (puntos, monedas, récord, siguiente d
 | Fantasma del amigo (su torre de fondo) | Más adelante | Bonito, pero el enlace tendría que llevar sus toques |
 | Potenciadores antes de partida | Más adelante | Rompen la igualdad del reto diario; solo valdrían en niveles |
 | Seguir viendo un anuncio | Más adelante (con anuncios) | Anexo 2 |
+| *Cambiado en la v3:* potenciadores durante la partida | **Sí** (reloj de arena, cemento y corazón) | Solo en libre y niveles, nunca en el reto diario (10.7). Antes de empezar, siguen sin hacerse |
+| *Cambiado en la v3:* vídeo con premio | **Sí, con adaptador** | Monedas, objeto y «Seguir»; en la web, sin proveedor, no se ve ninguno (`tienda-y-pagos.md`) |
 | Notificaciones push | Más adelante | Necesita PWA y un servidor de avisos (Supabase no tiene hueco) |
 | Pase de temporada | No | Necesita compras y contenido continuo |
 | Ruleta o cofres aleatorios | No | Parecen apuestas y añaden pantallas; las probabilidades habría que publicarlas |
 | Vidas o energía que limitan las partidas | No | Contradice «juega cuantas veces quieras» |
 | Moneda premium (gemas) | No por ahora | Ver 4.1 |
 
+
+## 10. Tercera versión
+
+Diseño del plan del 2026-11-09 (`docs/proceso/tercera-version/tareas.md`, Anexos B a K) con los cambios de `impacto.md`, apartado 5, que prevalecen. Recortes aceptados (R-1 a R-10): sin «Efectos reducidos» propio (se sigue al sistema), música con tempo fijo y capas 0 a 2, pausa del reto oficial sin «Abandonar», «¿Seguir?» solo en la partida libre, sin premios de objetos en los niveles, «+» con 0 unidades abre la Tienda sobre la partida en pausa, sin logo en el canvas, «Pack de ayudas» repetible en vez de lote de inicio, sin «Cómo se juega» y sin ficha «Monedas gratis» en el inicio.
+
+### 10.1. Pantalla de inicio
+
+```
+┌──────────────────────────────┐
+│ (moneda 1.240)       (rueda) │  ← fichas en las esquinas
+│                              │
+│        ╔═ TORRE ═╗           │  ← logo (10.4)
+│        ║ DIARIA  ║           │
+│                              │
+│         ┌───┐ ← pieza con    │
+│         │· ·│   ojos en el   │
+│         └───┘   gancho       │
+│                              │
+│   ┌──────────────────────┐   │
+│   │        JUGAR         │   │  ← principal, rosa, foco al cargar
+│   └──────────────────────┘   │
+│ ┌────────┐┌────────┐┌──────┐ │
+│ │ llama 3││estrella││tienda│ │  ← Reto de hoy · Niveles · Tienda
+│ │Reto #5 ││Nivel 4 ││      │ │
+│ │sin jugar││ 9 ★   ││      │ │
+│ └────────┘└────────┘└──────┘ │
+│====== muelle del Puerto ======│
+└──────────────────────────────┘
+```
+
+- **Siempre**, también en la primera visita (Decisión T3). «Jugar» empieza una partida libre y responde a Espacio e Intro; con el foco en «Jugar», esa pulsación no suelta ninguna pieza.
+- **Fondo:** el escenario equipado con su cielo de 0 m. La pieza se mece en el gancho a la velocidad inicial (es dibujo, sin física).
+- **Reto de hoy:** «Sin jugar» con un punto rosa, o la medalla y los puntos; el número de racha sobre la llama.
+- **Niveles:** «Nivel N» (el siguiente disponible) y las estrellas totales.
+- **Tienda:** con un punto rosa si se puede comprar algo con las monedas que hay.
+- Al volver del fin o de un panel, una línea con el objetivo cercano (`siguienteObjetivo`).
+- **Pausa:** en libre y niveles, «Seguir», «Ajustes» e «Inicio». En el reto oficial y su repetición, solo «Seguir» y «Ajustes» (recorte R-3). Al volver de otra pestaña, la partida queda en pausa. Recargar la página reinicia el oficial sin que cuente: limitación conocida que viene de la v2.
+
+### 10.2. Ajustes
+
+| Ajuste | Valores | Por defecto | Guardado |
+|---|---|---|---|
+| Música | Sí / No | Sí (No si la v2 tenía el sonido apagado) | `ajustes.musica` |
+| Sonidos | Sí / No | Sí | `ajustes.sonido` (en la v2 era todo el sonido) |
+| Vibración | Sí / No (solo si hay `navigator.vibrate`) | Sí | `ajustes.vibracion` |
+| Créditos y licencias | Texto, con la privacidad: «Todo se guarda solo en este navegador. No hay cuentas, ni cookies de terceros, ni anuncios.» (cambiará al activar vídeos o pagos) | — | — |
+| Versión | «Torre Diaria · reglas 3» | — | — |
+
+Cada interruptor es un `button` con `role="switch"` y `aria-checked`, de 44 px o más, dentro de un panel de papel como los demás. Los efectos reducidos siguen al sistema (`prefers-reduced-motion`), como en la v2.
+
+### 10.3. Mapa de niveles
+
+```
+┌──────────────────────────────┐
+│(casa) ( Puerto )  (★ 9)(◎ 1.240)│ ← fichas sobre el mapa, con sombra desplazada
+│                              │
+│        (10 jefe)             │
+│           \                  │
+│            (9 candado)       │   mapa a pantalla completa,
+│           /                  │   desplazamiento vertical,
+│     (8 actual, latiendo)     │   el actual centrado al abrir
+│          \                   │
+│           (7 ★★☆)            │
+│ ...                          │
+│====== Puerto (SVG) ===========│
+│  ┌────────────────────────┐  │
+│  │    Jugar nivel 8       │  │ ← botón flotante abajo
+│  └────────────────────────┘  │
+└──────────────────────────────┘
+```
+
+Al tocar un nivel abierto se abre una ventana con «Nivel 8», sus estrellas, el objetivo en una frase, «2 estrellas: 550 puntos · 3: 600», «Jugar» y «Cerrar». En escritorio, el mapa ocupa la columna de 9:16 y a los lados sigue el escenario. Se mantienen los mismos 10 niveles, el camino en zigzag, las nubes, los globos y las gaviotas de la v2.
+
+### 10.4. Logo
+
+- **Idea:** el título como torre impresa en risografía. Dos líneas, «TORRE» encima de «DIARIA», en Bricolage Grotesque 800.
+- **Letras:** cada una con un giro leve, entre −4° y +4°, fijo y no aleatorio, como piezas apiladas. Contorno de tinta y doble impresión desplazada en rosa (2 px) y azul riso (−1 px).
+- **La «O» de TORRE** es una pieza cuadrada turquesa con dos ojos que cuelga de un gancho amarillo con cable de tinta. Parpadea cada 3 a 5 s en el inicio (solo SVG y CSS; quieta con movimiento reducido).
+- **Debajo de «DIARIA»**, una franja naranja con pilotes: el muelle.
+- **Dónde:** SVG en línea en el inicio, sin `style="`, con las letras en la fuente de la página. Favicon nuevo (16 y 32 px) con trazados: la pieza turquesa con ojos colgando del gancho sobre el muelle, sin texto.
+- **Imagen para compartir:** mantiene su título de texto con el mismo estilo (recorte R-7).
+
+### 10.5. Música
+
+- **Estilo:** pop de juguete sobre papel. Marimba suave, bajo redondo, colchón tenue y un poco de percusión de cepillo. Acompaña sin tapar los «tic» y «toc».
+- **Escala:** Do mayor pentatónica (Do, Re, Mi, Sol y La), la misma que el perfecto. Acordes Do, La menor, Fa y Sol.
+- **Instrumentos (síntesis):**
+  - Marimba: seno más seno a ×4 con un 15 % de volumen; ataque de 5 ms; caída exponencial de 350 ms.
+  - Bajo: triangular de una octava y media por debajo; filtro paso bajo a 600 Hz; 200 ms.
+  - Colchón: dos triangulares desafinadas ±6 centésimas; ataque de 400 ms; filtro a 1,2 kHz.
+  - Percusión: cepillo (ruido con paso alto a 6 kHz, 30 ms) y bombo suave (seno de 120 a 50 Hz en 120 ms).
+- **Volumen:** música 0,25 y efectos 0,5, con la general a 1. La música va siempre por debajo.
+- **Motor:** sin temporizador propio. Las notas se programan desde el bucle de fotogramas con 0,2 s de anticipación y un filtro por instrumento creado una vez. En pausa y con la pestaña oculta no se programa ninguna nota.
+
+| Pista | Compases | Tempo | Cuándo |
+|---|---|---|---|
+| Inicio | 8, en bucle | 88 BPM | Inicio, mapa, tienda, retos y ajustes (al abrir un panel desde la partida, sigue la de partida) |
+| Partida | 16, en bucle, una variación | 104 BPM, fijo | Libre, reto y nivel |
+| Fin | Motivo Sol, Mi, Do; 1,5 s | — | Al perder la última vida o acabar el reto |
+| Victoria | El arpegio de `sonido.record()` | — | Nivel ganado, antes de las estrellas |
+
+| Capa | Qué suena | Entra con | Sale con |
+|---|---|---|---|
+| 0 | Colchón y marimba | Siempre | — |
+| 1 | + bajo | Altura ≥ 5 m o combo ≥ 2 | Caída (baja una capa) |
+| 2 | + percusión | Combo ≥ 4 o velocidad ≥ 2,6 m/s | Caída |
+
+Tras una caída, el filtro general de la música baja a 600 Hz y vuelve en 2 compases. En la primera visita, la música del inicio no suena hasta el primer toque (política de reproducción automática de los navegadores).
+
+**Autoría y licencia:** composición original hecha para este juego, escrita como datos en `partituras.ts`. No usa muestras ni melodías de terceros.
+
+### 10.6. Piezas especiales
+
+| Especial | Aspecto (en todos los temas) | Efecto | Desde la pieza |
+|---|---|---|---|
+| Dorada | Amarilla con brillo en diagonal y una estrella en la trama; ojos con pestañas | Si se coloca: puntos de colocada ×2 y +10 monedas (en los niveles, solo los puntos) | 8 |
+| Pegajosa | Rosa con gotas de miel en el borde inferior; ojos entornados | Al colocarse, queda unida a las piezas que toca (no a la plataforma): no resbala ni vuelca respecto a ellas | 16 |
+| Cemento | Gris claro con un saco dibujado y una franja amarilla; ojos serios | Al soltar la siguiente, ella y todo lo que hay debajo, si está quieto, se vuelve piedra | 24 |
+
+- **Frecuencia:** exactamente una en cada tramo de 8 piezas desde la 8, en una posición del tramo elegida por la semilla con un generador por tramo (`semilla|especiales|tramo`). En el primer tramo, siempre dorada.
+- **Tipos según el tramo:** en el segundo, dorada o pegajosa; desde el tercero, los tres, con pesos 40 % dorada, 30 % pegajosa y 30 % cemento (propuesta a medir).
+- **No cambian la secuencia de formas**, así que las imágenes de los días pasados se rehacen igual. La imagen de un día guardado pinta las especiales solo si `reglas ≥ 3`.
+- **Ni se compran ni se desbloquean fuera de la partida** (Decisión T10): son iguales para todos.
+- **Aviso la primera vez** en ese navegador, sin pausa, 2,5 s: «Pieza dorada: vale el doble», «Pieza pegajosa: se queda pegada donde cae» y «Pieza de cemento: convierte en piedra lo de debajo».
+- **Niveles:** sin especiales en los niveles 1 a 3; con ellas desde el 4.
+- **Reto diario:** con especiales, iguales para todos.
+
+### 10.7. Objetos de ayuda
+
+| Objeto | Qué hace | Cuándo se usa | Se desbloquea | Precio (propuesta) | Por vídeo |
+|---|---|---|---|---|---|
+| Reloj de arena | Las 5 piezas siguientes, contando la que cuelga, a ×0,6 de velocidad | Con una pieza colgando; no se acumula | Tras 2 partidas (+2 gratis) | 120 | 1 objeto gratis al día, de cualquier tipo |
+| Cemento | La pieza que cuelga pasa a ser de cemento | Con una pieza normal colgando | Tras 4 partidas (+2) | 180 | Igual |
+| Corazón | «Seguir» con 1 vida al perder la última, con respiro de velocidad | En «¿Seguir?», una vez por partida, solo en la partida libre | Tras 6 partidas (+2) | 250 | Además, «Seguir» con vídeo, 1 por partida |
+
+- **Máximo:** 9 de cada uno.
+- **Dónde:** libre y niveles (el corazón, solo en libre). Nunca en el reto diario, oficial ni repetición.
+- **En pantalla:** la barra de la partida lleva solo reloj y cemento; el corazón aparece en «¿Seguir?».
+- **Con 0 unidades,** «+» abre la Tienda en la pestaña Objetos como panel encima de la partida en pausa.
+- **«Partida terminada»** para los desbloqueos = libre, oficial y nivel. La repetición de un reto no cuenta.
+- **Determinismo:** las ayudas se aplican en un paso concreto (`{ paso, tipo }`), así que la pantalla y Node dan lo mismo. La pieza que cuelga lleva la distancia recorrida acumulada, para que el reloj no la haga saltar.
+
+### 10.8. Tienda
+
+Ver [`tienda-y-pagos.md`](tienda-y-pagos.md): pestañas, fuentes de monedas, productos, interfaz `Pagos`, reglas de acreditación, vídeos y qué haría falta para activarlo.
+
+### 10.9. Curva de velocidad v3
+
+La velocidad deja de ser un dato fijo de cada pieza de la secuencia: la calcula la partida al colgar cada pieza.
+
+```
+ritmo: entero ≥ 0 (empieza en 0)
+v = min(VEL_TOPE, centésimas((velocidadInicialDeLaPartida + VEL_INCREMENTO · ritmo) · racha)) · reloj
+```
+
+| Constante | v2 | v3 | Motivo |
+|---|---|---|---|
+| `VEL_INICIAL` | 1,0 m/s | 1,3 m/s | Con el recorrido más corto, la primera pieza llega al centro en 2,0 s en lugar de 3,4 s. Ventana del perfecto: 123 ms |
+| `VEL_INCREMENTO` | 0,03 por pieza | 0,025 por pieza soltada | Arranca más rápido, sube algo más despacio |
+| `VEL_TOPE` | 3,4 m/s | 3,4 m/s | El final ya era exigente |
+| `AMPLITUD` | 3,4 m | 2,6 m | Menos recorrido hasta el centro |
+| `HUECO_COLGADA` | 2,5 m | 1,8 m | Menos caída hasta la torre |
+
+No hay velocidad mínima: con el ritmo ≥ 0, la velocidad base nunca baja de la inicial de esa partida, y el reloj multiplica después. La velocidad se redondea a centésimas tras los multiplicadores.
+
+| Suceso | Efecto en la velocidad | Por qué |
+|---|---|---|
+| Pieza soltada | ritmo + 1 | Progresión base |
+| Bueno, normal o perfecto | Nada por sí solo | El castigo ya es perder el combo |
+| Combo ≥ 5 («en racha») | ×1,08 mientras dure | Quien va bien recibe más reto |
+| Caída (vida perdida) | ritmo − 4 (respiro) | Evita que una caída a gran velocidad lleve a otra seguida; alarga la partida del novato |
+| Vida extra, hito, cementado, pieza especial | Nada | Una sola cosa nueva cada vez |
+| Reloj de arena | ×0,6 durante 5 piezas | Ayuda |
+| Seguir | ritmo − 8 | Seguir a velocidad máxima sería perder al momento |
+| Pieza 100 | Perfecto a 0,08 m (como la v2) | El final sigue exigente |
+| Niveles | Cada nivel fija su velocidad inicial | Se miden con las reglas 3 |
+| Reto diario | La misma curva que la libre | Igual para todos |
+
+Medido antes de programar (días 1 a 30, sin especiales, `impacto.md` 2.1): cadencia inicial del medio 2,47 s y duraciones medianas de 62,4 s (novato), 142,0 s (medio) y 262,4 s (experto). Las cifras con el código final están en el `README.md`.
+
+**Reglas 3 y días ya jugados:** los días guardados con `reglas: 2` conservan sus puntos y su medalla con los umbrales de la v2 (550, 2.400 y 4.000); los de `reglas: 3` usan los suyos. Repetir o jugar atrasado un día de la v2 se hace con las reglas 3.
+
+### 10.10. Guardado v3 (`torre-diaria:progreso`, `version: 3`)
+
+Solo se añaden campos; todo lo de la v2 sigue con el mismo nombre y tipo.
+
+```
+ajustes: { sonido, vibracion, tutorialVisto,            // v2 (sonido = efectos)
+           musica: boolean }                             // nuevo
+objetos: { reloj: 0..9, cemento: 0..9, corazon: 0..9,
+           desbloqueados: string[] }                     // "reloj", "cemento", "corazon"
+recompensas: { ultimoVideoMonedas: número (ms) | 0,
+               diaObjetoVideo: número de día | 0,
+               objetosVideo: número }
+compras: { transacciones: Array<{ id, producto, monedas, fecha }> (≤ 50) }
+vistos: string[]                                         // "dorada", "pegajosa", "cemento"
+estadisticas: { …v2, partidas: número }                  // nuevo campo dentro
+```
+
+- Al migrar, `ajustes.musica` copia `ajustes.sonido`: quien silenció el juego no oye música de repente.
+- `estadisticas.partidas` migrado = partidas libres + días jugados + niveles con estrellas.
+- **Volver a la v2:** el código de la v2 lee un guardado v3 (acepta `version ≥ 2`) y conserva monedas, retos, racha, niveles y catálogo, pero al guardar borra los campos v3 (objetos, desbloqueos, avisos vistos y música).
