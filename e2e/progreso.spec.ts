@@ -1,7 +1,7 @@
 // Bloque C: guardado v2, migración de la v1, monedas, récord, colección y
 // ajustes guardados.
 import { expect, test } from "@playwright/test";
-import { CLAVE_PROGRESO, conTactil, DIA, esperarFinListo, esperarLibre, juego, jugarHastaElFin, leerProgreso, preparar, sembrarProgreso, tocar } from "./ayudas.ts";
+import { CLAVE_PROGRESO, conTactil, DIA, empezarHoy, esperarFinListo, esperarLibre, juego, jugarHastaElFin, leerProgreso, preparar, sembrarProgreso, tocar } from "./ayudas.ts";
 
 test("solo se escribe torre-diaria:progreso, y un día de la v1 se ve en piezas, sin medalla (C1)", async ({ page }, testInfo) => {
   const v1 = JSON.stringify({ dia: DIA, puntos: 7, altura: 4.2, formas: [{ forma: "bloque", color: 0 }] });
@@ -129,6 +129,38 @@ test("una racha de 3 desbloquea la Ciudad aunque la altura récord sea menor de 
   await expect(page.locator("#lienzo")).toHaveAttribute("data-escenario", "ciudad");
   await page.getByRole("button", { name: "Cerrar" }).first().click();
   await expect(juego(page)).toHaveAttribute("data-estado", "jugando");
+});
+
+test("«Usar» vuelve a salir con el segundo escenario nuevo de la misma sesión (C3)", async ({ page }, testInfo) => {
+  await sembrarProgreso(page, { racha: { actual: 2, mejor: 2, ultimoDia: DIA - 1, congeladores: 0 } });
+  await preparar(page);
+  await page.goto("/");
+  await esperarLibre(page);
+  const usar = page.getByRole("button", { name: "Usar", exact: true });
+
+  // Racha de 3 en el reto de hoy: la Ciudad.
+  await empezarHoy(page);
+  await jugarHastaElFin(page, conTactil(testInfo));
+  await esperarFinListo(page);
+  await expect(page.locator("#fin-desbloqueo-texto")).toHaveText("Nuevo escenario: Ciudad");
+  await usar.click();
+  await expect(usar).toBeHidden();
+  await expect(page.locator("#lienzo")).toHaveAttribute("data-escenario", "ciudad");
+
+  // Como si otra pestaña dejara la racha en 6 y el día de hoy sin jugar: la racha de 7 da las Nubes.
+  await page.evaluate((clave) => {
+    const progreso = JSON.parse(localStorage.getItem(clave)!);
+    progreso.diarios = {};
+    progreso.racha = { ...progreso.racha, actual: 6, mejor: 6, ultimoDia: progreso.racha.ultimoDia - 1 };
+    localStorage.setItem(clave, JSON.stringify(progreso));
+  }, CLAVE_PROGRESO);
+  await empezarHoy(page);
+  await jugarHastaElFin(page, conTactil(testInfo));
+  await esperarFinListo(page);
+  await expect(page.locator("#fin-desbloqueo-texto")).toHaveText("Nuevo escenario: Nubes");
+  await expect(usar).toBeVisible();
+  await usar.click();
+  await expect(page.locator("#lienzo")).toHaveAttribute("data-escenario", "nubes");
 });
 
 test("abrir la colección durante la partida libre la deja en pausa y al cerrar sigue (C3)", async ({ page }) => {

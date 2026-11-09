@@ -258,6 +258,8 @@ export function pintarFin(datos: DatosFin): void {
   if (datos.desbloqueo) {
     ui.finDesbloqueoTexto().textContent = datos.desbloqueo.texto;
     ui.botonEquiparNuevo().dataset.articulo = datos.desbloqueo.id;
+    // «Usar» se oculta al pulsarlo: con otro escenario nuevo en la misma sesión vuelve a salir.
+    ui.botonEquiparNuevo().hidden = false;
   }
   mostrarTexto(ui.finSiguiente(), datos.siguiente ?? null);
   const nivel = datos.nivel ?? null;
