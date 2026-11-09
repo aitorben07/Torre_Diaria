@@ -30,6 +30,11 @@ export const MARGEN_BAJO_TARJETA = 0.6;
 /** Si bajo la tarjeta quedan menos metros que estos, se ignora la tarjeta. */
 const LIBRE_MINIMO = 2;
 export const RATIO_MAXIMO = 2;
+/**
+ * En pantallas táctiles, como mucho 1,5 (impacto, A2): con CPU ×4 el p95 de
+ * fotograma daba 35 ms con 2 (objetivo ≤ 33 ms). Medido con `e2e/arte.spec.ts`.
+ */
+export const RATIO_MAXIMO_TACTIL = 1.5;
 
 /** Superficie del mar, en metros bajo la cara del muelle. */
 export const NIVEL_AGUA = -0.75;
@@ -101,8 +106,18 @@ export function alturaEnPantalla(metros: number, sueloY: number, k: number): num
   return sueloY - metros * k;
 }
 
-export function ratioPixeles(dispositivo: number): number {
-  return Math.min(dispositivo > 0 ? dispositivo : 1, RATIO_MAXIMO);
+export function ratioPixeles(dispositivo: number, tactil: boolean = false): number {
+  return Math.min(dispositivo > 0 ? dispositivo : 1, tactil ? RATIO_MAXIMO_TACTIL : RATIO_MAXIMO);
+}
+
+/** ¿Se juega con el dedo? (puntero principal grueso: móvil o tableta). */
+export function esTactil(): boolean {
+  return typeof window !== "undefined" && window.matchMedia?.("(pointer: coarse)").matches === true;
+}
+
+/** Píxeles reales por píxel CSS del lienzo en esta pantalla. */
+export function ratioDePantalla(): number {
+  return ratioPixeles(window.devicePixelRatio, esTactil());
 }
 
 /** Contorno de la pieza con las esquinas redondeadas (solo visual), en metros. */
@@ -256,7 +271,7 @@ export class Lienzo {
    * juego y `arriba` lo que tapa el HUD, ambos en píxeles CSS.
    */
   ajustar(columna?: number, arriba: number = 0): void {
-    const ratio = ratioPixeles(window.devicePixelRatio);
+    const ratio = ratioDePantalla();
     const { width, height } = this.canvas.getBoundingClientRect();
     this.canvas.width = Math.max(1, Math.round(width * ratio));
     this.canvas.height = Math.max(1, Math.round(height * ratio));
@@ -282,7 +297,7 @@ export class Lienzo {
 
   /** Píxeles CSS que tapa arriba la tarjeta de fin (0 si no hay tarjeta). */
   reservarArriba(pixelesCss: number): void {
-    this.reserva = Math.max(0, pixelesCss) * ratioPixeles(window.devicePixelRatio);
+    this.reserva = Math.max(0, pixelesCss) * ratioDePantalla();
     this.enFin = this.reserva > 0;
   }
 

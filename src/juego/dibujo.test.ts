@@ -7,6 +7,7 @@ import {
   MARGEN_BAJO_TARJETA,
   MARGEN_SUELO,
   objetivoCamara,
+  ratioPixeles,
   ZOOM_ALEJAMIENTO,
   ZOOM_DESDE,
   ZOOM_FIN_MIN,
@@ -122,5 +123,15 @@ describe("el dibujo no toca la partida (A2)", () => {
   it("la simulación no conoce temas ni escenarios: cambiar de tema no cambia puntos ni pasos", () => {
     const simulacion = readFileSync(new URL("../logica/simulacion.ts", import.meta.url), "utf8");
     expect(simulacion).not.toMatch(/juego\/|tema|escenario/i);
+  });
+});
+
+describe("densidad de píxeles del lienzo (A2, impacto)", () => {
+  it("como mucho 2 con ratón y 1,5 en pantallas táctiles", () => {
+    expect(ratioPixeles(1)).toBe(1);
+    expect(ratioPixeles(3)).toBe(2);
+    expect(ratioPixeles(2.625, true)).toBe(1.5);
+    expect(ratioPixeles(1, true)).toBe(1);
+    expect(ratioPixeles(0)).toBe(1);
   });
 });

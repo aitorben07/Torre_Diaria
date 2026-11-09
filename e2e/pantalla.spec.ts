@@ -52,6 +52,18 @@ for (const ratio of [1, 3]) {
   });
 }
 
+test("en una pantalla táctil el lienzo usa como mucho 1,5 píxeles por píxel CSS (impacto, A2)", async ({ page }, testInfo) => {
+  test.skip(!conTactil(testInfo), "Solo en el proyecto móvil");
+  await page.goto("/");
+  const medidas = await page.locator("#lienzo").evaluate((lienzo: HTMLCanvasElement) => ({
+    css: lienzo.getBoundingClientRect().width,
+    real: lienzo.width,
+    dispositivo: window.devicePixelRatio,
+  }));
+  expect(medidas.dispositivo).toBeGreaterThan(1.5);
+  expect(medidas.real).toBe(Math.round(medidas.css * 1.5));
+});
+
 test("al acabar, data-toques es una lista de enteros crecientes", async ({ page }, testInfo) => {
   await preparar(page);
   await page.goto("/");

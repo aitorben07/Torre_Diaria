@@ -20,7 +20,7 @@ import { formatearAltura, formatearNumero, formatearPuntos, generarTarjeta, type
 import { Bucle, PASO_MS } from "./bucle.ts";
 import { PanelColeccion } from "./coleccion.ts";
 import { PanelNiveles } from "./mapa.ts";
-import { Lienzo, NIVEL_AGUA, ratioPixeles } from "./dibujo.ts";
+import { Lienzo, NIVEL_AGUA, ratioDePantalla } from "./dibujo.ts";
 import { Caidas, Efectos } from "./efectos.ts";
 import { Haptica, puedeVibrar } from "./haptica.ts";
 import { pintarMuestra } from "./muestras.ts";
@@ -59,7 +59,7 @@ haptica.cambiar(guardado.actual.ajustes.vibracion);
 const movimientoReducido = window.matchMedia?.("(prefers-reduced-motion: reduce)") ?? null;
 const efectos = new Efectos({
   reducido: () => movimientoReducido?.matches === true,
-  ratio: () => ratioPixeles(window.devicePixelRatio),
+  ratio: ratioDePantalla,
   conFuente: () => lienzo.conFuente,
   destinoVida,
 });
@@ -634,7 +634,7 @@ function avanzar(pasos: number): void {
 function destinoVida(): { x: number; y: number } {
   const vidas = ui.vidas().getBoundingClientRect();
   const lienzoCaja = ui.lienzo().getBoundingClientRect();
-  const ratio = ratioPixeles(window.devicePixelRatio);
+  const ratio = ratioDePantalla();
   return { x: (vidas.left + vidas.width / 2 - lienzoCaja.left) * ratio, y: (vidas.top + vidas.height / 2 - lienzoCaja.top) * ratio };
 }
 
