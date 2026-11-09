@@ -8,30 +8,45 @@ import { aTramos, type DiaJugado, type Progreso } from "./progreso.ts";
 import { DIA_1, fechaDeDia, numeroDia } from "./semilla.ts";
 import { REGLAS } from "./simulacion.ts";
 
+export type Umbrales = { bronce: number; plata: number; oro: number };
+
 /**
- * Puntos mínimos de cada medalla (S26), con las medianas de B4 (días 1 a 30,
- * medidas el 2026-11-08): bronce = mediana del novato (567,5), plata =
- * mediana del medio (2.430) y oro = percentil 25 del experto (≈ 4.039),
- * redondeados a 50 hacia abajo para que cada perfil llegue en la mitad de los
- * días o más (redondeando al más cercano, la plata quedaba en 2.450 y el medio
- * solo la sacaba el 40 % de los días).
+ * Puntos mínimos de cada medalla por versión de las reglas (R16): un día
+ * guardado conserva la medalla con los umbrales de las reglas con que se jugó.
+ *
+ * - Reglas 2 (S26), con las medianas de B4 (días 1 a 30, medidas el
+ *   2026-11-08): bronce = mediana del novato (567,5), plata = mediana del medio
+ *   (2.430) y oro = percentil 25 del experto (≈ 4.039), redondeados a 50 hacia
+ *   abajo para que cada perfil llegue en la mitad de los días o más
+ *   (redondeando al más cercano, la plata quedaba en 2.450 y el medio solo la
+ *   sacaba el 40 % de los días). No se tocan.
+ * - Reglas 3: provisionalmente los mismos; L1 los recalcula con la misma regla
+ *   ya con las piezas especiales.
  */
-export const UMBRAL_BRONCE = 550;
-export const UMBRAL_PLATA = 2400;
-export const UMBRAL_ORO = 4000;
+export const UMBRALES: Readonly<Record<number, Umbrales>> = {
+  2: { bronce: 550, plata: 2400, oro: 4000 },
+  3: { bronce: 550, plata: 2400, oro: 4000 },
+};
+
+/** Umbrales de las reglas actuales (`REGLAS`), los de las partidas nuevas. */
+export const UMBRAL_BRONCE = UMBRALES[REGLAS]!.bronce;
+export const UMBRAL_PLATA = UMBRALES[REGLAS]!.plata;
+export const UMBRAL_ORO = UMBRALES[REGLAS]!.oro;
 /** Congeladores de racha que se pueden tener a la vez. */
 export const MAX_CONGELADORES = 2;
 
-export function medallaDePuntos(puntos: number): Medalla | null {
-  if (puntos >= UMBRAL_ORO) return "oro";
-  if (puntos >= UMBRAL_PLATA) return "plata";
-  if (puntos >= UMBRAL_BRONCE) return "bronce";
+/** Medalla de unos puntos con los umbrales de `reglas` (por defecto, las actuales; una versión desconocida usa las actuales). */
+export function medallaDePuntos(puntos: number, reglas: number = REGLAS): Medalla | null {
+  const umbrales = UMBRALES[reglas] ?? UMBRALES[REGLAS]!;
+  if (puntos >= umbrales.oro) return "oro";
+  if (puntos >= umbrales.plata) return "plata";
+  if (puntos >= umbrales.bronce) return "bronce";
   return null;
 }
 
-/** Medalla de un día guardado. Los de la v1 no tienen (I2). */
+/** Medalla de un día guardado, con los umbrales de sus reglas (R16). Los de la v1 no tienen (I2). */
 export function medallaDe(jugado: DiaJugado): Medalla | null {
-  return jugado.reglas === REGLAS ? medallaDePuntos(jugado.puntos) : null;
+  return jugado.reglas >= 2 ? medallaDePuntos(jugado.puntos, jugado.reglas) : null;
 }
 
 /** ¿Se puede jugar el día `dia` siendo hoy `hoy`? Del 1 a hoy, sí; los futuros, no. */

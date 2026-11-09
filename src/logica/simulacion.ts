@@ -12,9 +12,15 @@
 import { Box, Polygon, Vec2, World, type Body, type Fixture } from "planck";
 import { Secuencia, verticesPieza, type Forma, type FormasSecuencia, type Pieza } from "./piezas.ts";
 import { calidadDeSuelta, Marcador, VIDAS_INICIALES, type Calidad } from "./puntuacion.ts";
+import { siguienteRitmo, velocidadDe, VEL_INICIAL } from "./ritmo.ts";
 
-/** Versión de las reglas: se guarda con cada resultado para distinguir las partidas de la v1 (B1). */
-export const REGLAS = 2;
+/**
+ * Versión de las reglas: se guarda con cada resultado (B1). 1: la v1; 2: la
+ * v2 (velocidad fija por pieza); 3: la tercera versión (velocidad por ritmo,
+ * recorrido y caída más cortos). Los días guardados con otra versión conservan
+ * sus puntos y su medalla (`diarios.ts`, R16).
+ */
+export const REGLAS = 3;
 
 /** Paso fijo de la simulación, en segundos. */
 export const PASO = 1 / 60;
@@ -33,10 +39,14 @@ export const OPCIONES_MUNDO = {
 export const PLATAFORMA_MEDIO_ANCHO = 2;
 export const PLATAFORMA_ALTO = 1;
 
-/** El vaivén va de -AMPLITUD a +AMPLITUD: sobrepasa los bordes de la plataforma. */
-export const AMPLITUD = 3.4;
+/**
+ * El vaivén va de -AMPLITUD a +AMPLITUD: sobrepasa los bordes de la
+ * plataforma. En las reglas 3 baja de 3,4 a 2,6 m y el hueco de 2,5 a 1,8 m:
+ * con 1,3 m/s la primera pieza llega al centro en 2,0 s (B2, medido en impacto 2.1).
+ */
+export const AMPLITUD = 2.6;
 /** Hueco entre la cima de la torre y la base de la pieza que cuelga. */
-export const HUECO_COLGADA = 2.5;
+export const HUECO_COLGADA = 1.8;
 
 /** Espera mínima y máxima, en pasos, antes de que aparezca la siguiente pieza. */
 export const ESPERA_MIN = 20;
@@ -81,8 +91,8 @@ export type EstadoPartida = {
   combo: number;
   /** x del objetivo: centro de la pieza en pie más alta, o 0 si no hay ninguna. */
   objetivo: number;
-  /** Pieza que cuelga, o `null` mientras se espera o al acabar. */
-  colgada: CuerpoVisible | null;
+  /** Pieza que cuelga, con su velocidad de vaivén en m/s (B1), o `null` mientras se espera o al acabar. */
+  colgada: (CuerpoVisible & { velocidad: number }) | null;
   /** Piezas que siguen en el mundo; las caídas se retiran al cerrar cada episodio. */
   cuerpos: CuerpoVisible[];
 };
@@ -140,7 +150,7 @@ export function evaluarObjetivo(objetivo: Objetivo, marca: Marca): "cumplido" | 
 export type OpcionesPartida = {
   /** Vidas al empezar (por defecto `VIDAS_INICIALES`). */
   vidas?: number;
-  /** Velocidad de la primera pieza (niveles, E1; por defecto `VEL_MIN`). */
+  /** Velocidad de la primera pieza; luego la mueve el ritmo (niveles, E1; por defecto `VEL_INICIAL`). */
   velocidad?: number;
   /** Formas de la secuencia (niveles, E1; por defecto todas). */
   formas?: FormasSecuencia;
@@ -226,10 +236,16 @@ export class Partida {
   private colgadaY = 0;
   private readonly objetivoNivel: Objetivo | null;
   private victoria = false;
+  /** Ritmo (B1): sube al soltar y baja al caer. */
+  private ritmo = 0;
+  private readonly velocidadInicial: number;
+  /** Velocidad de la pieza que cuelga, fijada al colgarla. */
+  private velocidadColgada = 0;
 
   constructor(semilla: string, opciones: OpcionesPartida = {}) {
-    this.secuencia = new Secuencia(semilla, { velocidad: opciones.velocidad, formas: opciones.formas });
+    this.secuencia = new Secuencia(semilla, { formas: opciones.formas });
     this.marcador = new Marcador(opciones.vidas ?? VIDAS_INICIALES);
+    this.velocidadInicial = opciones.velocidad ?? VEL_INICIAL;
     this.objetivoNivel = opciones.objetivo ?? null;
     const plataforma = this.mundo.createBody({ type: "static", position: new Vec2(0, -PLATAFORMA_ALTO / 2) });
     plataforma.createFixture({ shape: new Box(PLATAFORMA_MEDIO_ANCHO, PLATAFORMA_ALTO / 2), friction: FRICCION });
@@ -268,6 +284,7 @@ export class Partida {
       restitution: 0,
     });
     this.soltadas.push({ pieza, cuerpo, fixture, cementada: false });
+    this.ritmo = siguienteRitmo(this.ritmo, "soltada");
     this.enEspera = { indice: this.indice, calidad };
     this.eventos.push({ tipo: "soltada", paso: this.pasosHechos, indice: this.indice, calidad, x });
     this.faseActual = "esperando";
@@ -322,7 +339,10 @@ export class Partida {
       vidas: this.marcador.vidas,
       combo: this.marcador.combo,
       objetivo: this.objetivo(),
-      colgada: this.faseActual === "apuntando" ? { pieza, x: this.xColgada(), y: this.colgadaY, angulo: 0 } : null,
+      colgada:
+        this.faseActual === "apuntando"
+          ? { pieza, x: this.xColgada(), y: this.colgadaY, angulo: 0, velocidad: this.velocidadColgada }
+          : null,
       cuerpos: this.soltadas.map(({ pieza, cuerpo, cementada }) => {
         const p = cuerpo.getPosition();
         return { pieza, x: p.x, y: p.y, angulo: cuerpo.getAngle(), cementada };
@@ -358,7 +378,7 @@ export class Partida {
   }
 
   private xColgada(): number {
-    return posicionVaiven(this.pasosHechos - this.pasoAparicion, this.piezaActual().velocidad, this.indice % 2 === 1);
+    return posicionVaiven(this.pasosHechos - this.pasoAparicion, this.velocidadColgada, this.indice % 2 === 1);
   }
 
   private objetivo(): number {
@@ -409,14 +429,15 @@ export class Partida {
    * Fin de un episodio de caída (B1): retira, en el orden en que se soltaron, las
    * piezas caídas, las que quedan fuera de la plataforma y las que siguen
    * bajando deprisa, para que un derrumbe que aún resbala no cueste otra vida.
-   * Resta una vida; si quedan, cuelga la siguiente pieza sobre lo que sigue en
-   * pie. La pieza que estaba en espera no puntúa.
+   * Resta una vida y da un respiro al ritmo; si quedan, cuelga la siguiente
+   * pieza sobre lo que sigue en pie. La pieza que estaba en espera no puntúa.
    */
   private cerrarEpisodio(): void {
     const retirar = this.soltadas.filter((s) => !s.cementada && this.debeRetirarse(s));
     for (const s of retirar) this.mundo.destroyBody(s.cuerpo);
     this.soltadas = this.soltadas.filter((s) => !retirar.includes(s));
     const vidas = this.marcador.caer();
+    this.ritmo = siguienteRitmo(this.ritmo, "caida");
     this.eventos.push({ tipo: "caida", paso: this.pasosHechos, vidas, perdidas: retirar.length });
     if (this.enEspera) {
       this.enEspera = null;
@@ -436,8 +457,10 @@ export class Partida {
     );
   }
 
+  /** Cuelga la pieza actual con la velocidad del ritmo y del combo de ese momento (B1). */
   private colgarPieza(): void {
     this.colgadaY = this.alturaTorre(this.enPie()) + HUECO_COLGADA + this.piezaActual().alto / 2;
+    this.velocidadColgada = velocidadDe(this.ritmo, { inicial: this.velocidadInicial, combo: this.marcador.combo });
     this.pasoAparicion = this.pasosHechos;
     this.faseActual = "apuntando";
   }

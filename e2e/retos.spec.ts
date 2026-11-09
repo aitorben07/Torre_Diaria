@@ -83,6 +83,24 @@ test("jugar un día pasado lo marca como atrasado y no cambia la racha (D2)", as
   await expect(page.locator("#racha-actual")).toHaveText("1");
 });
 
+test("un día jugado con las reglas 2 conserva su medalla y sus puntos en Retos y no se juega otra vez como oficial (R16)", async ({ page }) => {
+  // 2.400 puntos: plata con los umbrales de la v2.
+  const v2 = { puntos: 2400, piezas: 49, altura: 23.5, perfectos: 42, colocadas: "0-48", enSuDia: true, reglas: 2 };
+  await sembrarProgreso(page, { diarios: { 5: v2 } });
+  await preparar(page);
+  await page.goto("/");
+  await esperarLibre(page);
+  await abrirRetos(page);
+  await expect(page.locator("#dia-5")).toHaveAttribute("aria-label", /: plata$/);
+  await page.locator("#dia-5").click();
+  await expect(page.locator("#ficha-texto")).toHaveText("Plata · 2.400 puntos · 23,5 m");
+  await expect(page.locator("#ficha-medalla")).toHaveClass(/plata/);
+  await expect(page.getByRole("button", { name: "Jugar el día #5" })).toBeHidden();
+  // Solo se puede repetir, sin que cuente.
+  await expect(page.locator("#ficha-repetir")).toBeVisible();
+  expect((await leerProgreso(page))!.diarios[5]).toEqual(v2);
+});
+
 test("comprar un congelador con 250 monedas deja 50 y 1 congelador; con 2 el botón está desactivado (D2)", async ({ page }) => {
   await sembrarProgreso(page, { monedas: 250 });
   await preparar(page);
@@ -126,7 +144,7 @@ test("abrir /?reto=<hoy>.500 sin haber jugado y acabar la partida la guarda como
   await jugarHastaElFin(page, conTactil(testInfo));
   await expect(page.locator("#fin-reto")).toBeVisible();
   const progreso = await leerProgreso(page);
-  expect(progreso!.diarios[DIA]).toMatchObject({ enSuDia: true, reglas: 2 });
+  expect(progreso!.diarios[DIA]).toMatchObject({ enSuDia: true, reglas: 3 });
   expect(progreso!.racha).toMatchObject({ actual: 1, ultimoDia: DIA });
 });
 

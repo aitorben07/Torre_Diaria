@@ -11,7 +11,7 @@ import {
   totalEstrellas,
   ultimoDisponible,
 } from "./niveles.ts";
-import { generarSecuencia, Secuencia, VEL_MIN } from "./piezas.ts";
+import { generarSecuencia, Secuencia } from "./piezas.ts";
 import { progresoVacio, type Progreso } from "./progreso.ts";
 import { evaluarObjetivo, jugar, Partida, type Evento } from "./simulacion.ts";
 
@@ -56,14 +56,17 @@ describe("tabla de niveles (E1)", () => {
     expect(textoObjetivo({ vidas: 1, objetivo: { tipo: "alturaConPiezas", metros: 100, piezas: 120 } }).length).toBeLessThanOrEqual(40);
   });
 
-  it("sin opciones de nivel la secuencia es la de siempre; con ellas cambian velocidad y formas", () => {
+  it("sin opciones de nivel la secuencia es la de siempre; con ellas cambian las formas", () => {
     const deSiempre = generarSecuencia("2026-11-20", 50);
     const conDefecto = new Secuencia("2026-11-20", {});
     expect(deSiempre.map((_, i) => conDefecto.pieza(i))).toEqual(deSiempre);
-    expect(deSiempre[0]!.velocidad).toBe(VEL_MIN);
-    const lenta = new Secuencia("nivel-1", { velocidad: 0.9, formas: "faciles" });
-    expect(lenta.pieza(0).velocidad).toBe(0.9);
-    for (let i = 0; i < 200; i++) expect(["bloque", "tablon", "cuadrado"]).toContain(lenta.pieza(i).forma);
+    const faciles = new Secuencia("nivel-1", { formas: "faciles" });
+    for (let i = 0; i < 200; i++) expect(["bloque", "tablon", "cuadrado"]).toContain(faciles.pieza(i).forma);
+  });
+
+  it("la velocidad del nivel es la de su primera pieza (B1 de la tercera versión)", () => {
+    const partida = new Partida("nivel-1", { velocidad: 0.9, formas: "faciles" });
+    expect(partida.estado().colgada!.velocidad).toBe(0.9);
   });
 });
 
@@ -114,19 +117,22 @@ describe("objetivos de la partida (E1)", () => {
   });
 
   it("prueba dorada del nivel 1: semilla, toques y resultado fijados", () => {
-    // Tres perfectos y dos buenos con la tabla de E1; si cambian la física,
-    // las piezas o las reglas, falla a propósito (como las doradas de B).
+    // Tres perfectos y dos buenos (a 0,2 m) con la tabla de E1; si cambian la
+    // física, las piezas o las reglas, falla a propósito (como las doradas de
+    // B). Con REGLAS = 3 (tercera-version, B1: AMPLITUD 2,6 y HUECO_COLGADA
+    // 1,8; el nivel sigue a 0,9 m/s) cambian los toques, los pasos y la
+    // altura; antes: toques 224 a 1234, 1302 pasos y 4,109107 m.
     const nivel = nivelPorNumero(1)!;
-    const r = jugar(nivel.semilla, [224, 483, 738, 975, 1234], opcionesDeNivel(nivel));
+    const r = jugar(nivel.semilla, [173, 377, 580, 767, 996], opcionesDeNivel(nivel));
     expect({ puntos: r.puntos, piezas: r.piezas, perfectos: r.perfectos, comboMax: r.comboMax, pasos: r.pasos, victoria: r.victoria }).toEqual({
       puntos: 120,
       piezas: 5,
       perfectos: 3,
       comboMax: 3,
-      pasos: 1302,
+      pasos: 1116,
       victoria: true,
     });
-    expect(r.altura).toBeCloseTo(4.109107, 6);
+    expect(r.altura).toBeCloseTo(3.678103, 6);
   });
 });
 

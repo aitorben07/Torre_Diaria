@@ -31,6 +31,10 @@ describe("textos de src/", () => {
   it("ningún icono es un carácter de texto: sin ★, ☆, ♥ ni → (G11)", () => {
     expect(archivos.filter((ruta) => /[★☆♥→]/.test(readFileSync(new URL(ruta, raiz), "utf8")))).toEqual([]);
   });
+
+  it("ningún código compara con las reglas actuales para saber si un día es de la v1 (R16)", () => {
+    expect(archivos.filter((ruta) => /[!=]==\s*REGLAS\b/.test(readFileSync(new URL(ruta, raiz), "utf8")))).toEqual([]);
+  });
 });
 
 describe("README y CI (H1, H2)", () => {

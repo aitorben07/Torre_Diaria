@@ -1,5 +1,5 @@
 // T10 y G3: partida completa de principio a fin y equivalencia con `jugar` en
-// Node, en partida libre y en el reto de hoy, con las reglas v2 (vidas,
+// Node, en partida libre y en el reto de hoy, con las reglas actuales (vidas,
 // perfectos con imán y combos).
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
 import { jugar } from "../src/logica/simulacion.ts";

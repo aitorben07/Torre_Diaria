@@ -9,7 +9,7 @@ import type { Escenario, Tema } from "./temas.ts";
 /** Metros de mundo que caben en una muestra: la plataforma entera y algo de cielo. */
 const VISTA = { anchoVista: 5.2, altoVista: 6 };
 
-const pieza = (forma: Pieza["forma"], ancho: number, alto: number, color: number): Pieza => ({ forma, ancho, alto, color, velocidad: 0 });
+const pieza = (forma: Pieza["forma"], ancho: number, alto: number, color: number): Pieza => ({ forma, ancho, alto, color });
 
 /** Bloque, tablón, cuadrado y trapecio apilados, con un poco de desorden. */
 const TORRE: CuerpoVisible[] = (() => {

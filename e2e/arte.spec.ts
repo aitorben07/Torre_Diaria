@@ -33,7 +33,7 @@ async function soltarA(page: Page, min: number, max: number, extremo = false): P
           if (el.dataset.estado === "fin") return listo(false);
           const x = Number(el.dataset.x || "0");
           const d = Math.abs(x - Number(el.dataset.objetivo || "0"));
-          if (el.dataset.fase === "apuntando" && (borde ? Math.abs(x) >= 2.6 : d >= desde && d <= hasta)) {
+          if (el.dataset.fase === "apuntando" && (borde ? Math.abs(x) >= 2.2 : d >= desde && d <= hasta)) {
             document.getElementById("zona")!.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true }));
             const esperar = () => (el.dataset.fase === "apuntando" && el.dataset.estado !== "fin" ? requestAnimationFrame(esperar) : listo(true));
             return requestAnimationFrame(esperar);
@@ -60,7 +60,7 @@ test("cada evento lanza su efecto: colocada de cada calidad, caída, vida extra 
   // Cada pieza se suelta a por el efecto que aún falta, leyendo los contadores
   // con la pieza anterior ya resuelta, así que no depende de lo que tarde el
   // equipo: un normal (de 0,38 a 0,45 m del objetivo), un bueno (a 0,3 m o
-  // menos), una caída (con el centro a más de 2,6 m, cae seguro; solo con 2
+  // menos), una caída (con el centro a 2,2 m o más, cae seguro; solo con 2
   // vidas o más) y perfectos (a 0,1 m o menos; vida extra en el quinto seguido
   // si falta alguna vida, confeti desde el tercero) hasta el hito de 5 m. Si
   // una pieza sale de otra calidad o se cae, la siguiente lo vuelve a intentar;

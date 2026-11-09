@@ -12,10 +12,12 @@ import {
   UMBRAL_BRONCE,
   UMBRAL_ORO,
   UMBRAL_PLATA,
+  UMBRALES,
   type PartidaDiaria,
 } from "./diarios.ts";
 import { progresoVacio, type Progreso } from "./progreso.ts";
 import { fechaUTC, numeroDia } from "./semilla.ts";
+import { REGLAS } from "./simulacion.ts";
 
 const partida = (puntos: number, id = "x"): PartidaDiaria => ({
   id,
@@ -95,7 +97,7 @@ describe("racha (D1)", () => {
 
   it("guarda los índices como tramos y la altura con 3 decimales", () => {
     const p = jugar(progresoVacio(), 4, 4);
-    expect(p.diarios[4]).toEqual({ puntos: 100, piezas: 20, altura: 9.877, perfectos: 5, colocadas: "0-2,4-5", enSuDia: true, reglas: 2 });
+    expect(p.diarios[4]).toEqual({ puntos: 100, piezas: 20, altura: 9.877, perfectos: 5, colocadas: "0-2,4-5", enSuDia: true, reglas: REGLAS });
   });
 
   it("los días futuros no se juegan ni se guardan", () => {
@@ -117,10 +119,34 @@ describe("medallas y estados (D1)", () => {
     expect(medallaDe({ ...v1, puntos: UMBRAL_ORO, reglas: 2 })).toBe("oro");
   });
 
-  it("los umbrales van redondeados a 50 y en orden", () => {
-    for (const umbral of [UMBRAL_BRONCE, UMBRAL_PLATA, UMBRAL_ORO]) expect(umbral % 50).toBe(0);
-    expect(UMBRAL_BRONCE).toBeLessThan(UMBRAL_PLATA);
-    expect(UMBRAL_PLATA).toBeLessThan(UMBRAL_ORO);
+  it("los umbrales van redondeados a 50 y en orden, en cada versión de las reglas", () => {
+    for (const umbrales of [UMBRALES[2]!, UMBRALES[3]!, { bronce: UMBRAL_BRONCE, plata: UMBRAL_PLATA, oro: UMBRAL_ORO }]) {
+      for (const umbral of Object.values(umbrales)) expect(umbral % 50).toBe(0);
+      expect(umbrales.bronce).toBeLessThan(umbrales.plata);
+      expect(umbrales.plata).toBeLessThan(umbrales.oro);
+    }
+    expect(UMBRAL_ORO).toBe(UMBRALES[REGLAS]!.oro);
+  });
+
+  it("R16: un día de las reglas 2 conserva sus puntos y la medalla con los umbrales de la v2 (550, 2.400 y 4.000)", () => {
+    expect(REGLAS).toBe(3);
+    expect(UMBRALES[2]).toEqual({ bronce: 550, plata: 2400, oro: 4000 });
+    const v2 = { puntos: 2400, piezas: 49, altura: 23.5, perfectos: 42, colocadas: "0-48", enSuDia: true, reglas: 2 };
+    expect(medallaDe(v2)).toBe("plata");
+    expect(medallaDe({ ...v2, puntos: 549 })).toBeNull();
+    expect(medallaDe({ ...v2, puntos: 4000 })).toBe("oro");
+    // Cada versión con los suyos, aunque cambien los de las reglas 3 (L1).
+    expect(medallaDePuntos(2400, 2)).toBe("plata");
+    expect(medallaDe({ ...v2, reglas: 3 })).toBe(medallaDePuntos(2400, 3));
+  });
+
+  it("R16: un día de las reglas 2 ya guardado no se vuelve a jugar como oficial ni cambia", () => {
+    const v2 = { puntos: 2400, piezas: 49, altura: 23.5, perfectos: 42, colocadas: "0-48", enSuDia: true, reglas: 2 };
+    const p: Progreso = { ...progresoVacio(), diarios: { 5: v2 } };
+    const otra = registrarOficial(p, 5, 7, partida(UMBRAL_ORO));
+    expect(otra.nuevo).toBe(false);
+    expect(otra.progreso.diarios[5]).toEqual(v2);
+    expect(estadoDia(p, 5, 7)).toBe("enSuDia");
   });
 
   it("cada día del calendario tiene su estado", () => {

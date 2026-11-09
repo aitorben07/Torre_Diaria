@@ -24,15 +24,6 @@ export const ALTO_MAX = 1.4;
 export const CIMA_TRIANGULO = 0.5;
 
 /**
- * Velocidad de vaivén en m/s: `min(VEL_TOPE, VEL_MIN + VEL_INCREMENTO · i)`,
- * con `i` el índice de la pieza desde 0 (B3). Ajustada con `npm run
- * medir:duracion` para los objetivos de duración de cada perfil (B4).
- */
-export const VEL_MIN = 1.0;
-export const VEL_TOPE = 3.4;
-export const VEL_INCREMENTO = 0.03;
-
-/**
  * Paleta fija de 7 colores: la pieza guarda el índice y cada tema lo pinta a
  * su manera (`temas.ts`). Cambiar el número de colores cambia las piezas.
  * Desde F2 la tarjeta de texto no lleva emojis (S18), así que ya no hay uno por color.
@@ -53,7 +44,6 @@ export type Pieza = {
   alto: number;
   /** Índice en `PALETA`. */
   color: number;
-  velocidad: number;
 };
 
 /** Piezas que da `generarSecuencia` si no se pide otro número. La partida las genera bajo demanda. */
@@ -82,11 +72,6 @@ function entre(azar: () => number, [min, max]: [number, number]): number {
   return centesimas(min + azar() * (max - min));
 }
 
-/** Velocidad de la pieza `indice`; un nivel puede empezar con otra velocidad (`desde`, E1). */
-export function velocidadDePieza(indice: number, desde: number = VEL_MIN): number {
-  return Math.min(VEL_TOPE, centesimas(desde + VEL_INCREMENTO * indice));
-}
-
 /** Probabilidad de triángulo (y la misma de columna) de la pieza `indice`; 0 en las iniciales. */
 export function probabilidadDificil(indice: number): number {
   if (indice < PIEZAS_INICIALES) return 0;
@@ -97,10 +82,12 @@ export function probabilidadDificil(indice: number): number {
 /** Formas de una secuencia: todas, con la curva de B3, o solo las iniciales (niveles fáciles, E1). */
 export type FormasSecuencia = "todas" | "faciles";
 
-/** Opciones de la secuencia de un nivel (E1). Sin ellas, la secuencia es la de siempre. */
+/**
+ * Opciones de la secuencia de un nivel (E1). Sin ellas, la secuencia es la de
+ * siempre. Desde las reglas 3 la velocidad no es de la pieza: la calcula la
+ * partida (`ritmo.ts`).
+ */
 export type OpcionesSecuencia = {
-  /** Velocidad de la primera pieza en m/s (por defecto `VEL_MIN`). */
-  velocidad?: number;
   formas?: FormasSecuencia;
 };
 
@@ -121,13 +108,11 @@ function elegirForma(indice: number, valor: number, formas: FormasSecuencia): Fo
 export class Secuencia {
   private readonly azar: () => number;
   private readonly piezas: Pieza[] = [];
-  private readonly velocidad: number;
   private readonly formas: FormasSecuencia;
 
   /** Con las opciones por defecto, las piezas de siempre: las doradas de `piezas.test.ts` no cambian. */
   constructor(semilla: string, opciones: OpcionesSecuencia = {}) {
     this.azar = crearGenerador(semilla);
-    this.velocidad = opciones.velocidad ?? VEL_MIN;
     this.formas = opciones.formas ?? "todas";
   }
 
@@ -143,7 +128,7 @@ export class Secuencia {
     const ancho = entre(azar, medidas.ancho);
     const alto = forma === "cuadrado" ? ancho : entre(azar, medidas.alto);
     const color = Math.floor(azar() * PALETA.length);
-    return { forma, ancho, alto, color, velocidad: velocidadDePieza(i, this.velocidad) };
+    return { forma, ancho, alto, color };
   }
 }
 

@@ -16,7 +16,7 @@ import {
   type Particula,
 } from "./efectos.ts";
 
-const pieza = { forma: "bloque", ancho: 1, alto: 0.8, color: 0, velocidad: 1 } as const;
+const pieza = { forma: "bloque", ancho: 1, alto: 0.8, color: 0 } as const;
 
 function efectos(reducido = false): Efectos {
   return new Efectos({ reducido: () => reducido, ratio: () => 1, conFuente: () => true, destinoVida: () => ({ x: 0, y: 0 }) });

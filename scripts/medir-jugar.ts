@@ -17,7 +17,7 @@ const VENTANA = 300;
 /** Suelta cada pieza cuando pasa sobre el objetivo (perfecto con imán). */
 function sobreObjetivo(partida: Partida): boolean {
   const { colgada, objetivo } = partida.estado();
-  return colgada !== null && Math.abs(colgada.x - objetivo) <= colgada.pieza.velocidad / 120 + 1e-9;
+  return colgada !== null && Math.abs(colgada.x - objetivo) <= colgada.velocidad / 120 + 1e-9;
 }
 
 function toquesSobreObjetivo(semilla: string, piezas: number): number[] {

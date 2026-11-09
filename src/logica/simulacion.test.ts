@@ -20,7 +20,7 @@ const SEMILLA = "2026-11-05";
 /** ¿La pieza que cuelga pasa en este paso por el objetivo (lo más cerca posible)? */
 function sobreObjetivo(partida: Partida): boolean {
   const { colgada, objetivo } = partida.estado();
-  return colgada !== null && Math.abs(colgada.x - objetivo) <= colgada.pieza.velocidad / 120 + 1e-9;
+  return colgada !== null && Math.abs(colgada.x - objetivo) <= colgada.velocidad / 120 + 1e-9;
 }
 
 /** ¿La pieza que cuelga acaba de aparecer en un extremo del vaivén (fuera de la plataforma)? */
@@ -66,10 +66,11 @@ describe("posicionVaiven", () => {
   it("es una onda triangular que empieza en un extremo y pasa por el centro", () => {
     expect(posicionVaiven(0, 2, false)).toBe(-AMPLITUD);
     expect(posicionVaiven(0, 2, true)).toBe(AMPLITUD);
-    // A 2 m/s recorre 2/60 m por paso: llega al otro extremo en 204 pasos.
-    expect(posicionVaiven(204, 2, false)).toBeCloseTo(AMPLITUD, 9);
-    expect(posicionVaiven(408, 2, false)).toBeCloseTo(-AMPLITUD, 9);
-    expect(Math.abs(posicionVaiven(102, 2, false))).toBeLessThan(1e-9);
+    // A 2 m/s recorre 2/60 m por paso: con AMPLITUD 2,6 llega al otro extremo en 156 pasos.
+    expect(AMPLITUD).toBe(2.6);
+    expect(posicionVaiven(156, 2, false)).toBeCloseTo(AMPLITUD, 9);
+    expect(posicionVaiven(312, 2, false)).toBeCloseTo(-AMPLITUD, 9);
+    expect(Math.abs(posicionVaiven(78, 2, false))).toBeLessThan(1e-9);
   });
 });
 
@@ -120,28 +121,30 @@ describe("vidas y episodios de caída (B1)", () => {
   });
 
   it("si caen varias piezas en el mismo episodio se resta una sola vida", () => {
-    // Novato simulado del día 1 (scripts/duracion.ts): la quinta pieza derrumba la torre.
+    // Novato simulado del día 1 (scripts/duracion.ts) con las reglas 3: la
+    // cuarta pieza tira también la tercera.
     const partida = new Partida(SEMILLA);
-    const toques = new Set([215, 454, 688, 936, 1154]);
+    const toques = new Set([131, 284, 435, 605]);
     const eventos: Evento[] = [];
-    while (partida.pasos < 1500) {
+    while (partida.pasos < 900 && !partida.terminada) {
       if (toques.has(partida.pasos)) partida.soltar();
       partida.paso();
       eventos.push(...partida.tomarEventos());
     }
     const caidas = eventos.filter((e) => e.tipo === "caida");
-    expect(caidas).toEqual([{ tipo: "caida", paso: 1326, vidas: 2, perdidas: 3 }]);
+    expect(caidas).toEqual([{ tipo: "caida", paso: 783, vidas: 2, perdidas: 2 }]);
     expect(partida.estado().vidas).toBe(2);
   });
 
   it("un derrumbe que sigue resbalando tras MAX_PASOS_ASENTAR cuesta una sola vida", () => {
-    // El mismo novato hasta su segundo episodio, que se cierra por tiempo con
-    // piezas aún sobre y = 0 pero fuera de la plataforma y bajando deprisa.
-    const toques = [215, 454, 688, 936, 1154, 1500, 1719, 1929, 2160, 2349, 2588, 2782, 3043];
-    const partida = new Partida(SEMILLA);
+    // Novato simulado del día 22 con las reglas 3: su primer episodio se
+    // cierra por tiempo con piezas aún sobre y = 0 pero fuera de la plataforma
+    // y bajando deprisa. (Con las reglas 2 era el segundo episodio del día 1.)
+    const toques = [113, 263, 408, 573, 713, 894, 1042, 1226, 1373, 1537, 1689, 1856, 2003, 2231];
+    const partida = new Partida("2026-11-26");
     const pendientes = new Set(toques);
     const eventos: Evento[] = [];
-    while (partida.pasos < 3382) {
+    while (partida.pasos < 2554 && !partida.terminada) {
       if (pendientes.has(partida.pasos)) partida.soltar();
       partida.paso();
       eventos.push(...partida.tomarEventos());
@@ -150,10 +153,7 @@ describe("vidas y episodios de caída (B1)", () => {
     expect(partida.fase).toBe("asentando");
     expect(resbalando.length).toBeGreaterThan(0);
     seguir(partida, 1200, eventos);
-    expect(eventos.filter((e) => e.tipo === "caida")).toEqual([
-      expect.objectContaining({ paso: 1326, vidas: 2 }),
-      expect.objectContaining({ paso: 3383, vidas: 1, perdidas: 7 }),
-    ]);
+    expect(eventos.filter((e) => e.tipo === "caida")).toEqual([expect.objectContaining({ paso: 2555, vidas: 2, perdidas: 12 })]);
     expect(partida.terminada).toBe(false);
     expect(partida.estado().cuerpos.every((c) => c.y > 0 && Math.abs(c.x) <= PLATAFORMA_MEDIO_ANCHO)).toBe(true);
   });
@@ -202,10 +202,13 @@ describe("jugar", () => {
     // Seis piezas sobre el objetivo (seis perfectos con imán), un toque en
     // espera (1378) que se ignora y tres piezas en el extremo, que caen y
     // gastan las tres vidas. Si se actualiza planck o se cambian la física o
-    // las reglas, esta prueba falla a propósito. Nueva con REGLAS = 2
-    // (segunda-version, B1): sustituye a la de la v1 (6 puntos, 1273 pasos).
-    expect(REGLAS).toBe(2);
-    const resultado = jugar(SEMILLA, [204, 444, 679, 912, 1142, 1368, 1378, 1418, 1489, 1560]);
+    // las reglas, esta prueba falla a propósito. Nueva con REGLAS = 3
+    // (tercera-version, B1): velocidad por ritmo desde 1,3 m/s, AMPLITUD 2,6 y
+    // HUECO_COLGADA 1,8. Sustituye a la de las reglas 2 (toques 204 a 1560;
+    // 260 puntos, 1631 pasos, altura 3,91307), que a su vez sustituyó a la
+    // de la v1 (6 puntos, 1273 pasos). Mismos puntos: seis perfectos.
+    expect(REGLAS).toBe(3);
+    const resultado = jugar(SEMILLA, [120, 273, 426, 579, 732, 878, 888, 925, 995, 1062]);
     const r6 = (valor: number) => Math.round(valor * 1e6) / 1e6;
     expect({
       puntos: resultado.puntos,
@@ -221,16 +224,16 @@ describe("jugar", () => {
       piezas: 6,
       perfectos: 6,
       vidas: 0,
-      pasos: 1631,
+      pasos: 1129,
       terminada: true,
-      altura: 3.91307,
+      altura: 3.880425,
       posiciones: [
-        { x: 0.000014, y: 0.399763, angulo: 0.000029 },
-        { x: -0.000063, y: 1.169336, angulo: 0.000083 },
-        { x: 0.000026, y: 1.714069, angulo: 0.000106 },
-        { x: -0.000022, y: 2.269124, angulo: 0.000053 },
-        { x: -0.000002, y: 2.971675, angulo: -0.000137 },
-        { x: -0.000014, y: 3.597942, angulo: 0.000273 },
+        { x: 0.000276, y: 0.396649, angulo: 0.000238 },
+        { x: -0.000842, y: 1.159786, angulo: 0.00051 },
+        { x: 0.000493, y: 1.698598, angulo: 0.000375 },
+        { x: -0.000185, y: 2.248757, angulo: 0.00035 },
+        { x: 0.000339, y: 2.943719, angulo: 0.000025 },
+        { x: 0.000109, y: 3.565284, angulo: 0.0003 },
       ],
     });
   });
@@ -241,7 +244,7 @@ describe("precisión, imán y combo (B2)", () => {
     const { partida } = jugarCon(sobreObjetivo, 1);
     seguir(partida, 300);
     // Segunda pieza: el objetivo es la x de la primera, que no es exactamente 0.
-    while (!sobreObjetivo(partida)) seguir(partida, 1);
+    while (!sobreObjetivo(partida) && !partida.terminada) seguir(partida, 1);
     const { objetivo, colgada } = partida.estado();
     expect(objetivo).not.toBe(0);
     expect(colgada!.x).not.toBe(objetivo);
@@ -257,9 +260,9 @@ describe("precisión, imán y combo (B2)", () => {
     expect(partida.estado().combo).toBe(1);
     const cerca = () => {
       const { colgada, objetivo } = partida.estado();
-      return colgada !== null && Math.abs(Math.abs(colgada.x - objetivo) - 0.2) <= colgada.pieza.velocidad / 120;
+      return colgada !== null && Math.abs(Math.abs(colgada.x - objetivo) - 0.2) <= colgada.velocidad / 120;
     };
-    while (!cerca()) seguir(partida, 1);
+    while (!cerca() && !partida.terminada) seguir(partida, 1);
     const { colgada, objetivo } = partida.estado();
     expect(Math.abs(colgada!.x - objetivo)).toBeGreaterThan(TOLERANCIA_PERFECTO);
     partida.soltar();
@@ -350,8 +353,11 @@ describe("cementado de la base (B3)", () => {
     // 1 mm en 60 pasos: no se cumple, porque `setType` borra los contactos y las
     // piezas de encima se hunden de 1 a 6 mm al perder el arranque en caliente
     // (medido; unas décimas de píxel en pantalla). Sin cementar, una torre
-    // despierta se desplaza varios centímetros en ese tiempo.
-    const partida = new Partida(SEMILLA_LARGA);
+    // despierta se desplaza varios centímetros en ese tiempo. Con las reglas 3
+    // (tercera-version, B1) usa el día 1: en SEMILLA_LARGA la suelta 29 mueve
+    // 1,4 cm la pieza de arriba (una columna); en otras 13 semillas medidas el
+    // máximo es de 0,63 cm. La pieza nueva, a 1,8 m, aterriza en unos 36 pasos.
+    const partida = new Partida(SEMILLA);
     const desplazamientos: number[] = [];
     for (let n = 0; n < 30 && !partida.terminada; ) {
       if (!sobreObjetivo(partida)) {
@@ -361,7 +367,7 @@ describe("cementado de la base (B3)", () => {
       }
       if (n >= MAX_DINAMICAS) {
         seguir(partida, 240);
-        while (!sobreObjetivo(partida)) seguir(partida, 1);
+        while (!sobreObjetivo(partida) && !partida.terminada) seguir(partida, 1);
       }
       const antes = partida.estado().cuerpos;
       partida.soltar();

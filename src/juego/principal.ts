@@ -166,8 +166,9 @@ function datosDeDia(dia: number, jugado: DiaJugado): DatosFin {
   const indices = deTramos(jugado.colocadas) ?? [];
   const secuencia = indices.length > 0 ? generarSecuencia(fechaDeDia(dia), indices[indices.length - 1]! + 1) : [];
   const formas = indices.map((i) => secuencia[i]!).filter(Boolean);
-  const v2 = jugado.reglas === REGLAS;
-  return { dia, puntos: jugado.puntos, altura: jugado.altura, piezas: jugado.piezas, formas, reglas: jugado.reglas, perfectos: v2 ? jugado.perfectos : null, comboMax: null };
+  // Desde la v2 hay perfectos; la v1 no los guardaba (R16: se mira la versión, no las reglas actuales).
+  const conPerfectos = jugado.reglas >= 2;
+  return { dia, puntos: jugado.puntos, altura: jugado.altura, piezas: jugado.piezas, formas, reglas: jugado.reglas, perfectos: conPerfectos ? jugado.perfectos : null, comboMax: null };
 }
 
 /** Aplica una acción de la interfaz: el flujo decide y aquí se ejecuta la orden. */
@@ -202,7 +203,7 @@ function mostrarReto(): void {
   escena = null;
   if (reto) {
     const jugado = resultadoDe(reto.dia);
-    pintarReto({ hoy, reto, jugado: jugado !== null, puntosDia: jugado && jugado.reglas === REGLAS ? jugado.puntos : null });
+    pintarReto({ hoy, reto, jugado: jugado !== null, puntosDia: jugado && jugado.reglas >= 2 ? jugado.puntos : null });
   } else if (libreAmigo) {
     pintarLibreAmigo(libreAmigo.puntos);
   }
@@ -673,6 +674,8 @@ function avanzar(pasos: number): void {
   const { colgada, objetivo } = estado;
   juego.dataset.x = colgada ? colgada.x.toFixed(2) : "";
   juego.dataset.objetivo = objetivo.toFixed(2);
+  // Velocidad de la pieza que cuelga (B1, reglas 3): la calcula la partida con el ritmo.
+  juego.dataset.velocidad = colgada ? String(colgada.velocidad) : "";
   if (pasos > 0) observar(estado, pasos);
   actualizarHud();
   pintarEfectos();

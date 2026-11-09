@@ -71,7 +71,7 @@ export function jugarConPerfil(semilla: string, perfil: Perfil, opciones: Opcion
       pasoToque = null;
     } else if (pasoToque === null) {
       // La pieza aparece en un extremo: el de la derecha si está en x > 0.
-      const alObjetivo = pasosHastaObjetivo(objetivo, colgada.pieza.velocidad, colgada.x > 0);
+      const alObjetivo = pasosHastaObjetivo(objetivo, colgada.velocidad, colgada.x > 0);
       const error = Math.round(((azar() * 2 - 1) * perfil.errorMs) / (PASO * 1000));
       pasoToque = partida.pasos + Math.max(1, alObjetivo + error);
     }
