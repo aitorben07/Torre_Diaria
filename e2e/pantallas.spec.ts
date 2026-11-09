@@ -1,7 +1,7 @@
 // T9 y T6 (adaptadas a B5, C1 y D): reto de hoy, pantalla de fin, copiar,
 // compartir y reto de un amigo.
 import { expect, test, type Page } from "@playwright/test";
-import { abrirRetos, CLAVE_PROGRESO, conTactil, DIA, empezarHoy, esperarFinListo, esperarLibre, juego, jugarHastaElFin, leerProgreso, preparar } from "./ayudas.ts";
+import { abrirRetos, CLAVE_PROGRESO, conTactil, DIA, empezarHoy, esperarFinListo, esperarLibre, juego, jugarHastaElFin, leerProgreso, preparar, SEMILLA } from "./ayudas.ts";
 
 async function jugarOficialRapida(page: Page, tactil: boolean): Promise<void> {
   await empezarHoy(page);
@@ -172,6 +172,26 @@ test("pasada la medianoche UTC, el reto de hoy juega y guarda el día nuevo", as
   await jugarHastaElFin(page, conTactil(testInfo));
   const progreso = await leerProgreso(page);
   expect(Object.keys(progreso!.diarios)).toEqual([String(DIA + 1)]);
+});
+
+test("el reto de hoy que cruza la medianoche UTC con cambio de pestaña cuenta en su día, no como atrasado", async ({ page }, testInfo) => {
+  await preparar(page, "2026-11-20T23:59:50Z");
+  await page.goto("/");
+  await esperarLibre(page);
+  await empezarHoy(page);
+  await expect(juego(page)).toHaveAttribute("data-semilla", SEMILLA);
+
+  await page.clock.setFixedTime(new Date("2026-11-21T00:00:10Z"));
+  await page.evaluate(() => {
+    Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "visible" });
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+  await jugarHastaElFin(page, conTactil(testInfo));
+  const progreso = await leerProgreso(page);
+  expect(progreso!.diarios[DIA]!.enSuDia).toBe(true);
+  expect(progreso!.racha).toMatchObject({ actual: 1, ultimoDia: DIA });
+  await expect(page.locator("#fin-medalla-texto")).toContainText("racha de 1 día");
+  await expect(page.locator("#fin-medalla-texto")).not.toContainText("atrasado");
 });
 
 test("al volver a la pestaña pasada la medianoche UTC, el aviso del reto pasa a ser de otro día", async ({ page }) => {

@@ -83,6 +83,8 @@ let partidasEmpezadas = 0;
  * pestaña la cuenta vuelve a empezar y la semilla puede repetirse (`?libre=`).
  */
 let idPartida = "";
+/** Día (UTC) en que empezó la partida en marcha: el reto oficial que cruza la medianoche cuenta en su día. */
+let diaEmpezada = hoy;
 /** Partida que se dibuja: sigue en pantalla, quieta, tras acabar. */
 let escena: Partida | null = null;
 let flujo: Flujo;
@@ -236,6 +238,7 @@ function empezar(modo: Modo, dia: number, numeroNivel: number = 0, codigo?: stri
   partida = new Partida(semilla, opciones);
   partidasEmpezadas++;
   idPartida = `${semilla}#${partidasEmpezadas}.${codigoLibre()}`;
+  diaEmpezada = hoy;
   pararEstrellas();
   escena = partida;
   pendiente = false;
@@ -436,15 +439,15 @@ function cobrar(actual: Partida, modo: Modo, dia: number): Premios {
     // Con dos pestañas vale la primera oficial que acaba (D4): el cambio se aplica sobre lo releído.
     let oficial: Oficial | null = null;
     guardado.cambiar((p) => {
-      oficial = registrarOficial(p, dia, hoy, { ...partidaAcabada, altura: r.altura, indices: r.indices });
+      oficial = registrarOficial(p, dia, diaEmpezada, { ...partidaAcabada, altura: r.altura, indices: r.indices });
       return oficial.progreso;
     });
     const hecho = oficial as Oficial | null;
     const medalla = medallaDePuntos(r.puntos);
-    const racha = rachaDeHoy(guardado.actual, hoy);
+    const racha = rachaDeHoy(guardado.actual, diaEmpezada);
     if (hecho?.nuevo) {
       premios.monedas = hecho.monedas;
-      const cola = dia === hoy ? `racha de ${racha} ${racha === 1 ? "día" : "días"}` : "atrasado, no suma racha";
+      const cola = dia === diaEmpezada ? `racha de ${racha} ${racha === 1 ? "día" : "días"}` : "atrasado, no suma racha";
       premios.diario = { medalla, texto: textoDiario(medalla, cola) };
     } else {
       premios.monedas = null;
