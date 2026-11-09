@@ -33,7 +33,7 @@ async function soltarA(page: Page, min: number, max: number, extremo = false): P
           if (el.dataset.estado === "fin") return listo(false);
           const x = Number(el.dataset.x || "0");
           const d = Math.abs(x - Number(el.dataset.objetivo || "0"));
-          if (el.dataset.fase === "apuntando" && (borde ? Math.abs(x) >= 3.2 : d >= desde && d <= hasta)) {
+          if (el.dataset.fase === "apuntando" && (borde ? Math.abs(x) >= 2.6 : d >= desde && d <= hasta)) {
             document.getElementById("zona")!.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true }));
             const esperar = () => (el.dataset.fase === "apuntando" && el.dataset.estado !== "fin" ? requestAnimationFrame(esperar) : listo(true));
             return requestAnimationFrame(esperar);
@@ -54,12 +54,14 @@ test("cada evento lanza su efecto: colocada de cada calidad, caída, vida extra 
   const { errores } = await preparar(page);
   await page.goto("/");
   await esperarLibre(page);
-  // Una caída (quedan 2 vidas), 6 perfectos (vida extra en el quinto), un bueno y normales.
+  // Una caída (con el centro a más de 2,6 m, cae seguro; quedan 2 vidas), 6 perfectos (vida extra en el quinto), un bueno y normales.
   await soltarA(page, 0, 0, true);
   for (let i = 0; i < 6; i++) await soltarA(page, 0, 0.05);
-  for (let intento = 0; intento < 6; intento++) {
+  // Con el equipo cargado, una ventana estrecha puede saltarse y la pieza cae en otro sitio: se reintenta.
+  for (let intento = 0; intento < 14; intento++) {
     const c = await contadores(page);
-    if (!c["colocada-bueno"]) await soltarA(page, 0.22, 0.3);
+    if (!c.caida) await soltarA(page, 0, 0, true);
+    else if (!c["colocada-bueno"]) await soltarA(page, 0.22, 0.3);
     else if (!c["colocada-normal"]) await soltarA(page, 0.38, 0.45);
     else if (!c.hito) await soltarA(page, 0, 0.05);
     else break;

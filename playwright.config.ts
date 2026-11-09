@@ -13,6 +13,9 @@ export default defineConfig({
   testDir: "e2e",
   fullyParallel: true,
   workers: 2,
+  // Cada prueba juega partidas en tiempo real: si el equipo va cargado, el
+  // juego va más lento (como mucho 5 pasos por fotograma) y 30 s no bastan.
+  timeout: 60_000,
   retries: 0,
   reporter: "list",
   use: {

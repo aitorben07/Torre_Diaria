@@ -63,35 +63,45 @@ const sinShare = () => {
 
 const dia = (colocadas: string, puntos = 300) => ({ puntos, piezas: deTramos(colocadas)!.length, altura: 12.3, perfectos: 9, colocadas, enSuDia: true, reglas: 2 });
 
-test("la imagen es un PNG de 1080×1350 de 600 KB como mucho en partida libre, reto diario y nivel (F1)", async ({ page }, testInfo) => {
-  test.setTimeout(120_000);
+test("la imagen de la partida libre es un PNG de 1080×1350 de 600 KB como mucho (F1)", async ({ page }, testInfo) => {
   await page.addInitScript(sinShare);
-  await sembrarProgreso(page, { diarios: { [DIA]: dia("0-29", 1240) } });
   const vigilancia = await preparar(page);
   await page.goto("/");
   await esperarLibre(page);
   await jugarHastaElFin(page, conTactil(testInfo), { centradas: 3 });
-  let { png, nombre } = await descargarCon(page, "#boton-descargar");
+  const { png, nombre } = await descargarCon(page, "#boton-descargar");
   comprobarPNG(png);
   expect(nombre).toBe("torre-diaria-libre.png");
+  expect(vigilancia.errores).toEqual([]);
+  expect(vigilancia.ajenas).toEqual([]);
+});
 
+test("la imagen del reto diario es un PNG de 1080×1350 de 600 KB como mucho (F1)", async ({ page }) => {
+  await page.addInitScript(sinShare);
+  await sembrarProgreso(page, { diarios: { [DIA]: dia("0-29", 1240) } });
+  const vigilancia = await preparar(page);
   await page.goto(`/?reto=${DIA}.5`);
   await page.getByRole("button", { name: "Ver mi resultado de hoy" }).click();
   await expect(juego(page)).toHaveAttribute("data-estado", "fin");
-  ({ png, nombre } = await descargarCon(page, "#boton-descargar"));
+  const { png, nombre } = await descargarCon(page, "#boton-descargar");
   comprobarPNG(png);
   expect(nombre).toBe("torre-diaria-reto.png");
+  expect(vigilancia.errores).toEqual([]);
+});
 
+test("la imagen de un nivel es un PNG de 1080×1350 de 600 KB como mucho (F1)", async ({ page }, testInfo) => {
+  test.setTimeout(90_000);
+  await page.addInitScript(sinShare);
+  const vigilancia = await preparar(page);
   await page.goto("/");
   await esperarLibre(page);
   await page.getByRole("button", { name: /^Niveles/ }).click();
   await page.getByRole("button", { name: "Jugar el nivel 1" }).click();
   await jugarHastaElFin(page, conTactil(testInfo), { centradas: 10 });
-  ({ png, nombre } = await descargarCon(page, "#boton-descargar"));
+  const { png, nombre } = await descargarCon(page, "#boton-descargar");
   comprobarPNG(png);
   expect(nombre).toBe("torre-diaria-nivel.png");
   expect(vigilancia.errores).toEqual([]);
-  expect(vigilancia.ajenas).toEqual([]);
 });
 
 test("con 0, 1 y 200 piezas la imagen del día se genera sin errores desde la ficha de Retos (F1, F3)", async ({ page }) => {

@@ -1,0 +1,47 @@
+# CI mínimo (H2, S21, impacto I3): comprobación de tipos, pruebas de la
+# lógica, compilación y pruebas e2e en Chromium (escritorio y móvil). Corre en
+# cada pull request y al subir a main, no en cada rama (evita ejecuciones
+# dobles). Solo si el repositorio es público: en uno privado gastaría la cuota
+# de minutos de GitHub Actions. Las pruebas de fotogramas se saltan con CI.
+name: Pruebas
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: pruebas-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  pruebas:
+    if: ${{ !github.event.repository.private }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Caché de Chromium de Playwright
+        id: cache-playwright
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - name: Instalar Chromium
+        if: steps.cache-playwright.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+      - name: Dependencias del sistema de Chromium
+        if: steps.cache-playwright.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+      - run: npm run check
+      - run: npm test
+      - run: npm run build
+      - run: npm run e2e

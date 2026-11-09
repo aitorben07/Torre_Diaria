@@ -32,3 +32,26 @@ describe("textos de src/", () => {
     expect(archivos.filter((ruta) => /[★☆♥→]/.test(readFileSync(new URL(ruta, raiz), "utf8")))).toEqual([]);
   });
 });
+
+describe("README y CI (H1, H2)", () => {
+  const leer = (ruta: string) => readFileSync(new URL(ruta, new URL("../", import.meta.url)), "utf8");
+
+  it("el README no dice que no haya CI ni repositorio, ni habla de «práctica»", () => {
+    const readme = leer("README.md");
+    expect(readme).not.toMatch(/sin CI|sin repositorio en GitHub|aún no está en GitHub/i);
+    expect(readme).not.toMatch(/pr[aá]ctica/i);
+    expect(readme).toContain("docs/diseno/diseno-juego.md");
+    // Cada bloque de mediciones lleva fecha.
+    for (const titulo of readme.match(/^### .+$/gm)!.filter((t) => /bloque/i.test(t))) expect(titulo).toMatch(/\d{4}-\d{2}-\d{2}/);
+  });
+
+  it("el CI corre en pull_request y al subir a main, con concurrency, 20 minutos y solo en repositorio público", () => {
+    const ci = leer(".github/workflows/pruebas.yml");
+    expect(ci).toMatch(/push:\n\s+branches: \[main\]/);
+    expect(ci).toMatch(/\n\s+pull_request:/);
+    expect(ci).toMatch(/concurrency:[\s\S]*cancel-in-progress: true/);
+    expect(ci).toContain("timeout-minutes: 20");
+    expect(ci).toContain("if: ${{ !github.event.repository.private }}");
+    for (const paso of ["npm ci", "npm run check", "npm test", "npm run build", "npm run e2e"]) expect(ci).toContain(`run: ${paso}`);
+  });
+});
