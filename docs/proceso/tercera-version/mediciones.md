@@ -62,3 +62,21 @@ La subida viene sobre todo del ritmo: con la cadencia nueva caen 8 a 10 piezas e
 - El arranque no cambia (la primera especial es la pieza 8). El medio dura 10,5 s más (la pegajosa y el cemento sujetan la torre) y los puntos suben por las doradas: medio +248, experto +833.
 - Medallas con los umbrales provisionales: novato bronce o más el 47 % (antes 43 %), medio plata o más el 63 % (antes 50 %), experto oro el 100 % (antes 90 %). L1 recalcula `UMBRALES[3]` con estas reglas.
 - Tiempo de la medición: novato 17,3 s, medio 28,6 s y experto 48,4 s (con otras tareas a la vez en el equipo).
+
+## Música: fotogramas, coste y peso (D4, 2026-11-09)
+
+`npx playwright test --project=rendimiento-escritorio --project=rendimiento-movil --no-deps --workers=1`, 20 s jugando sola con perfectos y el `AudioContext` real. «Sin música» es la misma prueba con `ajustes.musica: false` (los efectos siguen sonando), en una copia temporal de la prueba que no se ha subido. Las dos van alternadas en cada vuelta, con el Chrome del usuario abierto en el equipo.
+
+| Vuelta | Escritorio con música | Escritorio sin música | Móvil ×4 con música | Móvil ×4 sin música |
+|---|---|---|---|---|
+| 1 | p95 23 ms | 22 ms | 32 ms | 31 ms |
+| 2 | 20 ms | 18 ms | 52 ms (el equipo, ocupado) | 32 ms |
+| 3 | 27 ms | 21 ms | 36 ms | 32 ms |
+
+- Mediana: 16 ms en escritorio y 17 a 18 ms en el móvil, con y sin música.
+- La música sube el p95 unos 2 a 4 ms. Con el móvil ya en 31 a 34 ms sin ella, pasa del límite de 33 ms (pendiente de L4, como antes) y el de escritorio (25 ms) queda justo: de 18 a 27 ms con música en 5 vueltas.
+- `programar` por fotograma: media de 0,03 a 0,13 ms, p95 de 0 a 1 ms (`performance.now` va a saltos de 1 ms aquí) y algún máximo suelto de 7 a 30 ms en 20 s.
+- Con la mitad de nodos por compás (marimba de un oscilador, colchón de uno por nota y menos percusión) no se ve mejora clara en el móvil: 38 y 36 ms antes; 36, 36, 32, 52 y 36 ms después (escritorio: 23 y 23 antes; 25, 18, 23, 20 y 27 después). Con una copia que contaba las notas sin crear ningún nodo, el móvil dio 34 y 35 ms y el escritorio 21 y 24 ms: el coste no está en los nodos de las notas ni en `programar`. No se ha quitado la percusión en táctil (lo que proponía impacto §5): no cambiaría la cifra. Lo decide el revisor con L4.
+- JavaScript de `dist/` con `gzip -9`: 88.612 bytes (antes del bloque D, 84,9 KB): la música y sus partituras suman unos 3,7 KB. Presupuesto, 150 KB.
+- Grabación de la música con `OfflineAudioContext` (no está en el repositorio): 77 s con 14 s de inicio, partida con las capas 0, 1 y 2, una caída, efectos y el motivo de fin. RMS de -26 a -25 dBFS y pico de 0,47.
+- `npm run e2e` completo tras el bloque D (2026-11-10): 207 pasan, 60 se saltan y falla solo `rendimiento-movil` (p95 35 ms, límite 33); `rendimiento-escritorio` pasa con p95 20 ms. Dura 18,9 min con 2 hilos.
