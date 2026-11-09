@@ -34,3 +34,16 @@ Constantes de B1 (`impacto.md` §5): 1,3 m/s, +0,025 por pieza soltada, tope 3,4
 - Arranque un 35 % más rápido: la décima pieza del medio, a los 24,9 s en lugar de 38,4 s.
 - Medallas con los umbrales provisionales de las reglas 3 (los de la v2): novato con bronce o más el 43 % de los días (la v2: 63 %), medio con plata o más el 50 %, experto con oro el 90 %. L1 recalcula `UMBRALES[3]`.
 - Tiempo de la medición: novato 6,2 s, medio 16,8 s y experto 44,1 s. `scripts/duracion.test.ts` tarda unos 5 s.
+
+## Fotogramas del móvil emulado tras A y B (2026-11-09, pendiente para L4)
+
+`npx playwright test --project=rendimiento-movil --no-deps` (Pixel 7 con la CPU ×4, 20 s jugando sola con perfectos), en este equipo y sin otras pruebas a la vez:
+
+| Código | p95 | Mediana | Piezas en 20 s |
+|---|---|---|---|
+| v2 (`2ef61cb`) | 25 y 29 ms | 16 y 17 ms | 5 |
+| Reglas 3 con el HUD de la v2 | 32 y 32 ms | 18 y 17 ms | 8 y 10 |
+| Rama tras A y B | 33 y 33 ms | 18 y 21 ms | 8 |
+| Rama tras A y B, al final de `npm run e2e` | 36 ms (falla, límite 33) | 19 ms | 8 |
+
+La subida viene sobre todo del ritmo: con la cadencia nueva caen 8 a 10 piezas en 20 s en lugar de 5, con sus efectos de perfecto. El HUD nuevo suma como mucho 1 ms. El límite de A2 (p95 ≤ 33 ms) queda justo y la prueba puede fallar con el equipo cargado. No se ha tocado ni el límite ni los efectos (fuera de los bloques A, C1 y B); escritorio sigue en mediana 16 ms y p95 18 ms.
