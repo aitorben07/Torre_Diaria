@@ -1,7 +1,7 @@
 // T9 y T6 (adaptadas a B5, C1 y D): reto de hoy, pantalla de fin, copiar,
 // compartir y reto de un amigo.
 import { expect, test, type Page } from "@playwright/test";
-import { abrirRetos, CLAVE_PROGRESO, conTactil, DIA, empezarHoy, esperarFinListo, esperarLibre, juego, jugarHastaElFin, leerProgreso, preparar, SEMILLA } from "./ayudas.ts";
+import { abrirRetos, CLAVE_PROGRESO, conTactil, DIA, empezarHoy, esperarFinListo, esperarLibre, juego, jugarHastaElFin, leerProgreso, preparar, sembrarProgreso, SEMILLA } from "./ayudas.ts";
 
 async function jugarOficialRapida(page: Page, tactil: boolean): Promise<void> {
   await empezarHoy(page);
@@ -192,6 +192,25 @@ test("el reto de hoy que cruza la medianoche UTC con cambio de pestaña cuenta e
   expect(progreso!.racha).toMatchObject({ actual: 1, ultimoDia: DIA });
   await expect(page.locator("#fin-medalla-texto")).toContainText("racha de 1 día");
   await expect(page.locator("#fin-medalla-texto")).not.toContainText("atrasado");
+});
+
+test("con racha de ayer, el reto de hoy que cruza la medianoche con cambio de pestaña la alarga, no la corta", async ({ page }, testInfo) => {
+  await sembrarProgreso(page, { racha: { actual: 2, mejor: 2, ultimoDia: DIA - 1, congeladores: 0 } });
+  await preparar(page, "2026-11-20T23:59:50Z");
+  await page.goto("/");
+  await esperarLibre(page);
+  await empezarHoy(page);
+
+  await page.clock.setFixedTime(new Date("2026-11-21T00:00:10Z"));
+  await page.evaluate(() => {
+    Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "visible" });
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+  await jugarHastaElFin(page, conTactil(testInfo));
+  const progreso = await leerProgreso(page);
+  expect(progreso!.diarios[DIA]!.enSuDia).toBe(true);
+  expect(progreso!.racha).toMatchObject({ actual: 3, mejor: 3, ultimoDia: DIA });
+  await expect(page.locator("#fin-medalla-texto")).toContainText("racha de 3 días");
 });
 
 test("al volver a la pestaña pasada la medianoche UTC, el aviso del reto pasa a ser de otro día", async ({ page }) => {

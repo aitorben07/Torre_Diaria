@@ -127,6 +127,22 @@ function revisarRacha(): void {
   pintarBarraActual();
 }
 
+/** El día cambió con un reto oficial en marcha: la racha se revisa cuando acabe, ya guardado su día. */
+let rachaPendiente = false;
+
+/**
+ * Al cambiar de día: revisa la racha, salvo con un reto oficial en marcha, que
+ * aún puede alargarla (si se cortara antes, el reto de ayer sumaría desde 0).
+ */
+function revisarRachaAlCambiarDeDia(): void {
+  if (flujo.pantalla === "jugando" && flujo.modo === "oficial") {
+    rachaPendiente = true;
+    return;
+  }
+  rachaPendiente = false;
+  revisarRacha();
+}
+
 /** Lo que se muestra en el fin: una partida recién acabada o un día guardado. */
 type DatosFin = {
   dia: number;
@@ -158,7 +174,7 @@ function datosDeDia(dia: number, jugado: DiaJugado): DatosFin {
 function actuar(accion: Accion): void {
   if (accion.tipo !== "terminar") {
     guardado.releer();
-    if (actualizarHoy()) revisarRacha();
+    if (actualizarHoy()) revisarRachaAlCambiarDeDia();
   }
   const siguiente = transicion(flujo, accion, {
     ahora: performance.now(),
@@ -236,6 +252,11 @@ function empezar(modo: Modo, dia: number, numeroNivel: number = 0, codigo?: stri
   const nivel = modo === "nivel" ? nivelPorNumero(numeroNivel) : null;
   const semilla = nivel ? nivel.semilla : modo === "libre" ? semillaLibre(codigo) : fechaDeDia(dia);
   const opciones = nivel ? opcionesDeNivel(nivel) : OPCIONES;
+  // Si el reto oficial anterior no llegó a acabar, la racha pendiente se revisa ahora.
+  if (rachaPendiente) {
+    rachaPendiente = false;
+    revisarRacha();
+  }
   partida = new Partida(semilla, opciones);
   partidasEmpezadas++;
   idPartida = `${semilla}#${partidasEmpezadas}.${codigoLibre()}`;
@@ -502,6 +523,10 @@ function terminar(actual: Partida): void {
   const { puntos, altura, formas, piezas, perfectos, comboMax } = actual.resultado();
   const { modo, dia } = flujo;
   const premios = modo === "nivel" ? cobrarNivel(actual, flujo.nivel) : cobrar(actual, modo, dia);
+  if (rachaPendiente) {
+    rachaPendiente = false;
+    revisarRacha();
+  }
   ui.juego().dataset.toques = JSON.stringify(toques);
   // La última pieza caída sigue cayendo en pantalla aunque la partida ya la haya retirado.
   caidas.observar(actual.estado().cuerpos, 1, PASO_MS, performance.now());
@@ -899,7 +924,7 @@ document.addEventListener("visibilitychange", () => {
   if (document.visibilityState !== "visible") return;
   guardado.releer();
   if (!actualizarHoy()) return;
-  revisarRacha();
+  revisarRachaAlCambiarDeDia();
   if (flujo.pantalla === "reto") mostrarReto();
   if (flujo.pantalla === "retos") panelRetos.pintar();
 });
