@@ -859,6 +859,8 @@ ui.botonDescargar().addEventListener("click", async () => {
   }
   descargar(blob, imagenFin.nombre ?? nombreImagen(modoFin));
   ui.mensaje().textContent = "";
+  // El foco vuelve al botón principal: Espacio e Intro siguen empezando otra partida, no otra descarga.
+  ui.botonOtraVez().focus();
 });
 
 document.addEventListener("visibilitychange", () => {

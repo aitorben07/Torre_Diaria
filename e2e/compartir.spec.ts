@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
 import { COLORES, TEMA_RISO } from "../src/juego/temas.ts";
 import { deTramos } from "../src/logica/progreso.ts";
-import { abrirRetos, conTactil, datosFin, DIA, esperarLibre, juego, jugarHastaElFin, preparar, sembrarProgreso } from "./ayudas.ts";
+import { abrirRetos, conTactil, datosFin, DIA, esperarFinListo, esperarLibre, juego, jugarHastaElFin, preparar, sembrarProgreso } from "./ayudas.ts";
 
 test("abrir /?libre=<código>.300 avisa con 300 y hace jugar esa semilla, que cuenta como libre (F2)", async ({ page }, testInfo) => {
   test.setTimeout(90_000);
@@ -231,6 +231,26 @@ test("sin navigator.share, «Descargar imagen» descarga un .png y «Copiar text
   await expect(page.locator("#mensaje")).toHaveText("Copiado");
   const copiado = await page.evaluate(() => navigator.clipboard.readText());
   expect(copiado.replaceAll("\r\n", "\n")).toBe(await page.locator("#tarjeta").textContent());
+});
+
+test("tras «Descargar imagen» el foco vuelve al botón principal y Espacio empieza otra partida, sin otra descarga (F3, B5)", async ({ page }, testInfo) => {
+  test.skip(conTactil(testInfo), "Teclado: solo en escritorio");
+  await page.addInitScript(sinShare);
+  await preparar(page);
+  await page.goto("/");
+  await esperarLibre(page);
+  await jugarHastaElFin(page, false);
+  await esperarFinListo(page);
+  await page.locator("#boton-descargar").focus();
+  const descarga = page.waitForEvent("download");
+  await page.keyboard.press("Enter");
+  await descarga;
+  await expect(page.locator("#boton-otra-vez")).toBeFocused();
+  let otras = 0;
+  page.on("download", () => otras++);
+  await page.keyboard.press("Space");
+  await expect(juego(page)).toHaveAttribute("data-estado", "jugando");
+  expect(otras).toBe(0);
 });
 
 test("un share que rechaza con NotAllowedError muestra «Descargar imagen» sin error (F3)", async ({ page }, testInfo) => {
