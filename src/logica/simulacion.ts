@@ -166,11 +166,29 @@ export type OpcionesPartida = {
   objetivo?: Objetivo;
   /** Piezas especiales de la semilla (H1; por defecto `true`; los niveles 1 a 3, `false`). */
   especiales?: boolean;
+  /**
+   * Modo de la partida (I1; por defecto `"libre"`). En `"reto"` no se usan
+   * objetos ni se sigue (R13); en `"nivel"` se usan objetos pero no se sigue.
+   */
+  modo?: ModoPartida;
 };
 
+export type ModoPartida = "libre" | "reto" | "nivel";
+
+/** Objetos de ayuda que se usan con una pieza colgando (I1, Anexo H). */
+export type Objeto = "reloj" | "cemento";
+
+/** Una ayuda usada en el paso `paso`: un objeto, o seguir tras perder la última vida (I1). */
+export type Ayuda = { paso: number; tipo: Objeto | "seguir" };
+
+/** Piezas que frena el reloj de arena, contando la que cuelga (I1). */
+export const RELOJ_PIEZAS = 5;
+
 export type OpcionesJugar = OpcionesPartida & {
-  /** Pasos como mucho (por defecto, el último toque más `MARGEN_PASOS`). */
+  /** Pasos como mucho (por defecto, el último toque o ayuda más `MARGEN_PASOS`). */
   maxPasos?: number;
+  /** Ayudas usadas, cada una en su paso (`data-ayudas` en pantalla, R3). */
+  ayudas?: readonly Ayuda[];
 };
 
 export type Resultado = {
@@ -199,10 +217,15 @@ export type Resultado = {
   posiciones: Array<{ x: number; y: number; angulo: number }>;
 };
 
-/** Posición horizontal de la pieza que cuelga, `pasoLocal` pasos después de aparecer. */
-export function posicionVaiven(pasoLocal: number, velocidad: number, desdeDerecha: boolean): number {
+/**
+ * Posición horizontal de la pieza que cuelga tras recorrer `recorrida` metros
+ * desde que aparece. La partida acumula la distancia (I1, impacto 2.3): si la
+ * velocidad cambia a mitad del vaivén (el reloj de arena), la pieza sigue desde
+ * donde estaba en lugar de saltar.
+ */
+export function posicionVaiven(recorrida: number, desdeDerecha: boolean): number {
   const recorrido = 4 * AMPLITUD;
-  const distancia = (pasoLocal * velocidad * PASO) % recorrido;
+  const distancia = recorrida % recorrido;
   const x = distancia < 2 * AMPLITUD ? -AMPLITUD + distancia : 3 * AMPLITUD - distancia;
   return desdeDerecha ? -x : x;
 }
@@ -250,7 +273,13 @@ export class Partida {
   private faseActual: Fase = "apuntando";
   private pasosHechos = 0;
   private indice = 0;
-  private pasoAparicion = 0;
+  /**
+   * Distancia recorrida por la pieza que cuelga hasta `pasoTramo`, el paso en
+   * que cambió su velocidad por última vez (al colgarla o con el reloj, I1).
+   * Desde ahí suma `velocidad · PASO` por paso: sin reloj da lo mismo que antes.
+   */
+  private distanciaTramo = 0;
+  private pasoTramo = 0;
   private pasoSoltada = 0;
   private pasoCaida = 0;
   private enEspera: EnEspera | null = null;
@@ -266,10 +295,18 @@ export class Partida {
   private readonly conEspeciales: boolean;
   /** Cementos colocados con piezas por cementar en el siguiente `soltar()` (H2). */
   private cementos: CementoPendiente[] = [];
+  private readonly modo: ModoPartida;
+  /** Piezas que aún frena el reloj de arena, contando la que cuelga (I1). */
+  private relojPiezas = 0;
+  /** Piezas convertidas en cemento con el objeto (I1), por índice. */
+  private readonly cementoUsado = new Set<number>();
+  /** Ya se ha seguido una vez en esta partida (I1). */
+  private seguida = false;
 
   constructor(semilla: string, opciones: OpcionesPartida = {}) {
     this.semilla = semilla;
     this.conEspeciales = opciones.especiales ?? true;
+    this.modo = opciones.modo ?? "libre";
     this.secuencia = new Secuencia(semilla, { formas: opciones.formas });
     this.marcador = new Marcador(opciones.vidas ?? VIDAS_INICIALES);
     this.velocidadInicial = opciones.velocidad ?? VEL_INICIAL;
@@ -314,10 +351,46 @@ export class Partida {
     const soltada: Soltada = { pieza, cuerpo, fixture, cementada: false, especial: this.especialActual(), indice: this.indice };
     this.soltadas.push(soltada);
     this.ritmo = siguienteRitmo(this.ritmo, "soltada");
+    if (this.relojPiezas > 0) this.relojPiezas--;
     this.enEspera = { indice: this.indice, calidad, soltada };
     this.eventos.push({ tipo: "soltada", paso: this.pasosHechos, indice: this.indice, calidad, x });
     this.faseActual = "esperando";
     this.pasoSoltada = this.pasosHechos;
+    return true;
+  }
+
+  /**
+   * Usa un objeto con la pieza que cuelga (I1, Anexo H). Devuelve `false` (y
+   * no cambia nada) si no se puede: sin pieza colgando, en el reto diario
+   * (R13), el reloj con otro activo o el cemento sobre una especial.
+   * - Reloj: la pieza que cuelga y las `RELOJ_PIEZAS - 1` siguientes van a la
+   *   velocidad × `RELOJ_MULT`. La que cuelga sigue desde donde está.
+   * - Cemento: la pieza que cuelga pasa a ser de cemento (H2).
+   */
+  usar(objeto: Objeto): boolean {
+    if (this.modo === "reto" || this.faseActual !== "apuntando") return false;
+    if (objeto === "reloj") {
+      if (this.relojPiezas > 0) return false;
+      this.relojPiezas = RELOJ_PIEZAS;
+      this.cambiarVelocidad(this.velocidadDeColgar());
+      return true;
+    }
+    if (this.especialActual() !== null) return false;
+    this.cementoUsado.add(this.indice);
+    return true;
+  }
+
+  /**
+   * Sigue tras perder la última vida (I1): solo en partida libre, una vez por
+   * partida. Pone 1 vida, quita `RESPIRO_SEGUIR` al ritmo y cuelga la
+   * siguiente pieza. Los puntos no cambian.
+   */
+  seguir(): boolean {
+    if (this.modo !== "libre" || this.seguida || this.faseActual !== "fin" || this.victoria || this.marcador.vidas > 0) return false;
+    this.seguida = true;
+    this.marcador.seguir();
+    this.ritmo = siguienteRitmo(this.ritmo, "seguir");
+    this.colgarPieza();
     return true;
   }
 
@@ -414,11 +487,29 @@ export class Partida {
 
   /** Especial de la pieza que cuelga (H1). */
   private especialActual(): Especial | null {
+    if (this.cementoUsado.has(this.indice)) return "cemento";
     return especialDe(this.semilla, this.indice, { especiales: this.conEspeciales });
   }
 
+  /** Distancia recorrida por la pieza que cuelga hasta este paso. */
+  private distanciaColgada(): number {
+    return this.distanciaTramo + (this.pasosHechos - this.pasoTramo) * this.velocidadColgada * PASO;
+  }
+
   private xColgada(): number {
-    return posicionVaiven(this.pasosHechos - this.pasoAparicion, this.velocidadColgada, this.indice % 2 === 1);
+    return posicionVaiven(this.distanciaColgada(), this.indice % 2 === 1);
+  }
+
+  /** Cambia la velocidad de la pieza que cuelga sin moverla: lo recorrido hasta aquí se guarda (I1). */
+  private cambiarVelocidad(velocidad: number): void {
+    this.distanciaTramo = this.distanciaColgada();
+    this.pasoTramo = this.pasosHechos;
+    this.velocidadColgada = velocidad;
+  }
+
+  /** Velocidad de la pieza que se cuelga con el ritmo, el combo y el reloj de ahora (B1, I1). */
+  private velocidadDeColgar(): number {
+    return velocidadDe(this.ritmo, { inicial: this.velocidadInicial, combo: this.marcador.combo, reloj: this.relojPiezas > 0 });
   }
 
   private objetivo(): number {
@@ -561,11 +652,12 @@ export class Partida {
     );
   }
 
-  /** Cuelga la pieza actual con la velocidad del ritmo y del combo de ese momento (B1). */
+  /** Cuelga la pieza actual con la velocidad del ritmo, del combo y del reloj de ese momento (B1, I1). */
   private colgarPieza(): void {
     this.colgadaY = this.alturaTorre(this.enPie()) + HUECO_COLGADA + this.piezaActual().alto / 2;
-    this.velocidadColgada = velocidadDe(this.ritmo, { inicial: this.velocidadInicial, combo: this.marcador.combo });
-    this.pasoAparicion = this.pasosHechos;
+    this.velocidadColgada = this.velocidadDeColgar();
+    this.distanciaTramo = 0;
+    this.pasoTramo = this.pasosHechos;
     this.faseActual = "apuntando";
   }
 
@@ -629,17 +721,28 @@ export class Partida {
 
 /**
  * Reproduce una partida: en cada paso cuyo número esté en `toques`, suelta la
- * pieza (si cuelga alguna) antes de avanzar. Sigue hasta que la partida acaba o
- * se llega a `opciones.maxPasos` (por defecto, el último toque más
+ * pieza (si cuelga alguna) antes de avanzar. Las `ayudas` de un paso se aplican
+ * antes que su toque, en el orden de la lista; el seguir, en el paso en que
+ * acabó la partida (I1). Sigue hasta que la partida acaba o se llega a
+ * `opciones.maxPasos` (por defecto, el último toque o ayuda más
  * `MARGEN_PASOS`). Si una pieza ya ha caído, termina de asentar aunque pase el
  * límite, como la pantalla.
  */
 export function jugar(semilla: string, toques: number[], opciones: OpcionesJugar = {}): Resultado {
-  const { maxPasos, ...deLaPartida } = opciones;
+  const { maxPasos, ayudas = [], ...deLaPartida } = opciones;
   const partida = new Partida(semilla, deLaPartida);
   const pendientes = new Set(toques);
-  const limite = maxPasos ?? Math.max(-1, ...toques) + 1 + MARGEN_PASOS;
-  while (!partida.terminada && (partida.pasos < limite || partida.fase === "asentando")) {
+  const porPaso = [...ayudas].sort((a, b) => a.paso - b.paso);
+  const limite = maxPasos ?? Math.max(-1, ...toques, ...ayudas.map((a) => a.paso)) + 1 + MARGEN_PASOS;
+  let siguiente = 0;
+  for (;;) {
+    for (; siguiente < porPaso.length && porPaso[siguiente]!.paso <= partida.pasos; siguiente++) {
+      const { paso, tipo } = porPaso[siguiente]!;
+      if (paso < partida.pasos) continue;
+      if (tipo === "seguir") partida.seguir();
+      else partida.usar(tipo);
+    }
+    if (partida.terminada || !(partida.pasos < limite || partida.fase === "asentando")) break;
     if (pendientes.has(partida.pasos)) partida.soltar();
     partida.paso();
     partida.tomarEventos();

@@ -15,7 +15,7 @@ import { VIDAS_INICIALES, VIDAS_MAX } from "../logica/puntuacion.ts";
 import { codigoDeSemilla, codigoLibre, fechaDeDia, fechaUTC, numeroDia, semillaLibre } from "../logica/semilla.ts";
 import type { Pieza } from "../logica/piezas.ts";
 import type { Calidad } from "../logica/puntuacion.ts";
-import { Partida, REGLAS, type EstadoPartida, type Evento, type OpcionesPartida } from "../logica/simulacion.ts";
+import { Partida, REGLAS, type Ayuda, type EstadoPartida, type Evento, type OpcionesPartida } from "../logica/simulacion.ts";
 import { formatearAltura, formatearNumero, formatearPuntos, generarTarjeta, type DatosTarjeta } from "../logica/tarjeta.ts";
 import { Bucle, PASO_MS } from "./bucle.ts";
 import { PanelColeccion } from "./coleccion.ts";
@@ -33,8 +33,12 @@ import { cambiarEstado, copiar, mostrarTexto, NOMBRE_MEDALLA, pintarBarra, pinta
 import { PanelRetos } from "./retos.ts";
 import { escenarioPorId, temaPorId } from "./temas.ts";
 
-/** Opciones de la partida libre y del reto diario; van en `data-opciones` para reproducirla con `jugar` (G3). */
-const OPCIONES: OpcionesPartida = { vidas: VIDAS_INICIALES };
+/**
+ * Opciones de la partida libre y del reto diario; van en `data-opciones` para
+ * reproducirla con `jugar` (G3). El modo decide si hay objetos y «seguir» (I1, R13).
+ */
+const OPCIONES_LIBRE: OpcionesPartida = { vidas: VIDAS_INICIALES, modo: "libre" };
+const OPCIONES_RETO: OpcionesPartida = { vidas: VIDAS_INICIALES, modo: "reto" };
 /** Pausa entre estrellas al acabar un nivel (E3). */
 const ESTRELLA_MS = 380;
 
@@ -90,6 +94,8 @@ let escena: Partida | null = null;
 let flujo: Flujo;
 let pendiente = false;
 let toques: number[] = [];
+/** Ayudas usadas en la partida en marcha, con su paso (I1): van en `data-ayudas` para repetirla con `jugar` (R3). */
+let ayudas: Ayuda[] = [];
 let textoTarjeta = "";
 let hudPintado = "";
 /** Modo de lo que muestra la pantalla de fin, para refrescar el siguiente objetivo al volver a ella. */
@@ -252,7 +258,7 @@ function actualizarBotones(): void {
 function empezar(modo: Modo, dia: number, numeroNivel: number = 0, codigo?: string): void {
   const nivel = modo === "nivel" ? nivelPorNumero(numeroNivel) : null;
   const semilla = nivel ? nivel.semilla : modo === "libre" ? semillaLibre(codigo) : fechaDeDia(dia);
-  const opciones = nivel ? opcionesDeNivel(nivel) : OPCIONES;
+  const opciones = nivel ? opcionesDeNivel(nivel) : modo === "libre" ? OPCIONES_LIBRE : OPCIONES_RETO;
   // Si el reto oficial anterior no llegó a acabar, la racha pendiente se revisa ahora.
   if (rachaPendiente) {
     rachaPendiente = false;
@@ -266,6 +272,7 @@ function empezar(modo: Modo, dia: number, numeroNivel: number = 0, codigo?: stri
   escena = partida;
   pendiente = false;
   toques = [];
+  ayudas = [];
   soltadas = new Map();
   enCaida = null;
   mojadas = new WeakSet();
@@ -279,6 +286,7 @@ function empezar(modo: Modo, dia: number, numeroNivel: number = 0, codigo?: stri
   juego.dataset.nivel = String(nivel?.numero ?? 0);
   juego.dataset.fase = partida.fase;
   delete juego.dataset.toques;
+  delete juego.dataset.ayudas;
   delete juego.dataset.puntos;
   delete juego.dataset.altura;
   delete juego.dataset.victoria;
@@ -531,6 +539,7 @@ function terminar(actual: Partida): void {
     revisarRacha();
   }
   ui.juego().dataset.toques = JSON.stringify(toques);
+  ui.juego().dataset.ayudas = JSON.stringify(ayudas);
   // La última pieza caída sigue cayendo en pantalla aunque la partida ya la haya retirado.
   caidas.observar(actual.estado().cuerpos, 1, PASO_MS, performance.now());
   // En un nivel, la última pieza suma y acaba en el mismo paso: el HUD se pone al día antes de cerrar.

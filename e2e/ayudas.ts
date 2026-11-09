@@ -1,6 +1,6 @@
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
 import type { Progreso } from "../src/logica/progreso.ts";
-import type { OpcionesPartida } from "../src/logica/simulacion.ts";
+import type { Ayuda, OpcionesPartida } from "../src/logica/simulacion.ts";
 
 /** Fecha fijada en las pruebas: el día 16 (`2026-11-20`). */
 export const FECHA = "2026-11-20T12:00:00Z";
@@ -181,6 +181,8 @@ export type DatosFin = {
   semilla: string;
   /** Opciones de la partida (`data-opciones`), para repetirla con `jugar` (G3). */
   opciones: OpcionesPartida;
+  /** Objetos usados y «seguir», con su paso (`data-ayudas`, I1 y R3). */
+  ayudas: Ayuda[];
 };
 
 export async function datosFin(page: Page): Promise<DatosFin> {
@@ -192,6 +194,7 @@ export async function datosFin(page: Page): Promise<DatosFin> {
     altura: Number(await contenedor.getAttribute("data-altura")),
     semilla: (await contenedor.getAttribute("data-semilla")) ?? "",
     opciones: JSON.parse((await contenedor.getAttribute("data-opciones")) ?? "{}") as OpcionesPartida,
+    ayudas: JSON.parse((await contenedor.getAttribute("data-ayudas")) ?? "null") as Ayuda[],
   };
 }
 

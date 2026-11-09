@@ -108,7 +108,7 @@ test("perder un nivel ofrece Repetir y Mapa; el nivel en pantalla equivale a jug
 
   const fin = await datosFin(page);
   expect(fin.semilla).toBe("nivel-7");
-  const enNode = jugar(fin.semilla, fin.toques, fin.opciones);
+  const enNode = jugar(fin.semilla, fin.toques, { ...fin.opciones, ayudas: fin.ayudas });
   expect(enNode.terminada).toBe(true);
   expect(enNode.victoria).toBe(false);
   expect(enNode.puntos).toBe(fin.puntos);

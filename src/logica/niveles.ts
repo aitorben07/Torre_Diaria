@@ -72,7 +72,7 @@ export function nivelPorNumero(numero: number): Nivel | null {
 
 /** Opciones de la partida del nivel: van en `data-opciones` y bastan para repetirla con `jugar` (G3). */
 export function opcionesDeNivel(nivel: Nivel): OpcionesPartida {
-  const opciones: OpcionesPartida = { vidas: nivel.vidas, velocidad: nivel.velocidad, formas: nivel.formas, objetivo: nivel.objetivo };
+  const opciones: OpcionesPartida = { vidas: nivel.vidas, velocidad: nivel.velocidad, formas: nivel.formas, objetivo: nivel.objetivo, modo: "nivel" };
   // Sin piezas especiales hasta el nivel 4 (H1, Anexo G).
   return nivel.numero < NIVEL_ESPECIALES ? { ...opciones, especiales: false } : opciones;
 }

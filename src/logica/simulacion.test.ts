@@ -2,16 +2,20 @@ import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { especialDe, MONEDAS_DORADA } from "./especiales.ts";
 import { puntosDeColocada, TOLERANCIA_PERFECTO } from "./puntuacion.ts";
+import { RELOJ_MULT } from "./ritmo.ts";
 import {
   AMPLITUD,
   jugar,
   LIMITE_X,
   MAX_DINAMICAS,
   objetivoDe,
+  PASO,
   Partida,
   PLATAFORMA_MEDIO_ANCHO,
   posicionVaiven,
   REGLAS,
+  RELOJ_PIEZAS,
+  type Ayuda,
   type Evento,
   type OpcionesPartida,
 } from "./simulacion.ts";
@@ -65,13 +69,15 @@ function seguir(partida: Partida, pasos: number, eventos: Evento[] = []): Evento
 
 describe("posicionVaiven", () => {
   it("es una onda triangular que empieza en un extremo y pasa por el centro", () => {
-    expect(posicionVaiven(0, 2, false)).toBe(-AMPLITUD);
-    expect(posicionVaiven(0, 2, true)).toBe(AMPLITUD);
-    // A 2 m/s recorre 2/60 m por paso: con AMPLITUD 2,6 llega al otro extremo en 156 pasos.
+    // Recibe la distancia recorrida desde que aparece (I1): a 2 m/s, 156 pasos son 5,2 m.
+    const tras = (pasos: number) => pasos * 2 * PASO;
+    expect(posicionVaiven(0, false)).toBe(-AMPLITUD);
+    expect(posicionVaiven(0, true)).toBe(AMPLITUD);
+    // Con AMPLITUD 2,6 llega al otro extremo en 156 pasos.
     expect(AMPLITUD).toBe(2.6);
-    expect(posicionVaiven(156, 2, false)).toBeCloseTo(AMPLITUD, 9);
-    expect(posicionVaiven(312, 2, false)).toBeCloseTo(-AMPLITUD, 9);
-    expect(Math.abs(posicionVaiven(78, 2, false))).toBeLessThan(1e-9);
+    expect(posicionVaiven(tras(156), false)).toBeCloseTo(AMPLITUD, 9);
+    expect(posicionVaiven(tras(312), false)).toBeCloseTo(-AMPLITUD, 9);
+    expect(Math.abs(posicionVaiven(tras(78), false))).toBeLessThan(1e-9);
   });
 });
 
@@ -495,6 +501,176 @@ describe("piezas especiales en la simulación (H2)", () => {
     });
   }, 20_000);
 });
+
+/** Pierde las 3 vidas soltando cada pieza en el extremo y devuelve la partida ya acabada. */
+function perderTodo(opciones: OpcionesPartida = {}): Partida {
+  const { partida } = jugarCon(enElExtremo, 3, opciones);
+  while (!partida.terminada) seguir(partida, 1);
+  return partida;
+}
+
+describe("objetos de ayuda en la simulación (I1)", () => {
+  it("con el reloj, la pieza que cuelga y las 4 siguientes van a la velocidad × RELOJ_MULT; la sexta, a la normal", () => {
+    const velocidades = (conReloj: boolean): number[] => {
+      const partida = new Partida(SEMILLA);
+      if (conReloj) expect(partida.usar("reloj")).toBe(true);
+      const lista: number[] = [];
+      jugarConPartida(partida, (p) => {
+        if (sobreObjetivo(p)) {
+          lista.push(p.estado().colgada!.velocidad);
+          return true;
+        }
+        return false;
+      }, 7);
+      return lista;
+    };
+    const sin = velocidades(false);
+    const con = velocidades(true);
+    expect(RELOJ_PIEZAS).toBe(5);
+    expect(con).toHaveLength(7);
+    for (let i = 0; i < RELOJ_PIEZAS; i++) expect(Math.abs(con[i]! - sin[i]! * RELOJ_MULT)).toBeLessThan(0.001);
+    expect(con.slice(RELOJ_PIEZAS)).toEqual(sin.slice(RELOJ_PIEZAS));
+  });
+
+  it("el reloj no se acumula: usarlo con uno activo no hace nada", () => {
+    const partida = new Partida(SEMILLA);
+    expect(partida.usar("reloj")).toBe(true);
+    const velocidad = partida.estado().colgada!.velocidad;
+    expect(partida.usar("reloj")).toBe(false);
+    expect(partida.estado().colgada!.velocidad).toBe(velocidad);
+  });
+
+  it("usar el reloj a mitad del vaivén no hace saltar la pieza: |x(n+1) − x(n)| ≤ v · PASO", () => {
+    for (const pasoReloj of [37, 90, 141]) {
+      const partida = new Partida(SEMILLA);
+      let anterior = partida.estado().colgada!;
+      let saltoMax = 0;
+      for (let n = 0; n < 400; n++) {
+        if (n === pasoReloj) expect(partida.usar("reloj")).toBe(true);
+        partida.paso();
+        const ahora = partida.estado().colgada!;
+        saltoMax = Math.max(saltoMax, Math.abs(ahora.x - anterior.x) - ahora.velocidad * PASO);
+        anterior = ahora;
+      }
+      expect(saltoMax).toBeLessThanOrEqual(1e-9);
+    }
+  });
+
+  it("el cemento convierte la pieza que cuelga y luego actúa como en H2; sobre una especial no hace nada", () => {
+    const partida = new Partida(SEMILLA);
+    expect(partida.usar("cemento")).toBe(true);
+    expect(partida.estado().colgada).toMatchObject({ especial: "cemento" });
+    // Sobre una pieza que ya es especial (de cemento o, más abajo, la dorada 11), devuelve false.
+    expect(partida.usar("cemento")).toBe(false);
+    const eventos: Evento[] = [];
+    jugarConPartida(partida, sobreObjetivo, 2, eventos);
+    expect(eventos.filter((e) => e.tipo === "especial")).toEqual([expect.objectContaining({ especial: "cemento", indice: 0, efecto: 1 })]);
+    expect(partida.estado().cuerpos[0]).toMatchObject({ especial: "cemento", cementada: true });
+
+    const conDorada = new Partida(SEMILLA);
+    jugarConPartida(conDorada, sobreObjetivo, 11);
+    while (conDorada.fase !== "apuntando") seguir(conDorada, 1);
+    expect(conDorada.estado().colgada).toMatchObject({ especial: "dorada" });
+    const antes = conDorada.estado();
+    expect(conDorada.usar("cemento")).toBe(false);
+    expect(conDorada.estado()).toEqual(antes);
+  });
+
+  it("sin pieza colgando no se puede usar ningún objeto", () => {
+    const partida = new Partida(SEMILLA);
+    partida.soltar();
+    expect(partida.fase).toBe("esperando");
+    expect(partida.usar("reloj")).toBe(false);
+    expect(partida.usar("cemento")).toBe(false);
+  });
+
+  it("seguir() tras perder las vidas: 1 vida, apuntando y los mismos puntos; una sola vez por partida", () => {
+    const partida = new Partida(SEMILLA);
+    expect(partida.seguir()).toBe(false);
+    jugarConPartida(partida, sobreObjetivo, 2);
+    jugarConPartida(partida, enElExtremo, 3);
+    while (!partida.terminada) seguir(partida, 1);
+    const { puntos } = partida.resultado();
+    expect(puntos).toBe(20 + 30);
+    expect(partida.seguir()).toBe(true);
+    expect(partida.estado()).toMatchObject({ vidas: 1, fase: "apuntando", puntos, combo: 0 });
+    // Con el respiro el ritmo vuelve a 0 (las caídas ya lo habían bajado): la velocidad inicial.
+    expect(partida.estado().colgada!.velocidad).toBe(1.3);
+    jugarConPartida(partida, enElExtremo, 1);
+    while (!partida.terminada) seguir(partida, 1);
+    expect(partida.seguir()).toBe(false);
+    expect(partida.terminada).toBe(true);
+  });
+
+  it("en el reto, usar y seguir devuelven false, y jugar con ayudas da lo mismo que sin ellas (R13)", () => {
+    const reto: OpcionesPartida = { modo: "reto" };
+    const partida = new Partida(SEMILLA, reto);
+    expect(partida.usar("reloj")).toBe(false);
+    expect(partida.usar("cemento")).toBe(false);
+    expect(perderTodo(reto).seguir()).toBe(false);
+    const { toques } = jugarCon((p, n) => (n < 3 ? sobreObjetivo(p) : enElExtremo(p)), 6, reto);
+    const ayudas: Ayuda[] = [{ paso: 0, tipo: "reloj" }, { paso: 0, tipo: "cemento" }, { paso: jugar(SEMILLA, toques, reto).pasos, tipo: "seguir" }];
+    expect(jugar(SEMILLA, toques, { ...reto, ayudas })).toEqual(jugar(SEMILLA, toques, reto));
+  });
+
+  it("en un nivel se usan objetos pero no se sigue", () => {
+    const nivel: OpcionesPartida = { modo: "nivel" };
+    expect(new Partida(SEMILLA, nivel).usar("reloj")).toBe(true);
+    expect(perderTodo(nivel).seguir()).toBe(false);
+    expect(perderTodo({ modo: "libre" }).seguir()).toBe(true);
+  });
+
+  it("jugar(semilla, toques, { ayudas }) da lo mismo que una Partida con las mismas ayudas en los mismos pasos", () => {
+    // Reloj a mitad del vaivén de la segunda pieza, cemento en la cuarta y,
+    // tras perder las vidas, seguir y dos piezas más.
+    const partida = new Partida(SEMILLA);
+    const toques: number[] = [];
+    const ayudas: Ayuda[] = [];
+    const usar = (tipo: Ayuda["tipo"]) => {
+      const paso = partida.pasos;
+      if (tipo === "seguir" ? partida.seguir() : partida.usar(tipo)) ayudas.push({ paso, tipo });
+    };
+    let soltadas = 0;
+    let apuntando = 0;
+    while (partida.pasos < 20_000 && soltadas < 9) {
+      if (partida.terminada) {
+        usar("seguir");
+        if (partida.terminada) break;
+      }
+      apuntando = partida.fase === "apuntando" ? apuntando + 1 : 0;
+      if (soltadas === 1 && apuntando === 50) usar("reloj");
+      if (soltadas === 3 && apuntando === 1) usar("cemento");
+      const tocar = soltadas < 4 || soltadas >= 7 ? sobreObjetivo(partida) : enElExtremo(partida);
+      if (tocar && partida.soltar()) {
+        toques.push(partida.pasos);
+        soltadas++;
+      }
+      partida.paso();
+      partida.tomarEventos();
+    }
+    seguir(partida, 300);
+    expect(ayudas.map((a) => a.tipo)).toEqual(["reloj", "cemento", "seguir"]);
+    const enPartida = partida.resultado();
+    expect(enPartida.piezas).toBeGreaterThanOrEqual(5);
+    const repetida = jugar(SEMILLA, toques, { ayudas, maxPasos: enPartida.pasos });
+    expect(repetida).toEqual(enPartida);
+    expect(jugar(SEMILLA, toques, { maxPasos: enPartida.pasos })).not.toEqual(enPartida);
+  });
+});
+
+/** Como `jugarCon`, pero sobre una partida ya creada: suelta cuando `tocar` lo dice, `piezas` veces. */
+function jugarConPartida(partida: Partida, tocar: (partida: Partida) => boolean, piezas: number, eventos: Evento[] = []): Evento[] {
+  let soltadas = 0;
+  while (!partida.terminada && soltadas < piezas && partida.pasos < 200_000) {
+    if (partida.fase === "apuntando" && tocar(partida)) {
+      partida.soltar();
+      soltadas++;
+    }
+    partida.paso();
+    eventos.push(...partida.tomarEventos());
+  }
+  return eventos;
+}
 
 describe("cementado de la base (B3)", () => {
   // Jugador que suelta siempre sobre el objetivo: con esta semilla llega a 150

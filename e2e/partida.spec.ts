@@ -32,14 +32,16 @@ test("partida completa del reto de hoy tocando cada pieza en cuanto aparece", as
 });
 
 /** Juega 4 piezas sobre el objetivo y el resto en el extremo, y compara con `jugar` en Node. */
-async function compararConNode(page: Page, testInfo: TestInfo): Promise<void> {
+async function compararConNode(page: Page, testInfo: TestInfo, modo: "libre" | "reto"): Promise<void> {
   const inicio = Date.now();
   await jugarHastaElFin(page, conTactil(testInfo), { centradas: 4 });
   const fin = await datosFin(page);
   expect(Date.now() - inicio).toBeLessThan(60_000);
-  expect(fin.opciones).toEqual({ vidas: 3 });
+  expect(fin.opciones).toEqual({ vidas: 3, modo });
+  // Sin barra de objetos todavía (I3), la lista de ayudas va vacía, pero ya se repite con ella (I1, R3).
+  expect(fin.ayudas).toEqual([]);
 
-  const enNode = jugar(fin.semilla, fin.toques, fin.opciones);
+  const enNode = jugar(fin.semilla, fin.toques, { ...fin.opciones, ayudas: fin.ayudas });
   expect(enNode.terminada).toBe(true);
   expect(enNode.puntos).toBe(fin.puntos);
   // La altura se compara con tolerancia: Chrome y Node usan versiones de V8
@@ -58,7 +60,7 @@ test("tocando sobre el objetivo, el reto de hoy en pantalla equivale a jugar() e
   const vigilancia = await preparar(page);
   await page.goto("/");
   await empezarHoy(page);
-  await compararConNode(page, testInfo);
+  await compararConNode(page, testInfo, "reto");
   expect(vigilancia.errores).toEqual([]);
   expect(vigilancia.ajenas).toEqual([]);
 });
@@ -68,7 +70,7 @@ test("tocando sobre el objetivo, la partida libre en pantalla equivale a jugar()
   const vigilancia = await preparar(page);
   await page.goto("/");
   await esperarLibre(page);
-  await compararConNode(page, testInfo);
+  await compararConNode(page, testInfo, "libre");
   expect(await page.locator("#juego").getAttribute("data-semilla")).toMatch(/^libre-[0-9a-z]+$/);
   expect(vigilancia.errores).toEqual([]);
   expect(vigilancia.ajenas).toEqual([]);

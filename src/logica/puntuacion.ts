@@ -96,6 +96,12 @@ export class Marcador {
     return nuevos;
   }
 
+  /** Seguir tras perder la última vida (I1): una vida, sin tocar lo ganado. */
+  seguir(): void {
+    this.vidas = 1;
+    this.combo = 0;
+  }
+
   /** Un episodio de caída: una vida menos y el combo a 0. Lo ganado no se resta. */
   caer(): number {
     this.vidas = Math.max(0, this.vidas - 1);
