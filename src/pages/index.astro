@@ -52,6 +52,17 @@ const pilotes = MUELLE.pilotes.map((x) => `M${x} ${MUELLE.tablero.y + MUELLE.tab
           </button>
         </header>
         <p id="aviso-toque" class="aviso-toque" hidden>Toca para soltar</p>
+        {/* Barra de objetos (I3): reloj y cemento con su número, en la libre y en los niveles; con 0, «+» abre la Colección. */}
+        <div id="barra-objetos" class="barra-objetos" hidden>
+          <button id="objeto-reloj" type="button" class="objeto" data-objeto="reloj" aria-label="Reloj de arena">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path class="marco" d="M6 3h12M6 21h12" /><path class="vidrio" d="M7.5 3.5c0 4.5 4.5 6 4.5 8.5s-4.5 4-4.5 8.5h9c0-4.5-4.5-6-4.5-8.5s4.5-4 4.5-8.5z" /><path class="arena" d="M9.5 19.5c.5-2 2.5-3 2.5-4.5 0 1.5 2 2.5 2.5 4.5z" /></svg>
+            <span class="cuenta" aria-hidden="true"></span>
+          </button>
+          <button id="objeto-cemento" type="button" class="objeto" data-objeto="cemento" aria-label="Cemento">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path class="saco" d="M5 7.5 7 4h10l2 3.5-1 12.5H6z" /><path class="cinta" d="M6.2 9h11.6M6.6 16h10.8" /></svg>
+            <span class="cuenta" aria-hidden="true"></span>
+          </button>
+        </div>
         <p id="aviso-especial" class="aviso-especial" role="status" hidden></p>
 
         {/* Pantalla de inicio (E2, Anexo B): monedas y ajustes arriba, el logo, «Jugar» sobre el puerto y las tarjetas. */}
@@ -159,6 +170,18 @@ const pilotes = MUELLE.pilotes.map((x) => `M${x} ${MUELLE.tablero.y + MUELLE.tab
           </div>
         </section>
 
+        {/* «¿Seguir?» (I3, impacto R-4): solo en la libre, al perder la última vida y con con qué pagar. Sin cuenta atrás. */}
+        <section id="seguir" class="panel columna seguir" aria-labelledby="seguir-titulo" hidden>
+          <h2 id="seguir-titulo">¿Seguir?</h2>
+          <p id="seguir-texto" class="suave"></p>
+          <div class="acciones">
+            <button id="seguir-corazon" type="button" class="principal" hidden></button>
+            <button id="seguir-monedas" type="button" hidden></button>
+            <button id="seguir-video" type="button" hidden>Ver vídeo</button>
+            <button id="seguir-no" type="button">No, ver resultado</button>
+          </div>
+        </section>
+
         <section id="reto" class="panel columna" aria-labelledby="reto-titulo" hidden>
           <h2 id="reto-titulo">Reto de un amigo</h2>
           <p id="aviso-reto" class="destacado"></p>
@@ -193,6 +216,7 @@ const pilotes = MUELLE.pilotes.map((x) => `M${x} ${MUELLE.tablero.y + MUELLE.tab
             <p id="fin-desbloqueo-texto"></p>
             <button id="boton-equipar-nuevo" type="button">Usar</button>
           </div>
+          <p id="fin-objeto" class="destacado" hidden></p>
           <p id="fin-reto" class="destacado" hidden></p>
           <p id="fin-siguiente" class="siguiente" hidden></p>
           <div class="acciones">

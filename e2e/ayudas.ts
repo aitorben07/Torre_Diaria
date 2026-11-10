@@ -298,6 +298,7 @@ export async function esperarFinListo(page: Page): Promise<void> {
  * extremo (caen y cuestan una vida). Esas últimas se sueltan dentro de la
  * página, salvo con `real`, que usa un toque o clic de Playwright: con carga,
  * ese toque puede llegar tarde, la pieza ya no cae y la partida se alarga.
+ * Si aparece «¿Seguir?» (I3), pulsa «No, ver resultado»; con `sinSeguir`, falla.
  */
 export async function jugarHastaElFin(
   page: Page,
@@ -307,15 +308,23 @@ export async function jugarHastaElFin(
     conRetraso = 0,
     retrasoMs = 0,
     real = false,
-  }: { centradas?: number; conRetraso?: number; retrasoMs?: number; real?: boolean } = {},
+    sinSeguir = false,
+  }: { centradas?: number; conRetraso?: number; retrasoMs?: number; real?: boolean; sinSeguir?: boolean } = {},
 ): Promise<void> {
   const contenedor = juego(page);
   for (let pieza = 0; pieza < 200; pieza++) {
     await page.waitForFunction(() => {
       const el = document.getElementById("juego")!;
-      return el.dataset.estado === "fin" || el.dataset.fase === "apuntando";
+      return el.dataset.estado === "fin" || el.dataset.estado === "seguir" || el.dataset.fase === "apuntando";
     });
-    if ((await contenedor.getAttribute("data-estado")) === "fin") return;
+    const estado = await contenedor.getAttribute("data-estado");
+    if (estado === "seguir") {
+      if (sinSeguir) throw new Error("Se ha ofrecido «¿Seguir?»");
+      await page.locator("#seguir-no").click();
+      await expect(contenedor).toHaveAttribute("data-estado", "fin");
+      return;
+    }
+    if (estado === "fin") return;
     const antes = await soltadas(page);
     if (pieza < centradas) {
       // Dentro de la página, en el mismo fotograma en que la pieza pasa por el
@@ -348,7 +357,7 @@ export async function jugarHastaElFin(
     await page.waitForFunction(
       (n) => {
         const el = document.getElementById("juego")!;
-        return el.dataset.estado === "fin" || ((JSON.parse(el.dataset.efectos ?? "{}") as { soltada?: number }).soltada ?? 0) > n;
+        return el.dataset.estado === "fin" || el.dataset.estado === "seguir" || ((JSON.parse(el.dataset.efectos ?? "{}") as { soltada?: number }).soltada ?? 0) > n;
       },
       antes,
     );

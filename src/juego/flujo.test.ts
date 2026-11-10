@@ -225,3 +225,29 @@ describe("inicio y pausa (E1, E3)", () => {
     for (const [flujo, tipo] of casos) expect(transicion(flujo, { tipo }, contexto(0)), `${flujo.pantalla} + ${tipo}`).toEqual({ flujo, orden: { tipo: "nada" } });
   });
 });
+
+describe("«¿Seguir?» (I3, impacto R-4)", () => {
+  it("en la libre, perder con qué pagar lleva a «¿Seguir?»; pagar sigue la partida y «No» la acaba", () => {
+    const libre = empezar("libre", HOY);
+    const { flujo: seguir, orden } = transicion(libre, { tipo: "ofrecerSeguir" }, contexto(0));
+    expect(orden).toEqual({ tipo: "seguir" });
+    expect(seguir).toEqual({ ...libre, pantalla: "seguir" });
+    expect(transicion(seguir, { tipo: "seguirTrasPerder" }, contexto(0))).toEqual({ flujo: libre, orden: { tipo: "volver", pantalla: "jugando" } });
+    expect(transicion(seguir, { tipo: "terminar" }, contexto(5))).toEqual({ flujo: { ...libre, pantalla: "fin", finDesde: 5 }, orden: { tipo: "nada" } });
+  });
+
+  it("en «¿Seguir?» no se pausa, no se abre ningún panel ni se va al inicio", () => {
+    const seguir = transicion(empezar("libre", HOY), { tipo: "ofrecerSeguir" }, contexto(0)).flujo;
+    for (const accion of [{ tipo: "pausar" }, { tipo: "inicio" }, { tipo: "abrir", panel: "ajustes" }, { tipo: "abrir", panel: "coleccion" }, { tipo: "seguirPartida" }] as const) {
+      expect(transicion(seguir, accion, contexto(0))).toEqual({ flujo: seguir, orden: { tipo: "nada" } });
+    }
+  });
+
+  it("en los niveles y en el reto diario no se ofrece nunca", () => {
+    for (const partida of [empezar("nivel", HOY, 1), empezar("oficial", HOY), empezar("repeticion", 3)]) {
+      expect(transicion(partida, { tipo: "ofrecerSeguir" }, contexto(0))).toEqual({ flujo: partida, orden: { tipo: "nada" } });
+    }
+    // Y seguir sin haberlo ofrecido no hace nada.
+    expect(transicion(empezar("libre", HOY), { tipo: "seguirTrasPerder" }, contexto(0)).orden).toEqual({ tipo: "nada" });
+  });
+});

@@ -71,3 +71,39 @@ export function gastarObjeto(p: Progreso, objeto: Objeto): Progreso {
   if (p.objetos[objeto] <= 0) return p;
   return { ...p, objetos: { ...p.objetos, [objeto]: p.objetos[objeto] - 1 } };
 }
+
+/** «¿Seguir?» en la libre solo con al menos esta parte del récord (con récord 0, siempre). */
+export const PARTE_RECORD_SEGUIR = 0.3;
+
+/** Con qué se paga seguir: un corazón guardado, sus monedas o un vídeo (si hay proveedor). */
+export type PagoSeguir = "corazon" | "monedas" | "video";
+
+/**
+ * Formas de pagar «¿Seguir?» al perder la última vida (I3 con impacto R-4):
+ * solo en la partida libre y con el corazón desbloqueado o un vídeo
+ * disponible; en la libre, solo si los puntos llegan a `PARTE_RECORD_SEGUIR`
+ * del récord. Vacía: no se ofrece y se va directo al fin. Que sea una vez por
+ * partida lo decide la simulación (`Partida.seguir`).
+ */
+export function pagosSeguir(p: Progreso, { modo, puntos, video }: { modo: string; puntos: number; video: boolean }): PagoSeguir[] {
+  if (modo !== "libre") return [];
+  const record = p.libre.record;
+  if (record > 0 && puntos < PARTE_RECORD_SEGUIR * record) return [];
+  const pagos: PagoSeguir[] = [];
+  if (estaDesbloqueado(p, "corazon")) {
+    if (p.objetos.corazon > 0) pagos.push("corazon");
+    if (p.monedas >= objetoPorId("corazon").precio) pagos.push("monedas");
+  }
+  if (video) pagos.push("video");
+  return pagos;
+}
+
+/** Cobra seguir: un corazón o su precio en monedas (el vídeo no cuesta nada). Si no alcanza, el mismo progreso. */
+export function pagarSeguir(p: Progreso, pago: PagoSeguir): Progreso {
+  if (pago === "corazon") return gastarObjeto(p, "corazon");
+  if (pago === "monedas") {
+    const precio = objetoPorId("corazon").precio;
+    return estaDesbloqueado(p, "corazon") && p.monedas >= precio ? { ...p, monedas: p.monedas - precio } : p;
+  }
+  return p;
+}

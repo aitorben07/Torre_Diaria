@@ -360,6 +360,85 @@ body {
   background: var(--plata);
 }
 
+/* Barra de objetos (I3): dos botones redondos abajo, en la columna, con su
+   número en una pegatina. Solo durante la partida; con ella, el aviso de la
+   especial sube para no taparla. */
+.barra-objetos {
+  position: absolute;
+  left: 50%;
+  bottom: max(1rem, calc(env(safe-area-inset-bottom) + 0.6rem));
+  display: flex;
+  gap: 1.1rem;
+  transform: translateX(-50%);
+}
+
+#juego:not([data-estado="jugando"]) .barra-objetos {
+  display: none;
+}
+
+.barra-objetos:not([hidden]) ~ .aviso-especial {
+  bottom: max(5.6rem, calc(env(safe-area-inset-bottom) + 5.2rem));
+}
+
+button.objeto {
+  position: relative;
+  width: 3.6rem;
+  height: 3.6rem;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--amarillo);
+}
+
+button.objeto[data-objeto="cemento"] {
+  background: var(--plata);
+}
+
+button.objeto:disabled {
+  opacity: 0.55;
+  box-shadow: 0 2px 0 var(--tinta);
+}
+
+button.objeto svg {
+  width: 2rem;
+  height: 2rem;
+  fill: var(--papel);
+  stroke: var(--tinta);
+  stroke-width: 1.8;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+button.objeto .arena {
+  fill: var(--naranja);
+  stroke: none;
+}
+
+button.objeto .cinta {
+  fill: none;
+}
+
+/* El número (o «+» con 0) en una pegatina de tinta arriba a la derecha. */
+button.objeto .cuenta {
+  position: absolute;
+  top: -0.35rem;
+  right: -0.45rem;
+  min-width: 1.5rem;
+  padding: 0.05rem 0.35rem;
+  border-radius: 999px;
+  background: var(--tinta);
+  color: var(--papel);
+  font-size: 0.95rem;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+button.objeto[data-cuantos="0"] .cuenta {
+  background: var(--rosa);
+  color: var(--tinta);
+}
+
 /* Paneles de papel: reto de un amigo y fin de partida. */
 .panel {
   top: calc(var(--alto-hud) + 0.8rem);
@@ -2135,11 +2214,13 @@ svg.bolsa path {
 }
 
 /* Pausa (E3): botones en columna, «Seguir» el primero. */
-.pausa .acciones {
+.pausa .acciones,
+.seguir .acciones {
   flex-direction: column;
 }
 
-.pausa .acciones button {
+.pausa .acciones button,
+.seguir .acciones button {
   flex: none;
 }
 

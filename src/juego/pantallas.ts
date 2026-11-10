@@ -46,6 +46,16 @@ export const ui = {
   botonSeguir: () => elemento<HTMLButtonElement>("boton-seguir"),
   pausaAjustes: () => elemento<HTMLButtonElement>("pausa-ajustes"),
   pausaInicio: () => elemento<HTMLButtonElement>("pausa-inicio"),
+  barraObjetos: () => elemento("barra-objetos"),
+  objetoReloj: () => elemento<HTMLButtonElement>("objeto-reloj"),
+  objetoCemento: () => elemento<HTMLButtonElement>("objeto-cemento"),
+  seguir: () => elemento("seguir"),
+  seguirTexto: () => elemento("seguir-texto"),
+  seguirCorazon: () => elemento<HTMLButtonElement>("seguir-corazon"),
+  seguirMonedas: () => elemento<HTMLButtonElement>("seguir-monedas"),
+  seguirVideo: () => elemento<HTMLButtonElement>("seguir-video"),
+  seguirNo: () => elemento<HTMLButtonElement>("seguir-no"),
+  finObjeto: () => elemento("fin-objeto"),
   ajustes: () => elemento("ajustes"),
   ajusteMusica: () => elemento<HTMLButtonElement>("ajuste-musica"),
   ajusteSonidos: () => elemento<HTMLButtonElement>("ajuste-sonidos"),
@@ -118,6 +128,7 @@ export function cambiarEstado(estado: Pantalla, debajo: Pantalla | null = null):
   else delete juego.dataset.debajo;
   ui.inicio().hidden = estado !== "inicio";
   ui.pausa().hidden = estado !== "pausa";
+  ui.seguir().hidden = estado !== "seguir";
   ui.ajustes().hidden = estado !== "ajustes";
   ui.reto().hidden = estado !== "reto";
   ui.fin().hidden = estado !== "fin";
@@ -247,6 +258,38 @@ export function pintarInicio({ monedas, racha, hoy, jugadoHoy, nivel, estrellas,
 export function pintarPausa({ titulo, sinSalida }: { titulo: string; sinSalida: boolean }): void {
   ui.pausaTexto().textContent = sinSalida ? `${titulo}: cuenta al acabar la partida.` : titulo;
   ui.pausaInicio().hidden = sinSalida;
+}
+
+/** Cómo se ve un objeto en la barra: oculto si aún está bloqueado; con 0, «+». */
+export type ObjetoEnBarra = { desbloqueado: boolean; cuantos: number; activo: boolean };
+
+/**
+ * Barra de objetos (I3): solo con algún objeto desbloqueado, y solo los
+ * desbloqueados. Con unidades, el número y activo solo con la pieza colgando;
+ * con 0, «+» (abre la Colección encima de la partida).
+ */
+export function pintarBarraObjetos(visible: boolean, objetos: { reloj: ObjetoEnBarra; cemento: ObjetoEnBarra }): void {
+  ui.barraObjetos().hidden = !visible || (!objetos.reloj.desbloqueado && !objetos.cemento.desbloqueado);
+  for (const [boton, { desbloqueado, cuantos, activo }, nombre] of [
+    [ui.objetoReloj(), objetos.reloj, "Reloj de arena"],
+    [ui.objetoCemento(), objetos.cemento, "Cemento"],
+  ] as const) {
+    boton.hidden = !desbloqueado;
+    boton.dataset.cuantos = String(cuantos);
+    boton.querySelector(".cuenta")!.textContent = cuantos > 0 ? String(cuantos) : "+";
+    boton.setAttribute("aria-label", cuantos > 0 ? `${nombre}: ${cuantos === 1 ? "queda 1" : `quedan ${cuantos}`}` : `${nombre}: conseguir más`);
+    boton.disabled = cuantos > 0 && !activo;
+  }
+}
+
+/** «¿Seguir?» (I3): un botón por cada forma de pagar que haya; «No, ver resultado» siempre. */
+export function pintarSeguir({ puntos, corazones, precio, pagos }: { puntos: number; corazones: number; precio: number; pagos: readonly string[] }): void {
+  ui.seguirTexto().textContent = `${formatearPuntos(puntos)}. Sigue con 1 vida, una vez por partida.`;
+  ui.seguirCorazon().hidden = !pagos.includes("corazon");
+  ui.seguirCorazon().textContent = `Usar corazón (tienes ${corazones})`;
+  ui.seguirMonedas().hidden = !pagos.includes("monedas");
+  ui.seguirMonedas().textContent = `${formatearNumero(precio)} monedas`;
+  ui.seguirVideo().hidden = !pagos.includes("video");
 }
 
 /** Interruptor de Ajustes (C2): `aria-checked` dice si está encendido. */

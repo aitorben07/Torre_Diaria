@@ -10,6 +10,8 @@ import {
   MAX_OBJETO,
   objetoPorId,
   objetosNuevos,
+  pagarSeguir,
+  pagosSeguir,
   REGALO_DESBLOQUEO,
 } from "./objetos.ts";
 import { normalizar, progresoVacio, type Progreso } from "./progreso.ts";
@@ -119,5 +121,45 @@ describe("comprar y gastar (I2)", () => {
       ["corazon", 250, 6],
     ]);
     expect(objetoPorId("corazon").nombre).toBe("Corazón");
+  });
+});
+
+describe("«¿Seguir?» (I3, impacto R-4)", () => {
+  const conCorazon = (corazon: number, monedas: number, record: number): Progreso => {
+    const p = conTodo({ monedas });
+    return { ...p, objetos: { ...p.objetos, corazon }, libre: { ...p.libre, record } };
+  };
+
+  it("sin corazones, con 0 monedas y sin vídeo, no se ofrece", () => {
+    expect(pagosSeguir(conCorazon(0, 0, 500), { modo: "libre", puntos: 400, video: false })).toEqual([]);
+  });
+
+  it("solo en la libre: ni en niveles ni en el reto diario", () => {
+    for (const modo of ["nivel", "oficial", "repeticion"]) expect(pagosSeguir(conCorazon(3, 1000, 0), { modo, puntos: 100, video: true })).toEqual([]);
+  });
+
+  it("en la libre, solo con los puntos al 30 % del récord o más, o con récord 0", () => {
+    const p = conCorazon(1, 0, 1000);
+    expect(pagosSeguir(p, { modo: "libre", puntos: 299, video: false })).toEqual([]);
+    expect(pagosSeguir(p, { modo: "libre", puntos: 300, video: false })).toEqual(["corazon"]);
+    expect(pagosSeguir(conCorazon(1, 0, 0), { modo: "libre", puntos: 0, video: false })).toEqual(["corazon"]);
+  });
+
+  it("con monedas para un corazón se ofrece pagarlo; con el corazón aún bloqueado, no", () => {
+    expect(pagosSeguir(conCorazon(0, 250, 0), { modo: "libre", puntos: 10, video: false })).toEqual(["monedas"]);
+    const bloqueado = { ...progresoVacio(), monedas: 5000 };
+    expect(pagosSeguir(bloqueado, { modo: "libre", puntos: 10, video: false })).toEqual([]);
+    expect(pagosSeguir(bloqueado, { modo: "libre", puntos: 10, video: true })).toEqual(["video"]);
+  });
+
+  it("pagar con corazón gasta uno; con monedas resta 250; el vídeo no cuesta", () => {
+    const p = conCorazon(2, 300, 0);
+    expect(pagarSeguir(p, "corazon").objetos.corazon).toBe(1);
+    expect(pagarSeguir(p, "monedas").monedas).toBe(50);
+    expect(pagarSeguir(p, "monedas").objetos.corazon).toBe(2);
+    expect(pagarSeguir(p, "video")).toBe(p);
+    const pobre = conCorazon(0, 249, 0);
+    expect(pagarSeguir(pobre, "monedas")).toBe(pobre);
+    expect(pagarSeguir(pobre, "corazon")).toBe(pobre);
   });
 });

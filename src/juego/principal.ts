@@ -8,6 +8,7 @@ import { actualizarRacha, medallaDe, medallaDePuntos, rachaDeHoy, registrarOfici
 import { cobrarLibre, sumarEstadisticas, type LibreCobrada, type Medalla, type PartidaAcabada } from "../logica/economia.ts";
 import { AVISO_ESPECIAL, especialDe, REGLAS_CON_ESPECIALES, type Especial } from "../logica/especiales.ts";
 import { estrellasDe, nivelDisponible, nivelPorNumero, opcionesDeNivel, registrarNivel, textoMeta, textoObjetivo, totalEstrellas, ultimoDisponible, type NivelRegistrado } from "../logica/niveles.ts";
+import { gastarObjeto, objetoPorId, objetosNuevos, pagarSeguir, pagosSeguir, REGALO_DESBLOQUEO, type PagoSeguir } from "../logica/objetos.ts";
 import { leerLibre, leerReto } from "../logica/reto.ts";
 import { almacenDelNavegador } from "../logica/registro.ts";
 import { deTramos, Guardado, type DiaJugado } from "../logica/progreso.ts";
@@ -32,7 +33,7 @@ import { estadoDeInicio } from "./inicio.ts";
 import { anunciosDePlataforma, aplicarLlamadas, llamadasAlAbrir, llamadasDeTransicion } from "./anuncios.ts";
 import { compartir, descargar, ImagenCompartida, puedeCompartirArchivos } from "./compartir.ts";
 import { formasParaImagen, type DatosImagen } from "./imagen.ts";
-import { cambiarEstado, copiar, mostrarTexto, NOMBRE_MEDALLA, pintarFin, pintarHud, pintarInicio, pintarInterruptor, pintarLibreAmigo, pintarPausa, pintarReto, ui, type DatosFin as DatosPantallaFin } from "./pantallas.ts";
+import { cambiarEstado, copiar, mostrarTexto, NOMBRE_MEDALLA, pintarBarraObjetos, pintarFin, pintarHud, pintarInicio, pintarInterruptor, pintarLibreAmigo, pintarPausa, pintarReto, pintarSeguir, ui, type DatosFin as DatosPantallaFin } from "./pantallas.ts";
 import { PanelRetos } from "./retos.ts";
 import { escenarioPorId, temaPorId } from "./temas.ts";
 
@@ -111,6 +112,10 @@ let pendiente = false;
 let toques: number[] = [];
 /** Ayudas usadas en la partida en marcha, con su paso (I1): van en `data-ayudas` para repetirla con `jugar` (R3). */
 let ayudas: Ayuda[] = [];
+/** ¿Se ha ofrecido ya «¿Seguir?» en esta partida? Solo una vez (I3). */
+let seguirOfrecido = false;
+/** Lo último pintado en la barra de objetos, para repintarla solo cuando cambia. */
+let barraPintada = "";
 let textoTarjeta = "";
 let hudPintado = "";
 /** Modo de lo que muestra la pantalla de fin, para refrescar el siguiente objetivo al volver a ella. */
@@ -243,6 +248,7 @@ function ejecutar(orden: Orden): void {
   else if (orden.tipo === "reto") mostrarReto();
   else if (orden.tipo === "inicio") mostrarInicio();
   else if (orden.tipo === "pausa") mostrarPausa();
+  else if (orden.tipo === "seguir") mostrarSeguir();
   else if (orden.tipo === "panel") mostrarPanel(orden.panel);
   else if (orden.tipo === "volver") volver(orden.pantalla);
 }
@@ -345,6 +351,8 @@ function empezar(modo: Modo, dia: number, numeroNivel: number = 0, codigo?: stri
   pendiente = false;
   toques = [];
   ayudas = [];
+  seguirOfrecido = false;
+  barraPintada = "";
   soltadas = new Map();
   enCaida = null;
   mojadas = new WeakSet();
@@ -479,7 +487,7 @@ function celebrarEstrellas(estrellas: number): void {
   }
 }
 
-function mostrarFin(datos: DatosFin, modoPartida: Modo, premios: Premios = {}): void {
+function mostrarFin(datos: DatosFin, modoPartida: Modo, premios: Premios = {}, objetoNuevo: string | null = null): void {
   const libre = modoPartida === "libre";
   const enPiezas = datos.reglas === 1;
   modoFin = modoPartida;
@@ -497,6 +505,8 @@ function mostrarFin(datos: DatosFin, modoPartida: Modo, premios: Premios = {}): 
     siguiente: libre ? siguienteObjetivo(guardado.actual) : null,
     ...premios,
   });
+  // Objeto desbloqueado con esta partida, con su regalo (I3).
+  mostrarTexto(ui.finObjeto(), objetoNuevo);
   const juego = ui.juego();
   juego.dataset.puntos = String(datos.puntos);
   juego.dataset.altura = String(datos.altura);
@@ -609,7 +619,11 @@ function cobrarNivel(actual: Partida, numero: number): Premios {
 function terminar(actual: Partida): void {
   const { puntos, altura, formas, piezas, perfectos, comboMax } = actual.resultado();
   const { modo, dia } = flujo;
+  const antes = guardado.releer();
   const premios = modo === "nivel" ? cobrarNivel(actual, flujo.nivel) : cobrar(actual, modo, dia);
+  // «Nuevo objeto: Reloj de arena. Te regalamos 2» (I3).
+  const nuevos = objetosNuevos(antes, guardado.actual);
+  const objetoNuevo = nuevos.length > 0 ? nuevos.map((o) => `Nuevo objeto: ${o.nombre}. Te regalamos ${REGALO_DESBLOQUEO}.`).join(" ") : null;
   // Al acabar, el motivo de fin en el pulso siguiente; con un nivel ganado, la música calla y suena el récord (impacto §5).
   if (premios.nivel?.victoria) {
     musica.poner("silencio");
@@ -631,7 +645,87 @@ function terminar(actual: Partida): void {
   actuar({ tipo: "terminar" });
   ui.contador().textContent = `${formatearPuntos(puntos)} · ${formatearAltura(altura)}`;
   hudPintado = "";
-  mostrarFin({ dia, puntos, altura, piezas, formas, reglas: REGLAS, perfectos, comboMax }, modo, premios);
+  mostrarFin({ dia, puntos, altura, piezas, formas, reglas: REGLAS, perfectos, comboMax }, modo, premios, objetoNuevo);
+}
+
+/**
+ * Al perder la última vida en la libre (I3, impacto R-4): si hay con qué
+ * pagar y no se ha ofrecido aún, «¿Seguir?» con la partida quieta. Devuelve
+ * si se ha ofrecido; si no, la partida se cierra como siempre.
+ */
+function ofrecerSeguir(actual: Partida): boolean {
+  if (seguirOfrecido || actual.resultado().victoria) return false;
+  const pagos = pagosSeguir(guardado.releer(), { modo: flujo.modo, puntos: actual.estado().puntos, video: anuncios.disponible("recompensado") });
+  if (pagos.length === 0) return false;
+  seguirOfrecido = true;
+  actuar({ tipo: "ofrecerSeguir" });
+  return flujo.pantalla === "seguir";
+}
+
+function mostrarSeguir(): void {
+  const actual = partida;
+  if (!actual) return;
+  const p = guardado.actual;
+  const pagos = pagosSeguir(p, { modo: flujo.modo, puntos: actual.estado().puntos, video: anuncios.disponible("recompensado") });
+  pintarSeguir({ puntos: actual.estado().puntos, corazones: p.objetos.corazon, precio: objetoPorId("corazon").precio, pagos });
+  actualizarHud();
+  ui.avisoToque().hidden = true;
+  cambiarEstado("seguir");
+  const primero = [ui.seguirCorazon(), ui.seguirMonedas(), ui.seguirVideo(), ui.seguirNo()].find((b) => !b.hidden);
+  primero?.focus();
+}
+
+/** Paga y sigue (I3): la partida pone 1 vida y cuelga la siguiente pieza; el «seguir» va a `data-ayudas` (R3). */
+function seguirCon(pago: PagoSeguir): void {
+  const actual = partida;
+  if (!actual || flujo.pantalla !== "seguir") return;
+  if (pago !== "video" && pagarSeguir(guardado.releer(), pago) === guardado.actual) return;
+  const paso = actual.pasos;
+  if (!actual.seguir()) return;
+  if (pago !== "video") guardado.cambiar((p) => pagarSeguir(p, pago));
+  ayudas.push({ paso, tipo: "seguir" });
+  hudPintado = "";
+  barraPintada = "";
+  actuar({ tipo: "seguirTrasPerder" });
+}
+
+/** «No, ver resultado»: la partida acaba sin gastar nada. */
+function noSeguir(): void {
+  if (partida && flujo.pantalla === "seguir") terminar(partida);
+}
+
+/**
+ * Usa un objeto de la barra con la pieza colgando (I3): lo gasta, lo guarda y
+ * lo anota en `data-ayudas` con su paso (R3). Con 0, abre la Colección encima
+ * de la partida (impacto R-6; en J, la Tienda en Objetos).
+ */
+function usarObjeto(objeto: "reloj" | "cemento"): void {
+  const actual = partida;
+  if (!actual || flujo.pantalla !== "jugando") return;
+  if (guardado.releer().objetos[objeto] <= 0) {
+    actuar({ tipo: "abrir", panel: "coleccion" });
+    return;
+  }
+  const paso = actual.pasos;
+  if (!actual.usar(objeto)) return;
+  ayudas.push({ paso, tipo: objeto });
+  guardado.cambiar((p) => gastarObjeto(p, objeto));
+  sonido.tic();
+  // Sin foco en el botón: Espacio vuelve a soltar la pieza.
+  (document.activeElement as HTMLElement | null)?.blur();
+  actualizarBarra(actual);
+}
+
+/** Barra de objetos (I3): en la libre y en los niveles; los botones, activos solo con la pieza colgando. */
+function actualizarBarra(actual: Partida): void {
+  const p = guardado.actual;
+  const visible = flujo.modo === "libre" || flujo.modo === "nivel";
+  const apuntando = actual.fase === "apuntando";
+  const clave = `${visible}|${apuntando}|${p.objetos.reloj}|${p.objetos.cemento}|${p.objetos.desbloqueados.join()}`;
+  if (clave === barraPintada) return;
+  barraPintada = clave;
+  const de = (objeto: "reloj" | "cemento") => ({ desbloqueado: p.objetos.desbloqueados.includes(objeto), cuantos: p.objetos[objeto], activo: apuntando });
+  pintarBarraObjetos(visible, { reloj: de("reloj"), cemento: de("cemento") });
 }
 
 /** Abre Retos, Niveles, Colección o Ajustes encima de la pantalla que hubiera (si era una partida, queda en pausa). */
@@ -768,7 +862,7 @@ function avanzar(pasos: number): void {
     const eventos = actual.tomarEventos();
     if (eventos.length > 0) reaccionar(actual, eventos);
     if (actual.terminada) {
-      terminar(actual);
+      if (!ofrecerSeguir(actual)) terminar(actual);
       return;
     }
   }
@@ -794,6 +888,7 @@ function avanzar(pasos: number): void {
   }
   if (pasos > 0) observar(estado, pasos);
   actualizarHud();
+  actualizarBarra(actual);
   pintarEfectos();
 }
 
@@ -1086,6 +1181,17 @@ ui.botonPausa().addEventListener("click", () => actuar({ tipo: "pausar" }));
 ui.botonSeguir().addEventListener("click", () => actuar({ tipo: "seguirPartida" }));
 ui.pausaAjustes().addEventListener("click", () => actuar({ tipo: "abrir", panel: "ajustes" }));
 ui.pausaInicio().addEventListener("click", () => actuar({ tipo: "inicio" }));
+// Objetos (I3): la barra de la partida y «¿Seguir?».
+ui.objetoReloj().addEventListener("click", () => usarObjeto("reloj"));
+ui.objetoCemento().addEventListener("click", () => usarObjeto("cemento"));
+ui.seguirCorazon().addEventListener("click", () => seguirCon("corazon"));
+ui.seguirMonedas().addEventListener("click", () => seguirCon("monedas"));
+ui.seguirVideo().addEventListener("click", () => {
+  void anuncios.recompensado("seguir").then((resultado) => {
+    if (resultado === "visto") seguirCon("video");
+  });
+});
+ui.seguirNo().addEventListener("click", noSeguir);
 ui.botonCerrarRetos().addEventListener("click", () => actuar({ tipo: "cerrar" }));
 ui.botonCerrarNiveles().addEventListener("click", () => actuar({ tipo: "cerrar" }));
 ui.botonCerrarColeccion().addEventListener("click", () => actuar({ tipo: "cerrar" }));

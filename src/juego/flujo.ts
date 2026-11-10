@@ -16,7 +16,8 @@ export const ESPERA_FIN_MS = 700;
  * `nivel`: un nivel del mapa (E3).
  */
 export type Modo = "libre" | "oficial" | "repeticion" | "nivel";
-export type Pantalla = "inicio" | "reto" | "jugando" | "pausa" | "fin" | "retos" | "niveles" | "coleccion" | "ajustes";
+/** `seguir`: «¿Seguir?» al perder la última vida en la libre, con la partida quieta (I3). */
+export type Pantalla = "inicio" | "reto" | "jugando" | "pausa" | "seguir" | "fin" | "retos" | "niveles" | "coleccion" | "ajustes";
 /** Pantallas que se abren encima de otra. */
 export type Panel = "retos" | "niveles" | "coleccion" | "ajustes";
 
@@ -42,14 +43,20 @@ export type Orden =
   | { tipo: "inicio" }
   /** La partida queda en pausa con su panel (E3). */
   | { tipo: "pausa" }
+  /** «¿Seguir?» con la partida quieta (I3). */
+  | { tipo: "seguir" }
   | { tipo: "panel"; panel: Panel }
   /** Se cierra el panel y se vuelve a `pantalla` (si es una partida, sigue). */
   | { tipo: "volver"; pantalla: Exclude<Pantalla, Panel> }
   | { tipo: "nada" };
 
 export type Accion =
-  /** La partida en marcha ha terminado. */
+  /** La partida en marcha ha terminado (también tras «No, ver resultado» en «¿Seguir?»). */
   | { tipo: "terminar" }
+  /** Se ha perdido la última vida y hay con qué seguir: «¿Seguir?» (I3). */
+  | { tipo: "ofrecerSeguir" }
+  /** Se ha pagado seguir: la partida continúa con 1 vida (I3). */
+  | { tipo: "seguirTrasPerder" }
   /** «Otra vez» o «Partida libre»; con `codigo`, la partida libre del enlace de un amigo (F2). */
   | { tipo: "libre"; codigo?: string }
   /** «Jugar» en la ficha de un día: el oficial si no se ha jugado, o su resultado si ya se jugó. */
@@ -124,7 +131,7 @@ export function aceptaEntrada(flujo: Flujo, ahora: number): boolean {
 /** Siguiente estado y orden tras una acción. Las acciones ignoradas devuelven el mismo estado y `nada`. */
 export function transicion(flujo: Flujo, accion: Accion, { ahora, hoy, jugado, nivelDisponible = () => false }: Contexto): { flujo: Flujo; orden: Orden } {
   if (accion.tipo === "terminar") {
-    if (flujo.pantalla !== "jugando") return { flujo, orden: NADA };
+    if (flujo.pantalla !== "jugando" && flujo.pantalla !== "seguir") return { flujo, orden: NADA };
     return { flujo: { ...flujo, pantalla: "fin", finDesde: ahora }, orden: NADA };
   }
   if (!aceptaEntrada(flujo, ahora)) return { flujo, orden: NADA };
@@ -139,6 +146,12 @@ export function transicion(flujo: Flujo, accion: Accion, { ahora, hoy, jugado, n
     return { flujo: empezar("nivel", hoy, nivel), orden: { tipo: "jugar", modo: "nivel", dia: hoy, nivel } };
   };
   switch (accion.tipo) {
+    case "ofrecerSeguir":
+      if (flujo.pantalla !== "jugando" || flujo.modo !== "libre") return { flujo, orden: NADA };
+      return { flujo: { ...flujo, pantalla: "seguir" }, orden: { tipo: "seguir" } };
+    case "seguirTrasPerder":
+      if (flujo.pantalla !== "seguir") return { flujo, orden: NADA };
+      return { flujo: { ...flujo, pantalla: "jugando" }, orden: { tipo: "volver", pantalla: "jugando" } };
     case "libre":
       if (accion.codigo) return { flujo: empezar("libre", hoy), orden: { tipo: "jugar", modo: "libre", dia: hoy, codigo: accion.codigo } };
       return { flujo: empezar("libre", hoy), orden: { tipo: "jugar", modo: "libre", dia: hoy } };
@@ -156,7 +169,8 @@ export function transicion(flujo: Flujo, accion: Accion, { ahora, hoy, jugado, n
       if (!jugado(accion.dia) || accion.dia > hoy) return { flujo, orden: NADA };
       return { flujo: empezar("repeticion", accion.dia), orden: { tipo: "jugar", modo: "repeticion", dia: accion.dia } };
     case "abrir": {
-      if (flujo.pantalla === accion.panel) return { flujo, orden: NADA };
+      // Desde «¿Seguir?» no se abre nada: se sigue o se ve el resultado (I3).
+      if (flujo.pantalla === accion.panel || flujo.pantalla === "seguir") return { flujo, orden: NADA };
       // El reto diario en marcha no se deja a medias: con él en marcha o en pausa, solo los Ajustes.
       if (enReto(flujo) && (flujo.pantalla === "jugando" || accion.panel !== "ajustes")) return { flujo, orden: NADA };
       const debajo = flujo.debajo ?? (flujo.pantalla as Exclude<Pantalla, Panel>);
