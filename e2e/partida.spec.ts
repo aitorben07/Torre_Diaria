@@ -3,19 +3,28 @@
 // perfectos con imán y combos).
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
 import { jugar } from "../src/logica/simulacion.ts";
-import { conTactil, datosFin, DIA, empezarHoy, esperarFinListo, jugarHastaElFin, jugarLibre, pausar, preparar, SEMILLA } from "./ayudas.ts";
+import { PASO_MS } from "../src/juego/bucle.ts";
+import { conTactil, datosFin, DIA, empezarHoy, esperarFinListo, juego, jugarHastaElFin, jugarLibre, pausar, preparar, SEMILLA } from "./ayudas.ts";
+
+/**
+ * Segundos de juego de la partida, por sus pasos (60 por segundo). Se mide así
+ * y no con el reloj de la prueba: con el equipo cargado la partida va más lenta
+ * (como mucho 5 pasos por fotograma) y una de 50 s de juego tardaba 67 s.
+ */
+async function segundosDeJuego(page: Page): Promise<number> {
+  return (Number(await juego(page).getAttribute("data-pasos")) * PASO_MS) / 1000;
+}
 
 test("partida completa del reto de hoy tocando cada pieza en cuanto aparece", async ({ page, context }, testInfo) => {
   test.setTimeout(90_000);
   await context.grantPermissions(["clipboard-read", "clipboard-write"]);
   const vigilancia = await preparar(page);
   await page.goto("/");
-  const inicio = Date.now();
   await empezarHoy(page);
   // Con toques de verdad (tap o clic), no soltados dentro de la página.
   await jugarHastaElFin(page, conTactil(testInfo), { real: true });
   const fin = await datosFin(page);
-  expect(Date.now() - inicio).toBeLessThan(60_000);
+  expect(await segundosDeJuego(page)).toBeLessThan(60);
   expect(fin.semilla).toBe(SEMILLA);
   // Piezas en el extremo: cada una cae y cuesta una vida; con tres, fin.
   expect(fin.toques.length).toBeGreaterThanOrEqual(3);
@@ -33,10 +42,9 @@ test("partida completa del reto de hoy tocando cada pieza en cuanto aparece", as
 
 /** Juega 4 piezas sobre el objetivo y el resto en el extremo, y compara con `jugar` en Node. */
 async function compararConNode(page: Page, testInfo: TestInfo, modo: "libre" | "reto"): Promise<void> {
-  const inicio = Date.now();
   await jugarHastaElFin(page, conTactil(testInfo), { centradas: 4 });
   const fin = await datosFin(page);
-  expect(Date.now() - inicio).toBeLessThan(60_000);
+  expect(await segundosDeJuego(page)).toBeLessThan(60);
   expect(fin.opciones).toEqual({ vidas: 3, modo });
   // Sin barra de objetos todavía (I3), la lista de ayudas va vacía, pero ya se repite con ella (I1, R3).
   expect(fin.ayudas).toEqual([]);
