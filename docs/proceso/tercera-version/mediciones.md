@@ -122,3 +122,34 @@ La subida viene sobre todo del ritmo: con la cadencia nueva caen 8 a 10 piezas e
 - El margen de la mediana es pequeño (1,7 s): los niveles cortos (1, 2, 3 y 5, de 12 a 15 s) son casi la mitad de las victorias. Si otra medida la baja de 30, lo siguiente sería alargar el 1 o el 5.
 - Las estrellas ya guardadas no se recalculan: el progreso guarda estrellas y no puntos, y una partida peor no cambia la mejor marca (`niveles.test.ts`, «mejorar de 1 a 3 estrellas…»). Quien sacó 3 estrellas en el 4 con 650 puntos las conserva.
 - La prueba dorada del nivel 1 cambia por la velocidad: toques 142 a 852, 972 pasos y 3,535045 m (antes 173 a 996, 1.116 pasos y 3,678103 m; mismos puntos, piezas y perfectos).
+
+## L3. Economía con objetos y vídeos (2026-11-10)
+
+`npm run medir:economia` (45 días, muestra de 10 partidas por perfil, 42 s). Desde L3 cada partida cuenta sus monedas con las de las doradas (`Resultado.monedas`) y hay dos planes más: **objetos** (el medio compra 1 objeto al día y el experto 2, el más barato de los desbloqueados que no esté al máximo; no los usan) y **vídeos** (4 vídeos de monedas al día, 240 monedas; el objeto con vídeo no da monedas).
+
+| Perfil | Plan | Monedas al día | Primera compra | Temas el día 7 | Catálogo completo | Objetos comprados |
+|---|---|---|---|---|---|---|
+| Novato | temas | 519 | 6,8 min | 3 | día 19 | — |
+| Novato | vídeos | 759 | 1 min | 3 | día 13 | — |
+| Medio | temas | 1.113 | 4,7 min | 4 | **día 9** | — |
+| Medio | objetos | 1.113 | 6,8 min | 4 | día 11 | 21 |
+| Medio | vídeos | 1.353 | 2 min | 4 | **día 8** | — |
+| Experto | temas | 2.428 | 4,6 min | 5 | **día 4** | — |
+| Experto | objetos | 2.428 | 4,6 min | 5 | día 5 | 21 |
+| Experto | vídeos | 2.668 | 4,6 min | 5 | día 4 | — |
+
+Monedas medianas por partida: novato 42, medio 155, experto 350,5. Reloj: 120.
+
+| Requisito de L3 | Medido | ¿Cumple? |
+|---|---|---|
+| Novato: primera compra en ≤ 12 min | 6,8 min | Sí |
+| Medio: 3 a 6 temas el día 7 | 4 | Sí |
+| Medio: catálogo completo entre los días 10 y 30 | día 9 | **No** |
+| Experto: no completa antes del día 7 | día 4 | **No** |
+| Con objetos, el medio completa entre los días 10 y 30 | día 11 | Sí |
+| Con vídeos, el medio no completa antes del día 10 | día 8 | **No** |
+| Una partida mediana del medio da para un reloj | 155 ≥ 120 | Sí |
+
+- **Las reglas 3 dan muchas más monedas que la v2** (medio 1.113 al día frente a 751; experto 2.428 frente a 1.404): las partidas son más largas en piezas (cadencia más rápida, pegajosa y cemento sujetan la torre) y las doradas dan +10. Sin las doradas (como medía la v2) ya pasaba: medio día 11 y experto día 5.
+- No se puede arreglar con lo que L3 deja tocar (`PRECIOS_OBJETOS` y `MONEDAS_VIDEO`): los dos requisitos sin objetos ni vídeos fallan por los precios de los temas y las monedas por pieza. **No se ha cambiado:** subir los precios de los temas o bajar las monedas por partida toca la economía de un juego ya publicado, y lo decide la revisión final. Opción recomendada para entonces: multiplicar los precios de los temas por 1,5 (Madera 450, Caramelo 1.470, Neón 2.520, Mármol 3.780, Oro 6.300; se mediría de nuevo), que no quita nada a quien ya compró.
+- `PRECIOS_OBJETOS` (120, 180, 250) y `MONEDAS_VIDEO` (60) se quedan: el reloj cabe en una partida del medio, los objetos ya retrasan el catálogo del medio dos días y el vídeo, uno.
