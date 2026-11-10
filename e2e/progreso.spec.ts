@@ -133,6 +133,9 @@ test("una racha de 3 desbloquea la Ciudad aunque la altura récord sea menor de 
 });
 
 test("«Usar» vuelve a salir con el segundo escenario nuevo de la misma sesión (C3)", async ({ page }, testInfo) => {
+  // Dos partidas enteras: en escritorio tarda de 38 a 48 s y con el equipo
+  // cargado se acercaba a los 60 s de `playwright.config.ts` (L4).
+  test.setTimeout(120_000);
   await sembrarProgreso(page, { racha: { actual: 2, mejor: 2, ultimoDia: DIA - 1, congeladores: 0 } });
   await preparar(page);
   await page.goto("/");

@@ -4,6 +4,9 @@ import { expect, test, type Page } from "@playwright/test";
 import { conTactil, datosFin, empezarHoy, irAlInicio, juego, jugarHastaElFin, jugarLibre, preparar } from "./ayudas.ts";
 
 test("con localStorage bloqueado se juega entera y sin errores en consola", async ({ page }, testInfo) => {
+  // La libre y el reto de hoy enteros: en escritorio tarda de 38 a 53 s y con
+  // el equipo cargado se acercaba a los 60 s de `playwright.config.ts` (L4).
+  test.setTimeout(120_000);
   await page.addInitScript(() => {
     Object.defineProperty(window, "localStorage", {
       configurable: true,
