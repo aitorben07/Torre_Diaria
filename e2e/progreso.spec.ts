@@ -105,17 +105,17 @@ test("comprar Madera resta su precio, la pone en el lienzo y sigue tras recargar
     );
     for (const colores of pintadas) expect(colores).toBeGreaterThan(5);
   }
-  await expect(page.getByRole("button", { name: "Comprar Oro por 4.200 monedas" })).toBeDisabled();
-  await page.getByRole("button", { name: "Comprar Madera por 300 monedas" }).click();
-  await expect(page.locator("#tienda-monedas")).toHaveText("700");
+  await expect(page.getByRole("button", { name: "Comprar Oro por 6.300 monedas" })).toBeDisabled();
+  await page.getByRole("button", { name: "Comprar Madera por 450 monedas" }).click();
+  await expect(page.locator("#tienda-monedas")).toHaveText("550");
   await expect(page.locator('[data-articulo="madera"]')).toHaveAttribute("data-estado-articulo", "equipado");
   await expect(page.locator("#lienzo")).toHaveAttribute("data-tema", "madera");
-  expect((await leerProgreso(page))!).toMatchObject({ monedas: 700, catalogo: { comprados: ["madera"], equipado: { tema: "madera" } } });
+  expect((await leerProgreso(page))!).toMatchObject({ monedas: 550, catalogo: { comprados: ["madera"], equipado: { tema: "madera" } } });
 
   await page.reload();
   await esperarInicio(page);
   await expect(page.locator("#lienzo")).toHaveAttribute("data-tema", "madera");
-  expect((await leerProgreso(page))!.monedas).toBe(700);
+  expect((await leerProgreso(page))!.monedas).toBe(550);
   expect(errores).toEqual([]);
 });
 

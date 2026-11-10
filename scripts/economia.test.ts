@@ -10,10 +10,11 @@ describe("ritmo de la economía (C5)", () => {
     expect(simular([partida], 3, 1).monedasAlDia).toBe(130);
   });
 
-  it("compra en cuanto llega al precio: Madera (300) con los minutos de juego que hagan falta", () => {
+  it("compra en cuanto llega al precio: Madera (450) con los minutos de juego que hagan falta", () => {
     const ritmo = simular([partida], 10, 45);
-    // Día 1: 60 (reto) + 7 libres × 35 = 305 ≥ 300: la compra llega tras la 7.ª libre (8 min).
-    expect(ritmo.primeraCompraMin).toBe(8);
+    // Día 1: 60 (reto) + 9 libres × 35 = 375 en 10 min. Día 2: reto (35 + 15 + 20 de racha) = 445
+    // y una libre más = 480 ≥ 450: la compra llega a los 12 min.
+    expect(ritmo.primeraCompraMin).toBe(12);
     expect(ritmo.catalogoCompletoDia).not.toBeNull();
   });
 

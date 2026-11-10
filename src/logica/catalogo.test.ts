@@ -12,7 +12,7 @@ import {
   siguienteObjetivo,
   TEMAS,
 } from "./catalogo.ts";
-import { progresoVacio, type Progreso } from "./progreso.ts";
+import { normalizar, progresoVacio, type Progreso } from "./progreso.ts";
 
 const conMonedas = (monedas: number): Progreso => ({ ...progresoVacio(), monedas });
 const conAltura = (alturaRecord: number): Progreso => {
@@ -32,19 +32,31 @@ describe("catálogo (C3 con el recorte I1)", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it("precios ×1,4 salvo Madera (300): 9.680 monedas comprables en temas", () => {
-    expect(TEMAS.map((t) => t.precio)).toEqual([0, 300, 980, 1680, 2520, 4200]);
-    expect(TEMAS.reduce((suma, t) => suma + t.precio, 0)).toBe(9680);
+  it("precios ×1,5 sobre los de la v2: 14.520 monedas comprables en temas", () => {
+    expect(TEMAS.map((t) => t.precio)).toEqual([0, 450, 1470, 2520, 3780, 6300]);
+    expect(TEMAS.reduce((suma, t) => suma + t.precio, 0)).toBe(14520);
+  });
+
+  it("quien compró temas a los precios de antes los conserva: el guardado lleva la posesión, no el precio", () => {
+    // Madera (300) y Oro (4.200) comprados antes del ×1,5; quedan 50 monedas, menos que cualquier precio nuevo.
+    const guardado = JSON.parse(JSON.stringify({ ...conMonedas(50), catalogo: { comprados: ["madera", "oro"], equipado: { tema: "oro", escenario: "puerto" } } }));
+    const p = normalizar(guardado)!;
+    expect(p.monedas).toBe(50);
+    expect(loTiene(p, "madera") && loTiene(p, "oro")).toBe(true);
+    expect(equipado(p).tema).toBe("oro");
+    expect(equipar(p, "madera").catalogo.equipado.tema).toBe("madera");
+    expect(comprar(p, "oro")).toBe(p);
+    expect(siguienteObjetivo(p)).toBe("Te faltan 1.420 monedas para Caramelo");
   });
 
   it("comprar sin monedas suficientes no cambia el progreso", () => {
-    const p = conMonedas(299);
+    const p = conMonedas(449);
     expect(comprar(p, "madera")).toBe(p);
   });
 
   it("con monedas suficientes resta el precio exacto y lo añade a comprados; dos veces no resta dos veces", () => {
     const una = comprar(conMonedas(1000), "madera");
-    expect(una.monedas).toBe(700);
+    expect(una.monedas).toBe(550);
     expect(una.catalogo.comprados).toEqual(["madera"]);
     expect(comprar(una, "madera")).toBe(una);
     expect(comprar(una, "riso")).toBe(una);
@@ -74,7 +86,7 @@ describe("catálogo (C3 con el recorte I1)", () => {
     const p = progresoVacio();
     expect(equipar(p, "madera")).toBe(p);
     expect(equipar(p, "ciudad")).toBe(p);
-    const comprado = equipar(comprar(conMonedas(300), "madera"), "madera");
+    const comprado = equipar(comprar(conMonedas(450), "madera"), "madera");
     expect(comprado.catalogo.equipado).toEqual({ tema: "madera", escenario: "puerto" });
     expect(equipar(conRacha(3), "ciudad").catalogo.equipado.escenario).toBe("ciudad");
   });
@@ -105,8 +117,8 @@ describe("catálogo (C3 con el recorte I1)", () => {
   });
 
   it("el siguiente objetivo es lo más cercano", () => {
-    expect(siguienteObjetivo(conMonedas(180))).toBe("Te faltan 120 monedas para Madera");
-    expect(siguienteObjetivo(conMonedas(300))).toBe("Ya puedes comprar el tema Madera");
+    expect(siguienteObjetivo(conMonedas(180))).toBe("Te faltan 270 monedas para Madera");
+    expect(siguienteObjetivo(conMonedas(450))).toBe("Ya puedes comprar el tema Madera");
     expect(siguienteObjetivo({ ...conAltura(22), monedas: 10 })).toBe("Llega a 25 m para la Ciudad");
     const todo = { ...conAltura(60), catalogo: { comprados: TEMAS.map((t) => t.id), equipado: { tema: "riso", escenario: "puerto" } } };
     expect(siguienteObjetivo(todo)).toBeNull();

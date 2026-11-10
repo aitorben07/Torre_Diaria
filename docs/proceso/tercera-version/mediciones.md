@@ -154,6 +154,38 @@ Monedas medianas por partida: novato 42, medio 155, experto 350,5. Reloj: 120.
 - No se puede arreglar con lo que L3 deja tocar (`PRECIOS_OBJETOS` y `MONEDAS_VIDEO`): los dos requisitos sin objetos ni vídeos fallan por los precios de los temas y las monedas por pieza. **No se ha cambiado:** subir los precios de los temas o bajar las monedas por partida toca la economía de un juego ya publicado, y lo decide la revisión final. Opción recomendada para entonces: multiplicar los precios de los temas por 1,5 (Madera 450, Caramelo 1.470, Neón 2.520, Mármol 3.780, Oro 6.300; se mediría de nuevo), que no quita nada a quien ya compró.
 - `PRECIOS_OBJETOS` (120, 180, 250) y `MONEDAS_VIDEO` (60) se quedan: el reloj cabe en una partida del medio, los objetos ya retrasan el catálogo del medio dos días y el vídeo, uno.
 
+## L3 tras la revisión final: temas ×1,5 (2026-11-10)
+
+El usuario aprobó en la revisión final subir los precios de los temas ×1,5: Madera 300 → **450**, Caramelo 980 → **1.470**, Neón 1.680 → **2.520**, Mármol 2.520 → **3.780** y Oro 4.200 → **6.300** (todos salen exactos; 14.520 monedas en temas, antes 9.680). No cambian el congelador, los escenarios, los objetos, los paquetes ni los vídeos. `npm run medir:economia`, mismo comando y muestra (45 días, 10 partidas por perfil, 1 min 48 s en total):
+
+| Perfil | Plan | Monedas al día | Primera compra | Temas el día 7 | Catálogo completo | Objetos comprados |
+|---|---|---|---|---|---|---|
+| Novato | temas | 519 | 10,1 min | 2 | día 29 | — |
+| Novato | objetos | 519 | 10,1 min | 2 | día 29 | 0 |
+| Novato | vídeos | 759 | 5,8 min | 3 | día 20 | — |
+| Medio | temas | 1.113 | 6,8 min | 3 | **día 14** | — |
+| Medio | objetos | 1.113 | 8,8 min | 3 | día 16 | 21 |
+| Medio | vídeos | 1.353 | 4,7 min | 4 | **día 11** | — |
+| Experto | temas | 2.428 | 4,6 min | 5 | **día 7** | — |
+| Experto | objetos | 2.428 | 4,6 min | 5 | día 7 | 21 |
+| Experto | vídeos | 2.668 | 4,6 min | 5 | día 6 | — |
+
+Monedas medianas por partida sin cambios: novato 42, medio 155, experto 350,5. Reloj: 120.
+
+| Requisito de L3 | Antes (×1,4) | Ahora (×1,5) | ¿Cumple? |
+|---|---|---|---|
+| Novato: primera compra en ≤ 12 min | 6,8 min | 10,1 min | Sí |
+| Medio: 3 a 6 temas el día 7 | 4 | 3 | Sí (en el borde) |
+| Medio: catálogo completo entre los días 10 y 30 | día 9 | día 14 | **Sí** (antes no) |
+| Experto: no completa antes del día 7 | día 4 | día 7 | **Sí** (antes no; en el borde) |
+| Con objetos, el medio completa entre los días 10 y 30 | día 11 | día 16 | Sí |
+| Con vídeos, el medio no completa antes del día 10 | día 8 | día 11 | **Sí** (antes no) |
+| Una partida mediana del medio da para un reloj | 155 ≥ 120 | 155 ≥ 120 | Sí |
+
+- Se cumplen los siete. Dos quedan justos: el experto completa justo el día 7 (con vídeos, el 6, que no es requisito) y el medio tiene 3 temas el día 7, el mínimo.
+- El novato tarda más en su primera compra (10,1 min, que cae en su segundo día de 10 min) y completa el día 29; con vídeos, el 20.
+- Quien ya compró un tema a 300, 980, 1.680, 2.520 o 4.200 lo conserva: el guardado solo lleva los ids comprados (`catalogo.comprados`), no lo que costaron. Lo prueba `catalogo.test.ts` («quien compró temas a los precios de antes los conserva…»).
+
 ## L4. Fotogramas del móvil emulado: perfil y arreglo (2026-11-10)
 
 Límite de A2 sin cambiar: p95 ≤ 33 ms en el Pixel 7 emulado con la CPU ×4. Antes de L4 daba **32 a 34 ms** con la música (35-36 ms al final de `npm run e2e`).

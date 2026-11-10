@@ -29,7 +29,7 @@ Diseño completo en [`docs/diseno/diseno-juego.md`](docs/diseno/diseno-juego.md)
 
 Una sola moneda, que se gana jugando: 1 por pieza colocada, +1 por perfecto, +5 por cada 5 m y +10 por cada dorada colocada en las partidas libres y el reto; el reto diario oficial da de 15 a 100 según la medalla más 10 por día de racha (hasta 7); cada estrella nueva de nivel, 20, y los 10 niveles con 3 estrellas, 200 una vez. Repetir un nivel sin mejorar no da nada.
 
-La **Tienda** (antes Colección) abre siempre en la pestaña **Objetos** (reloj, cemento, corazón y congelador de racha); en **Piezas** se compran 6 temas (Riso gratis; Madera 300, Caramelo 980, Neón 1.680, Mármol 2.520 y Oro 4.200) y en **Escenarios** se equipan 3: Puerto (gratis), Ciudad (25 m en libre o una racha de 3) y Nubes (50 m o una racha de 7). La pantalla de fin muestra siempre el siguiente objetivo cercano.
+La **Tienda** (antes Colección) abre siempre en la pestaña **Objetos** (reloj, cemento, corazón y congelador de racha); en **Piezas** se compran 6 temas (Riso gratis; Madera 450, Caramelo 1.470, Neón 2.520, Mármol 3.780 y Oro 6.300) y en **Escenarios** se equipan 3: Puerto (gratis), Ciudad (25 m en libre o una racha de 3) y Nubes (50 m o una racha de 7). La pantalla de fin muestra siempre el siguiente objetivo cercano.
 
 **Pagos y vídeos con premio: solo interfaces.** En la web no se cobra nada, no hay vídeos y no se ve ningún botón de vídeo, de compra con dinero ni la pestaña Monedas. El diseño (paquetes `monedas-1000`, `monedas-3000`, `monedas-8000` y `pack-ayudas`; 60 monedas por vídeo cada 4 h; 1 objeto al día con vídeo; «Ver vídeo» en «¿Seguir?») está programado y probado con implementaciones simuladas, y se puede ver en la **compilación de demostración** (`npm run build:demo`, abajo), que no se despliega. Lo que haría falta para activarlo está en `docs/diseno/tienda-y-pagos.md`, apartado 7.
 
@@ -126,7 +126,7 @@ No hay anuncios ni pagos. `src/juego/anuncios.ts` define la interfaz `Anuncios` 
 - **Igualdad entre pantalla y Node** solo en el mismo navegador y con partidas cortas: planck usa `Math.sin`, `Math.cos` y `Math.atan2`, que pueden diferir en el último decimal entre motores (y entre Chrome y Node). Por eso las pruebas comparan la altura con 9 decimales. En otros navegadores la misma secuencia de toques puede dar otra puntuación.
 - **En los niveles 1, 2, 3 y 5** (lentos y cortos) el medio simulado saca 3 estrellas siempre.
 - **Reglas 3 en lo ya publicado:** los enlaces `?reto=` y `?libre=` compartidos con la v2 comparan puntos de reglas distintas (el enlace no lleva versión). Repetir o jugar atrasado un día de la v2 se hace con las reglas 3. Recargar la página durante el reto oficial lo reinicia sin que cuente (viene de la v2).
-- **Economía de las reglas 3 más rápida que su objetivo** (`npm run medir:economia`, 2026-11-10): el medio completa los temas el día 9 (objetivo 10 a 30) y el experto el día 4 (objetivo: no antes del 7). Pendiente de decidir en la revisión final (por ejemplo, precios de los temas ×1,5).
+- **Economía justa en dos objetivos** (`npm run medir:economia`, 2026-11-10): con los temas ×1,5 el experto completa el catálogo justo el día 7 (objetivo: no antes del 7) y el medio tiene 3 temas el día 7 (objetivo 3 a 6). Si las partidas dan más monedas, fallarían antes que los demás.
 - **Pagos y vídeos sin proveedor:** solo se ven en la compilación de demostración. Lo comprado solo viviría en `localStorage` (sin restaurar compras) y harían falta cuentas, precios y asesoría (`docs/diseno/tienda-y-pagos.md`).
 - **La música, sin escuchar con personas ni en un móvil real;** su coste en el móvil emulado está en las mediciones. En la primera visita, la del inicio no suena hasta el primer toque (política de reproducción automática).
 - **Sin comprobar a mano la tercera versión** (partidas con la música, si las especiales se entienden sin el aviso y si «¿Seguir?» molesta): lo anota el probador en `docs/proceso/tercera-version/pruebas.md`. El CI de GitHub no ha corrido aún con la v3: su duración (R17) solo está medida en local.
@@ -175,17 +175,17 @@ El detalle, con las variantes probadas, está en `docs/proceso/tercera-version/m
   | 9 | Llega a 10 m en 18 piezas | 3 | 1,7 | 850 | 900 | 0 | 8, 3, 39,6 s |
   | 10 (jefe) | Llega a 14 m | 2 | 1,6 | 1.200 | 1.250 | 0 | 9, 9, 87,3 s |
 
-- **Economía (L3, `npm run medir:economia`, 45 días, 42 s):** con las monedas de las doradas. Plan «temas»: como en la v2; «objetos»: el medio compra 1 objeto al día y el experto 2; «vídeos»: 4 vídeos de monedas al día (solo en la simulación: en la web no hay vídeos).
+- **Economía (L3, `npm run medir:economia`, 45 días, 1 min 48 s), con los temas ×1,5:** con las monedas de las doradas. Plan «temas»: como en la v2; «objetos»: el medio compra 1 objeto al día y el experto 2; «vídeos»: 4 vídeos de monedas al día (solo en la simulación: en la web no hay vídeos).
 
   | Perfil | Plan | Monedas al día | Primera compra | Temas el día 7 | Catálogo completo |
   |---|---|---|---|---|---|
-  | novato | temas | 519 | **6,8 min** (objetivo ≤ 12) | 3 | día 19 |
-  | medio | temas | 1.113 | 4,7 min | **4** (objetivo 3 a 6) | **día 9** (objetivo 10 a 30: no se cumple) |
-  | medio | objetos | 1.113 | 6,8 min | 4 | día 11 |
-  | medio | vídeos | 1.353 | 2 min | 4 | **día 8** (objetivo: no antes del 10) |
-  | experto | temas | 2.428 | 4,6 min | 5 | **día 4** (objetivo: no antes del 7) |
+  | novato | temas | 519 | **10,1 min** (objetivo ≤ 12) | 2 | día 29 |
+  | medio | temas | 1.113 | 6,8 min | **3** (objetivo 3 a 6) | **día 14** (objetivo 10 a 30) |
+  | medio | objetos | 1.113 | 8,8 min | 3 | día 16 (objetivo 10 a 30) |
+  | medio | vídeos | 1.353 | 4,7 min | 4 | **día 11** (objetivo: no antes del 10) |
+  | experto | temas | 2.428 | 4,6 min | 5 | **día 7** (objetivo: no antes del 7) |
 
-  Monedas por partida libre mediana del medio: 155; un reloj cuesta 120. Los precios de los temas no se han cambiado (lo decide la revisión final; propuesta, ×1,5).
+  Monedas por partida libre mediana del medio: 155; un reloj cuesta 120. Con los precios de la v2 el medio completaba el día 9, el experto el 4 y el medio con vídeos el 8: la revisión final subió los temas ×1,5 (Madera 450, Caramelo 1.470, Neón 2.520, Mármol 3.780, Oro 6.300).
 - **Música (D4):** `programar` cuesta de 0,03 a 0,13 ms de media por fotograma. JavaScript de la música y sus partituras, unos 3,7 KB con gzip.
 
 Las secciones siguientes son de la segunda versión (reglas 2) y se dejan como referencia.

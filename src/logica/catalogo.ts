@@ -1,8 +1,9 @@
 // Catálogo de la colección (C3, Anexo 1, 4.4 y 5, con el recorte I1 de
 // impacto): 6 temas de piezas que se compran con monedas, 3 escenarios que se
 // desbloquean por altura en la partida libre o por racha, y el congelador de
-// racha. Precios ×1,4 salvo Madera (impacto, 4.9). `comprar` y `equipar` son
-// puras: devuelven el mismo progreso si no se puede.
+// racha. Precios de los temas ×1,5 sobre los de la v2 (revisión final de la
+// v3). `comprar` y `equipar` son puras: devuelven el mismo progreso si no se
+// puede.
 import { MAX_CONGELADORES } from "./diarios.ts";
 import type { Progreso } from "./progreso.ts";
 import { formatearNumero } from "./tarjeta.ts";
@@ -26,11 +27,11 @@ export const PRECIO_CONGELADOR = 200;
 
 export const TEMAS: readonly Tema[] = [
   { tipo: "tema", id: "riso", nombre: "Riso", precio: 0 },
-  { tipo: "tema", id: "madera", nombre: "Madera", precio: 300 },
-  { tipo: "tema", id: "caramelo", nombre: "Caramelo", precio: 980 },
-  { tipo: "tema", id: "neon", nombre: "Neón", precio: 1680 },
-  { tipo: "tema", id: "marmol", nombre: "Mármol", precio: 2520 },
-  { tipo: "tema", id: "oro", nombre: "Oro", precio: 4200 },
+  { tipo: "tema", id: "madera", nombre: "Madera", precio: 450 },
+  { tipo: "tema", id: "caramelo", nombre: "Caramelo", precio: 1470 },
+  { tipo: "tema", id: "neon", nombre: "Neón", precio: 2520 },
+  { tipo: "tema", id: "marmol", nombre: "Mármol", precio: 3780 },
+  { tipo: "tema", id: "oro", nombre: "Oro", precio: 6300 },
 ];
 
 export const ESCENARIOS: readonly EscenarioArticulo[] = [

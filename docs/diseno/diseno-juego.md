@@ -15,7 +15,7 @@ Este documento es el diseño de partida. La implementación de la rama `segunda-
 - **Cementado al soltar:** las piezas de abajo se vuelven piedra en el momento de soltar la siguiente, con como mucho 12 con física. Se sustituyó el requisito de 1 mm en 60 pasos por «menos de 1 cm en 30 pasos».
 - **Niveles 4 y 6 a 10 más rápidos y largos** que el ejemplo de este documento, para que 3 estrellas exijan jugar bien (E2).
 - **Medallas del reto diario:** bronce 550, plata 2.400, oro 4.000 puntos.
-- **Precios de los temas ×1,4** salvo Madera (Caramelo 980, Neón 1.680, Mármol 2.520, Oro 4.200).
+- **Precios de los temas ×1,4** salvo Madera (Caramelo 980, Neón 1.680, Mármol 2.520, Oro 4.200). En la tercera versión pasan a ×1,5 (10.11).
 - **Otros:** comprar un tema lo equipa; los escenarios se desbloquean por mejor altura en libre o mejor racha; «Reto de hoy» visible en el HUD; enlace `?libre=` además de `?reto=`; el mar queda pegado al muelle sin paralaje.
 
 ## 1. Dirección de arte
@@ -194,11 +194,11 @@ Haz N perfectos (5, 10, 15) · Combo de N (3, 5) · Llega a N m en una partida (
 | Artículo | Tipo | Precio o condición |
 |---|---|---|
 | Riso | tema de piezas | gratis |
-| Madera | tema | 300 |
-| Caramelo | tema | 700 (*implementado:* 980) |
-| Neón | tema | 1.200 (1.680) |
-| Mármol | tema | 1.800 (2.520) |
-| Oro | tema | 3.000 (4.200) |
+| Madera | tema | 300 (*implementado:* 450) |
+| Caramelo | tema | 700 (1.470) |
+| Neón | tema | 1.200 (2.520) |
+| Mármol | tema | 1.800 (3.780) |
+| Oro | tema | 3.000 (6.300) |
 | Polvo | efecto de aterrizaje | gratis (no implementado) |
 | Confeti | efecto | 500 (no implementado) |
 | Chispas | efecto | 1.000 (no implementado) |
@@ -208,7 +208,7 @@ Haz N perfectos (5, 10, 15) · Combo de N (3, 5) · Llega a N m en una partida (
 | Espacio | escenario | 100 m o mundo 3 (no implementado) |
 | Congelador de racha | consumible | 200 (máx. 2) |
 
-Total comprable en el diseño: 8.500. *Implementado:* temas por 9.680 en total más el congelador. Plan de juego simulado (C5): novato 10 min al día (libre y reto), medio 15 min (libre, reto, misiones, niveles), experto 25 min. Objetivo: el novato compra Madera en ≤ 12 min de juego; el medio tiene 3 a 6 artículos el día 7 y todo entre los días 10 y 30. Ejemplo medio: 4 libres (500) + reto plata con racha 3 (90) + misiones (170) ≈ 760 al día → 8.500 en unos 11 días.
+Total comprable en el diseño: 8.500. *Implementado:* temas por 14.520 en total más el congelador. Plan de juego simulado (C5): novato 10 min al día (libre y reto), medio 15 min (libre, reto, misiones, niveles), experto 25 min. Objetivo: el novato compra Madera en ≤ 12 min de juego; el medio tiene 3 a 6 artículos el día 7 y todo entre los días 10 y 30. Ejemplo medio: 4 libres (500) + reto plata con racha 3 (90) + misiones (170) ≈ 760 al día → 8.500 en unos 11 días.
 
 ## 5. Desbloqueos
 
@@ -499,4 +499,4 @@ Valen el código y el `README.md`; los motivos están en `docs/proceso/tercera-v
 - **Lienzo táctil:** `RATIO_MAXIMO_TACTIL` = 1,25 píxeles por píxel CSS (v2: 1,5), porque el p95 de fotogramas del móvil emulado con la música pasaba de 33 ms; con 1,25 da de 29 a 31 ms. Sin medir en un móvil real.
 - **Tienda:** el panel y sus ids pasan de «coleccion» a «tienda»; las pestañas siguen el orden de Tab además de las flechas.
 - **Pagos y vídeos:** el pack de ayudas desbloquea los tres objetos al acreditarse; los precios simulados de la demostración son 1,99, 4,99, 9,99 y 2,99 €; el vídeo de prueba dura 3 s; la pestaña Monedas va en una segunda fila de pestañas.
-- **Economía (pendiente de decidir en la revisión final):** con las reglas 3 el medio completa los temas el día 9 (objetivo 10 a 30), el experto el día 4 (no antes del 7) y el medio con vídeos el día 8 (no antes del 10). Los precios de los temas no se han cambiado; propuesta, ×1,5.
+- **Economía (decidida en la revisión final):** con las reglas 3 y los precios de la v2 el medio completaba los temas el día 9 (objetivo 10 a 30), el experto el día 4 (no antes del 7) y el medio con vídeos el día 8 (no antes del 10). Los temas pasan a costar ×1,5 (Madera 450, Caramelo 1.470, Neón 2.520, Mármol 3.780, Oro 6.300): el medio completa el día 14, el experto el 7 y el medio con vídeos el 11. Quien ya compró un tema lo conserva. Cifras en `mediciones.md`, «L3 tras la revisión final».

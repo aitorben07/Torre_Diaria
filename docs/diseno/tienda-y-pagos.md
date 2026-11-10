@@ -7,7 +7,7 @@ Diseño de la tercera versión (plan del 2026-11-09, `docs/proceso/tercera-versi
 La Tienda sustituye a la Colección de la v2 (Decisión T34).
 
 - **Objetos:** reloj de arena, cemento, corazón y congelador de racha (200 monedas, como mucho 2, como en la v2). Es la pestaña por defecto.
-- **Piezas:** los 6 temas de la v2 con sus precios.
+- **Piezas:** los 6 temas de la v2, con los precios ×1,5 que se aprobaron en la revisión final: Madera 450, Caramelo 1.470, Neón 2.520, Mármol 3.780 y Oro 6.300 (Riso gratis). Quien ya compró un tema lo conserva.
 - **Escenarios:** se desbloquean por altura o racha, como en la v2.
 - **Monedas:** solo aparece con un proveedor de pagos o de vídeos disponible. Nunca es la pestaña por defecto.
 
