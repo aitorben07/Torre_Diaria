@@ -70,7 +70,8 @@ export function acreditarCompra(p: Progreso, id: ProductoId, transaccion: string
     // Un objeto comprado ya está a mano aunque aún no tocara por partidas.
     objetos.desbloqueados = [...new Set([...p.objetos.desbloqueados, ...OBJETOS])];
   }
-  const nueva = { id: transaccion, producto: id, monedas: producto.monedas, fecha: ahora };
+  // Las monedas de la transacción, las acreditadas de verdad (con las del pack que no cupo).
+  const nueva = { id: transaccion, producto: id, monedas: monedas - p.monedas, fecha: ahora };
   return {
     ...p,
     monedas,

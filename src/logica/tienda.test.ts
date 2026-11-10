@@ -82,6 +82,9 @@ describe("acreditar compras (K1)", () => {
     const p = acreditarCompra(con({ reloj: 8, cemento: 9, corazon: 0 }), "pack-ayudas", "tx-c", AHORA);
     expect(p.objetos).toMatchObject({ reloj: MAX_OBJETO, cemento: MAX_OBJETO, corazon: 3 });
     expect(p.monedas).toBe(2 * objetoPorId("reloj").precio + 3 * objetoPorId("cemento").precio);
+    // La transacción guarda las monedas acreditadas de verdad, no las del producto (0).
+    expect(p.compras.transacciones.at(-1)).toMatchObject({ id: "tx-c", producto: "pack-ayudas", monedas: p.monedas });
+    expect(acreditarCompra(con({ reloj: 0, cemento: 0, corazon: 0 }), "pack-ayudas", "tx-d", AHORA).compras.transacciones.at(-1)!.monedas).toBe(0);
   });
 });
 
