@@ -2,7 +2,7 @@
 
 Juego web de apilar piezas con un solo toque. Al abrir la página se ve la pantalla de inicio, con el logo y «Jugar»: las piezas van de lado a lado y hay que soltarlas sobre la torre. Acertar de lleno da perfectos y combos; cada caída cuesta una vida. Aparte hay un reto diario con las mismas piezas para todos, 10 niveles con estrellas, piezas especiales, objetos de ayuda y una tienda de objetos, temas y escenarios que se ganan jugando, con música propia. Cualquier resultado se comparte con una imagen generada y un enlace para retar a un amigo. Se juega sin registrarse, en el móvil o en el ordenador.
 
-No hay servidor ni ranking compartido: todo el progreso se guarda en el navegador. Está publicado en Cloudflare Pages: https://torre-diaria.pages.dev/ (desde el 2026-11-09; lo publicado es la segunda versión: la tercera, que describe este README, aún no se ha desplegado). El código está en GitHub (`aitorben07/Torre_Diaria`, público).
+No hay servidor ni ranking compartido: todo el progreso se guarda en el navegador. Está publicado en Cloudflare Pages: https://torre-diaria.pages.dev/ (desde el 2026-11-09; la tercera versión, que describe este README, está desplegada desde el 2026-11-10). El código está en GitHub (`aitorben07/Torre_Diaria`, público).
 
 Diseño completo en [`docs/diseno/diseno-juego.md`](docs/diseno/diseno-juego.md) (la tercera versión, en su apartado 10), plan de anuncios (sin implementar) en [`docs/diseno/anuncios.md`](docs/diseno/anuncios.md) y tienda, vídeos y pagos (solo interfaces) en [`docs/diseno/tienda-y-pagos.md`](docs/diseno/tienda-y-pagos.md). El proceso de cada versión está en `docs/proceso/`.
 
