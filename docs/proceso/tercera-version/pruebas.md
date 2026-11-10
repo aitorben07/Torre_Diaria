@@ -179,3 +179,31 @@ Ninguno.
 ## Procesos y puertos
 
 Los servidores y navegadores los lanzó y cerró Playwright. Archivo temporal `e2e/tmp-vuelta3.spec.ts` creado y borrado; `flujo.ts` y `principal.ts` restaurados byte a byte. Al terminar no queda ningún proceso mío ni puerto 4329/4330 ocupado.
+
+## Vuelta 4 (commit 48c6a82: chasquido al apagar la Música con los Sonidos encendidos)
+
+**Veredicto: APROBADO** (salvo lo indicado en «Sin comprobar»).
+
+| Requisito | Cómo se comprobó | Resultado |
+|---|---|---|
+| `Musica.cambiar(false)` corta la sesión con `cortar()` (caída `setTargetAtTime` 60 ms) y la pasa a `cortadas` | Lectura del diff y de `musica.ts`; prueba nueva (`caidasACero` 1, `desconectados` 0 y, al volver la salida, 1) | Cumple |
+| Quitar `desconectados === 1` de la prueba existente no relaja nada indebido | Leída la prueba: tras `cambiar(false)` la sesión ya está en `cortadas` y solo se suelta con salida (lo cubre la prueba nueva); la existente conserva su fin (no dar de golpe lo atrasado tras 10 min: notas < 8, nodos < 40) | Cumple |
+| `npm test` | 35 archivos, 464 pruebas | Pasa |
+| `npm run check` | 0 errores, 0 avisos, 3 hints | Pasa |
+| `npm run build` | Completado | Pasa |
+| `e2e/musica.spec.ts` escritorio y móvil | 14 pasadas, 2 omitidas (las propias del proyecto) | Pasa |
+| Con `AudioContext` real: ganancia baja con rampa, sin desconexión brusca | Prueba temporal con `audioReal`, contexto `running`, parches en `setTargetAtTime` y `disconnect`; se apagó la Música con Sonidos encendidos: un solo `setTargetAtTime(0, t, 0.06)` en el instante del apagado y ningún `disconnect` del filtro en los 1,5 s siguientes | Cumple |
+
+## Fallos
+
+Ninguno.
+
+## Sin comprobar
+
+- No se oyó el audio (sin salida de sonido): la ausencia de chasquido se deduce de la rampa y de que no hay desconexión mientras suena, no de oírlo.
+- La prueba con audio real solo en escritorio (Chromium); móvil solo con las e2e de `musica.spec.ts` (audio falso).
+- Con Música y Sonidos apagados a la vez, la sesión cortada queda en `cortadas` hasta que vuelva una salida; no se midió su coste (un filtro desconectado de la salida pero ya mudo).
+
+## Procesos y puertos
+
+Servidores y navegadores los lanzó y cerró Playwright. Archivo temporal `e2e/tmp-real.spec.ts` creado y borrado. Código de `src/` sin cambios entre 48c6a82 y el HEAD probado. No queda ningún proceso mío ni puerto 4329/4330 ocupado.
