@@ -9,6 +9,7 @@ import { cobrarLibre, sumarEstadisticas, type LibreCobrada, type Medalla, type P
 import { AVISO_ESPECIAL, especialDe, REGLAS_CON_ESPECIALES, type Especial } from "../logica/especiales.ts";
 import { estrellasDe, nivelDisponible, nivelPorNumero, opcionesDeNivel, registrarNivel, textoMeta, textoObjetivo, totalEstrellas, ultimoDisponible, type NivelRegistrado } from "../logica/niveles.ts";
 import { comprarObjeto, gastarObjeto, objetoPorId, objetosNuevos, pagarSeguir, pagosSeguir, REGALO_DESBLOQUEO, type PagoSeguir } from "../logica/objetos.ts";
+import { cobrarObjetoVideo, cobrarVideoMonedas, corregirReloj, MONEDAS_VIDEO } from "../logica/recompensas.ts";
 import { leerLibre, leerReto } from "../logica/reto.ts";
 import { almacenDelNavegador } from "../logica/registro.ts";
 import { deTramos, Guardado, type DiaJugado } from "../logica/progreso.ts";
@@ -19,6 +20,7 @@ import type { Pieza } from "../logica/piezas.ts";
 import type { Calidad } from "../logica/puntuacion.ts";
 import { Partida, REGLAS, type Ayuda, type EstadoPartida, type Evento, type OpcionesPartida } from "../logica/simulacion.ts";
 import { formatearAltura, formatearNumero, formatearPuntos, generarTarjeta, type DatosTarjeta } from "../logica/tarjeta.ts";
+import { acreditarCompra, productoDisponible, productoPorId } from "../logica/tienda.ts";
 import { Bucle, PASO_MS } from "./bucle.ts";
 import { PanelTienda } from "./tienda.ts";
 import { PanelNiveles } from "./mapa.ts";
@@ -31,6 +33,8 @@ import { Sonido } from "./sonido.ts";
 import { abrir, aceptaEntrada, sinSalida, transicion, type Accion, type Flujo, type Modo, type Orden, type Panel, type Pantalla } from "./flujo.ts";
 import { estadoDeInicio } from "./inicio.ts";
 import { anunciosDePlataforma, aplicarLlamadas, llamadasAlAbrir, llamadasDeTransicion } from "./anuncios.ts";
+import { anunciosDemo, pagosDemo, ponerBandaDemo } from "./demo.ts";
+import { pagosDePlataforma } from "./pagos.ts";
 import { compartir, descargar, ImagenCompartida, puedeCompartirArchivos } from "./compartir.ts";
 import { formasParaImagen, type DatosImagen } from "./imagen.ts";
 import { cambiarEstado, copiar, mostrarTexto, NOMBRE_MEDALLA, pintarBarraObjetos, pintarFin, pintarHud, pintarInicio, pintarInterruptor, pintarLibreAmigo, pintarPausa, pintarReto, pintarSeguir, ui, type DatosFin as DatosPantallaFin } from "./pantallas.ts";
@@ -51,13 +55,24 @@ const AVISO_ESPECIAL_MS = 2500;
 /** Día de hoy en UTC. Se recalcula en cada acción y al volver a la pestaña. */
 let hoy = numeroDia(fechaUTC(new Date()));
 const almacen = almacenDelNavegador();
-/** Anuncios de esta compilación (G1): en la web, ninguno (`anunciosNulos`). */
-const anuncios = anunciosDePlataforma(import.meta.env.PUBLIC_PLATAFORMA);
+/**
+ * Compilación de demostración (K3): `astro build --mode demo`. Se decide aquí,
+ * en el nivel superior y con `import.meta.env.MODE`, para que la compilación
+ * web descarte `demo.ts` entero (R14).
+ */
+const DEMO = import.meta.env.MODE === "demo";
+/** Anuncios de esta compilación (G1, K2): en la web, ninguno (`anunciosNulos`); en la demo, vídeos de prueba. */
+const anuncios = DEMO ? anunciosDemo() : anunciosDePlataforma(import.meta.env.PUBLIC_PLATAFORMA);
+/** Pagos de esta compilación (K1): en la web, ninguno (`pagosNulos`); en la demo, simulados. */
+const pagos = DEMO ? pagosDemo() : pagosDePlataforma(import.meta.env.PUBLIC_PLATAFORMA);
+if (DEMO) ponerBandaDemo();
 const reto = leerReto(location.search, hoy);
 /** Partida libre del enlace de un amigo (F2); si hay reto, manda el reto. */
 const libreAmigo = reto ? null : leerLibre(location.search);
 /** Progreso guardado (C1): una sola clave; si el almacenamiento falla, queda en memoria. */
 const guardado = new Guardado(almacen);
+// Con el reloj del equipo atrasado, la espera de los vídeos no acabaría nunca (K2).
+if (corregirReloj(guardado.actual, Date.now()) !== guardado.actual) guardado.cambiar((p) => corregirReloj(p, Date.now()));
 
 const lienzo = new Lienzo(ui.lienzo(), ui.grano());
 // Sonido, música y vibración (A4, D1): encendidos por defecto y guardados en `ajustes` (C1).
@@ -789,8 +804,34 @@ const panelTienda = new PanelTienda(
       const puede = comprarObjeto(guardado.releer(), id) !== guardado.actual;
       cambiarTienda((p) => comprarObjeto(p, id), puede ? `${objetoPorId(id).nombre}: tienes ${guardado.actual.objetos[id] + 1}` : "");
     },
+    // Vídeos (K2): el premio solo con «visto»; con «cancelado» o «error», nada y el botón sigue.
+    verVideoMonedas: () => {
+      void anuncios.recompensado("monedas").then((resultado) => {
+        if (resultado !== "visto") return cambiarTienda((p) => p, "Sin vídeo completo no hay premio");
+        cambiarTienda((p) => cobrarVideoMonedas(p, Date.now()), `+${MONEDAS_VIDEO} monedas`);
+      });
+    },
+    verVideoObjeto: (id) => {
+      void anuncios.recompensado("objeto").then((resultado) => {
+        if (resultado !== "visto") return cambiarTienda((p) => p, "Sin vídeo completo no hay premio");
+        cambiarTienda((p) => cobrarObjetoVideo(p, Date.now(), id), `${objetoPorId(id).nombre}: tienes ${guardado.releer().objetos[id] + 1}`);
+      });
+    },
+    // Pagos (K1): solo con «pagado» se acredita, una vez por transacción.
+    pagar: (id) => {
+      if (!productoDisponible(guardado.releer(), id)) return;
+      void pagos.comprar(id).then((resultado) => {
+        if (resultado.estado === "pagado") {
+          const { monedas } = productoPorId(id);
+          cambiarTienda((p) => acreditarCompra(p, id, resultado.transaccion, Date.now()), monedas > 0 ? `+${formatearNumero(monedas)} monedas` : "Pack de ayudas añadido");
+        } else {
+          cambiarTienda((p) => p, resultado.estado === "pendiente" ? "Pago pendiente de confirmar" : "No se ha cobrado nada");
+        }
+      });
+    },
   },
   () => guardado.actual,
+  () => ({ productos: pagos.disponible() ? pagos.productos() : [], video: anuncios.disponible("recompensado"), ahora: Date.now() }),
 );
 
 /** Prepara la imagen de un día jugado al pintar su ficha en Retos (F3). */

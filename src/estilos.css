@@ -1063,6 +1063,15 @@ button.dia.futuro {
   background: var(--turquesa);
 }
 
+/* Con la pestaña Monedas (K1, K2: solo con proveedor) no caben cuatro en una fila de 320 px: dos y dos. */
+.pestanas:has(#pestana-monedas:not([hidden])) {
+  flex-wrap: wrap;
+}
+
+.pestanas:has(#pestana-monedas:not([hidden])) button {
+  flex: 1 1 calc(50% - 0.25rem);
+}
+
 .articulos {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1158,6 +1167,22 @@ svg.objeto-dibujo .hielo {
 
 .articulo button.principal {
   font-size: 1rem;
+}
+
+/* Equivalente en euros de un precio en monedas, solo con pagos (impacto, J1). */
+.articulo .equivalente {
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+/* «Gratis con vídeo» (K2): debajo del precio, con el color de las ayudas. */
+.articulo button.video {
+  background: var(--amarillo);
+}
+
+/* Productos de la pestaña Monedas (K1, K2): sin dibujo, el texto ocupa la tarjeta. */
+.articulo.producto {
+  justify-content: space-between;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2322,4 +2347,64 @@ button.interruptor[aria-checked="true"] .pildora::after {
   border-radius: 8px;
   background: var(--papel-oscuro);
   font-size: 0.92rem;
+}
+
+/* Compilación de demostración (K3): banda fija abajo, que no tapa los toques,
+   y la capa del vídeo de prueba o del pago simulado sobre todo lo demás. */
+.banda-demo {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  margin: 0;
+  padding: 0.2rem 0.6rem calc(0.2rem + env(safe-area-inset-bottom));
+  background: var(--tinta);
+  color: var(--papel);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-align: center;
+  pointer-events: none;
+}
+
+.capa-demo {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: color-mix(in srgb, var(--tinta) 60%, transparent);
+}
+
+.panel-demo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  width: min(100%, 22rem);
+  padding: 1.1rem 1.2rem 1.2rem;
+  border: var(--borde) solid var(--tinta);
+  border-radius: var(--radio);
+  background: var(--papel);
+  box-shadow: 6px 6px 0 var(--tinta);
+}
+
+.panel-demo h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.panel-demo p {
+  margin: 0;
+}
+
+.panel-demo .acciones {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.panel-demo .acciones button {
+  flex: 1;
 }

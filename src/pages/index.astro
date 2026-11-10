@@ -374,6 +374,8 @@ const pilotes = MUELLE.pilotes.map((x) => `M${x} ${MUELLE.tablero.y + MUELLE.tab
             <button id="pestana-objetos" type="button" role="tab" aria-selected="true" aria-controls="articulos">Objetos</button>
             <button id="pestana-piezas" type="button" role="tab" aria-selected="false" aria-controls="articulos">Piezas</button>
             <button id="pestana-escenarios" type="button" role="tab" aria-selected="false" aria-controls="articulos">Escenarios</button>
+            {/* Monedas (K1, K2): solo con un proveedor de pagos o de vídeos; en la web sigue oculta (R12). */}
+            <button id="pestana-monedas" type="button" role="tab" aria-selected="false" aria-controls="articulos" hidden>Monedas</button>
           </div>
           <ul id="articulos" class="articulos" role="tabpanel"></ul>
           <p id="tienda-mensaje" role="status"></p>

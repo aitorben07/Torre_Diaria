@@ -4,13 +4,16 @@
 // no hacen nada). Las llamadas salen de las transiciones del flujo con una
 // función pura, así que se prueban con Vitest. El juego entero funciona igual
 // sin anuncios: con `anunciosNulos`, «Otra vez» empieza en el mismo instante.
+// Desde la v3 (K2), los vídeos con premio de monedas, objeto y «seguir» tienen
+// botón, pero solo se ven si `disponible("recompensado")`: en la web, nunca.
+// `anunciosSimulados` los da en las pruebas y en la compilación de demostración.
 import type { Accion, Flujo, Orden } from "./flujo.ts";
 
 export type TipoAnuncio = "intersticial" | "recompensado";
 /** Transiciones con intersticial (anuncios.md, apartado 2, puntos 4 y 5). */
 export type MotivoIntersticial = "otra-vez" | "siguiente-nivel";
-/** Recompensados futuros (puntos 1 a 3): ninguno se llama en esta fase. */
-export type MotivoRecompensado = "seguir" | "doble-monedas" | "congelador";
+/** Recompensados: «seguir», «monedas» y «objeto» tienen botón (K2, solo con un proveedor); el resto, futuros. */
+export type MotivoRecompensado = "seguir" | "monedas" | "objeto" | "doble-monedas" | "congelador";
 export type ResultadoRecompensado = "visto" | "cancelado" | "error";
 
 export interface Anuncios {
@@ -40,6 +43,21 @@ export const anunciosNulos: Anuncios = {
  */
 export function anunciosDePlataforma(_plataforma: string | undefined): Anuncios {
   return anunciosNulos;
+}
+
+/**
+ * Anuncios simulados (K2) para las pruebas y la compilación de demostración:
+ * solo vídeos con premio, y `ver` decide el resultado (en Vitest, uno fijo; en
+ * la demostración, una capa de 3 s con «Cerrar»). Sin intersticiales.
+ */
+export function anunciosSimulados(ver: (motivo: MotivoRecompensado) => Promise<ResultadoRecompensado>): Anuncios {
+  return {
+    disponible: (tipo) => tipo === "recompensado",
+    intersticial: () => Promise.resolve(),
+    recompensado: (motivo) => ver(motivo).catch(() => "error" as const),
+    partidaEmpieza: () => {},
+    partidaPara: () => {},
+  };
 }
 
 export type Llamada = { tipo: "partidaEmpieza" } | { tipo: "partidaPara" } | { tipo: "intersticial"; motivo: MotivoIntersticial };

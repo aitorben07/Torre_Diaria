@@ -6,10 +6,11 @@
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
+    "build:demo": "astro build --mode demo --outDir dist-demo",
     "preview": "astro preview",
     "check": "astro check",
     "test": "vitest run",
-    "e2e": "playwright test --project=escritorio --project=movil --project=rendimiento-escritorio --project=rendimiento-movil",
+    "e2e": "playwright test --project=escritorio --project=movil --project=demo --project=rendimiento-escritorio --project=rendimiento-movil",
     "e2e:motores": "playwright test --project=firefox --project=webkit",
     "medir": "node scripts/medir-jugar.ts",
     "medir:duracion": "node scripts/medir-duracion.ts",

@@ -1,6 +1,8 @@
 // Tienda (J1, Anexo I con impacto §5; antes Colección, C3): pestañas Objetos
-// (la que se ve al abrir), Piezas y Escenarios. Monedas solo existirá con un
-// proveedor de pagos o vídeos (R12, bloque K); en la web no se pinta. Cada
+// (la que se ve al abrir), Piezas, Escenarios y Monedas, que solo aparece con
+// un proveedor de pagos o de vídeos (R12, K1, K2); en la web no se ve. Con
+// pagos, cada precio en monedas lleva su «≈ X,XX €» y, con vídeos, cada objeto
+// su «Gratis con vídeo» (uno al día). Cada
 // objeto con su dibujo, qué hace, «Tienes N», precio y botón; cada tema o
 // escenario, con su muestra dibujada, su estado y un botón. Comprar un tema
 // lo pone en uso al momento. Los escenarios no se compran: se desbloquean por
@@ -9,6 +11,9 @@
 import { CONGELADOR, desbloqueado, ESCENARIOS, equipado, loTiene, TEMAS, type Articulo } from "../logica/catalogo.ts";
 import { CATALOGO_OBJETOS, estaDesbloqueado, MAX_OBJETO, sePuedeComprar, type Objeto } from "../logica/objetos.ts";
 import type { Progreso } from "../logica/progreso.ts";
+import { esperaVideoMonedas, MONEDAS_VIDEO, objetoVideoDisponible, textoEspera } from "../logica/recompensas.ts";
+import { centimosPorMoneda, productoDisponible, textoEuros, UNIDADES_PACK } from "../logica/tienda.ts";
+import type { ProductoPago } from "./pagos.ts";
 import { formatearNumero } from "../logica/tarjeta.ts";
 import { pintarMuestra } from "./muestras.ts";
 import { escenarioPorId, temaPorId } from "./temas.ts";
@@ -94,16 +99,44 @@ function nodo<K extends keyof HTMLElementTagNameMap>(etiqueta: K, clase: string,
   return el;
 }
 
-export type AccionesTienda = { comprar(id: string): void; equipar(id: string): void; comprarObjeto(id: Objeto): void };
+export type AccionesTienda = {
+  comprar(id: string): void;
+  equipar(id: string): void;
+  comprarObjeto(id: Objeto): void;
+  /** Vídeo con premio de monedas (K2). */
+  verVideoMonedas(): void;
+  /** Vídeo con premio de un objeto (K2). */
+  verVideoObjeto(id: Objeto): void;
+  /** Compra con dinero (K1). */
+  pagar(id: ProductoPago["id"]): void;
+};
 
-export type Pestana = "objeto" | "tema" | "escenario";
+/**
+ * Lo que ofrecen los proveedores en este momento: productos de dinero (vacío
+ * sin pagos), si hay vídeo con premio y la hora para su política (K2).
+ */
+export type Ofertas = { productos: readonly ProductoPago[]; video: boolean; ahora: number };
+
+export type Pestana = "objeto" | "tema" | "escenario" | "moneda";
 
 /** Pestañas en orden, con el id de su botón. */
 const PESTANAS: ReadonlyArray<[Pestana, string]> = [
   ["objeto", "pestana-objetos"],
   ["tema", "pestana-piezas"],
   ["escenario", "pestana-escenarios"],
+  ["moneda", "pestana-monedas"],
 ];
+
+/** ¿Hay algo que enseñar en Monedas? Sin proveedor, la pestaña no existe (R12). */
+export function hayMonedas(ofertas: Ofertas): boolean {
+  return ofertas.productos.length > 0 || ofertas.video;
+}
+
+/** «≈ X,XX €» bajo un precio en monedas, solo con pagos (impacto, J1); sin ellos, nada. */
+function equivalente(precio: number, ofertas: Ofertas): HTMLParagraphElement[] {
+  const porMoneda = centimosPorMoneda(ofertas.productos);
+  return porMoneda === null ? [] : [nodo("p", "equivalente", `≈ ${textoEuros(precio * porMoneda)}`)];
+}
 
 /** Botón de comprar con la moneda dibujada y el precio. */
 function botonPrecio(nombre: string, precio: number, puede: boolean): HTMLButtonElement {
@@ -121,22 +154,25 @@ export class PanelTienda {
   constructor(
     private readonly acciones: AccionesTienda,
     private readonly ultimo: () => Progreso,
+    private readonly ofertas: () => Ofertas,
   ) {
     for (const [pestana, id] of PESTANAS) {
       const boton = document.getElementById(id)!;
       boton.addEventListener("click", () => this.elegir(pestana));
       // Flechas, Inicio y Fin cambian de pestaña y llevan el foco a la nueva (patrón de pestañas de WAI-ARIA).
       boton.addEventListener("keydown", (evento) => {
-        const i = PESTANAS.findIndex(([p]) => p === pestana);
+        // Solo las pestañas que se ven: sin proveedor, Monedas no está.
+        const visibles = PESTANAS.filter(([, idVisible]) => !document.getElementById(idVisible)!.hidden);
+        const i = visibles.findIndex(([p]) => p === pestana);
         const destino =
-          evento.key === "ArrowRight" ? (i + 1) % PESTANAS.length
-          : evento.key === "ArrowLeft" ? (i + PESTANAS.length - 1) % PESTANAS.length
+          evento.key === "ArrowRight" ? (i + 1) % visibles.length
+          : evento.key === "ArrowLeft" ? (i + visibles.length - 1) % visibles.length
           : evento.key === "Home" ? 0
-          : evento.key === "End" ? PESTANAS.length - 1
+          : evento.key === "End" ? visibles.length - 1
           : -1;
         if (destino < 0) return;
         evento.preventDefault();
-        const [nueva, idNueva] = PESTANAS[destino]!;
+        const [nueva, idNueva] = visibles[destino]!;
         this.elegir(nueva);
         document.getElementById(idNueva)!.focus();
       });
@@ -156,12 +192,20 @@ export class PanelTienda {
 
   /** Pinta la pestaña elegida con el progreso `p`. El panel tiene que estar visible (las muestras miden su caja). */
   pintar(p: Progreso): void {
+    const ofertas = this.ofertas();
+    const conMonedas = hayMonedas(ofertas);
+    document.getElementById("pestana-monedas")!.hidden = !conMonedas;
+    if (this.pestana === "moneda" && !conMonedas) this.pestana = "objeto";
     document.getElementById("tienda-monedas")!.textContent = formatearNumero(p.monedas);
     for (const [pestana, id] of PESTANAS) document.getElementById(id)!.setAttribute("aria-selected", String(this.pestana === pestana));
     const lista = document.getElementById("articulos")!;
     lista.dataset.pestana = this.pestana;
     if (this.pestana === "objeto") {
-      lista.replaceChildren(...this.objetos(p));
+      lista.replaceChildren(...this.objetos(p, ofertas));
+      return;
+    }
+    if (this.pestana === "moneda") {
+      lista.replaceChildren(...this.monedas(p, ofertas));
       return;
     }
     const articulos: readonly Articulo[] = this.pestana === "tema" ? TEMAS : ESCENARIOS;
@@ -198,7 +242,8 @@ export class PanelTienda {
           }
         }
         boton.id = `articulo-${a.id}`;
-        item.append(muestra, nodo("p", "nombre", a.nombre), nodo("p", "estado", texto), boton);
+        const euros = estado === "precio" && a.tipo === "tema" ? equivalente(a.precio, ofertas) : [];
+        item.append(muestra, nodo("p", "nombre", a.nombre), nodo("p", "estado", texto), ...euros, boton);
         return item;
       }),
     );
@@ -206,7 +251,7 @@ export class PanelTienda {
   }
 
   /** Pestaña Objetos: reloj, cemento y corazón (los bloqueados dicen cuándo llegan) y el congelador de racha. */
-  private objetos(p: Progreso): HTMLLIElement[] {
+  private objetos(p: Progreso, ofertas: Ofertas): HTMLLIElement[] {
     const filas = CATALOGO_OBJETOS.map((o) => {
       const abierto = estaDesbloqueado(p, o.id);
       const lleno = p.objetos[o.id] >= MAX_OBJETO;
@@ -214,7 +259,16 @@ export class PanelTienda {
       const boton = botonPrecio(o.nombre, o.precio, sePuedeComprar(p, o.id));
       boton.id = `objeto-comprar-${o.id}`;
       boton.addEventListener("click", () => this.acciones.comprarObjeto(o.id));
-      return this.filaObjeto(o.id, o.nombre, o.texto, estado, p.objetos[o.id], abierto, boton);
+      let video: HTMLButtonElement | null = null;
+      // Con vídeo: uno gratis al día (K2). Se ofrece en cada objeto que aún cabe.
+      if (ofertas.video && objetoVideoDisponible(p, ofertas.ahora, o.id)) {
+        video = nodo("button", "video", "Gratis con vídeo");
+        video.type = "button";
+        video.id = `objeto-video-${o.id}`;
+        video.setAttribute("aria-label", `${o.nombre} gratis con vídeo`);
+        video.addEventListener("click", () => this.acciones.verVideoObjeto(o.id));
+      }
+      return this.filaObjeto(o.id, o.nombre, o.texto, estado, p.objetos[o.id], abierto, boton, equivalente(o.precio, ofertas), video);
     });
     const congeladores = p.racha.congeladores;
     const lleno = congeladores >= CONGELADOR.maximo;
@@ -223,14 +277,64 @@ export class PanelTienda {
     boton.addEventListener("click", () => this.acciones.comprar(CONGELADOR.id));
     const texto = "Si un día no juegas el reto, la racha sigue";
     const estado = lleno ? `Tienes ${CONGELADOR.maximo}, el máximo` : `Tienes ${congeladores}`;
-    return [...filas, this.filaObjeto("congelador", CONGELADOR.nombre, texto, estado, congeladores, true, boton)];
+    return [...filas, this.filaObjeto("congelador", CONGELADOR.nombre, texto, estado, congeladores, true, boton, equivalente(CONGELADOR.precio, ofertas), null)];
   }
 
-  private filaObjeto(id: Objeto | "congelador", nombre: string, texto: string, estado: string, tienes: number, abierto: boolean, boton: HTMLButtonElement): HTMLLIElement {
+  private filaObjeto(
+    id: Objeto | "congelador",
+    nombre: string,
+    texto: string,
+    estado: string,
+    tienes: number,
+    abierto: boolean,
+    boton: HTMLButtonElement,
+    euros: HTMLParagraphElement[],
+    video: HTMLButtonElement | null,
+  ): HTMLLIElement {
     const item = nodo("li", `articulo objeto-tienda${abierto ? "" : " bloqueado"}`);
     item.dataset.articulo = id;
     item.dataset.tienes = String(tienes);
-    item.append(iconoObjeto(id), nodo("p", "nombre", nombre), nodo("p", "que-hace", texto), nodo("p", "estado", estado), boton);
+    item.append(iconoObjeto(id), nodo("p", "nombre", nombre), nodo("p", "que-hace", texto), nodo("p", "estado", estado), ...euros, boton);
+    if (video) item.append(video);
     return item;
+  }
+
+  /**
+   * Pestaña Monedas (K1, K2): el vídeo de monedas, con su espera si aún no
+   * toca, y los productos del proveedor con su precio en euros. El pack solo
+   * se ofrece si con él ningún objeto pasa del máximo. Sin imperativos ni
+   * ofertas que caducan (impacto, J1 y K1).
+   */
+  private monedas(p: Progreso, ofertas: Ofertas): HTMLLIElement[] {
+    const filas: HTMLLIElement[] = [];
+    if (ofertas.video) {
+      const espera = esperaVideoMonedas(p, ofertas.ahora);
+      const boton = nodo("button", espera === 0 ? "principal" : "", "Ver vídeo");
+      boton.type = "button";
+      boton.id = "video-monedas";
+      boton.disabled = espera > 0;
+      boton.setAttribute("aria-label", `Ver vídeo por ${MONEDAS_VIDEO} monedas`);
+      boton.addEventListener("click", () => this.acciones.verVideoMonedas());
+      const item = nodo("li", "articulo producto");
+      item.dataset.articulo = "video-monedas";
+      item.append(nodo("p", "nombre", `${MONEDAS_VIDEO} monedas con un vídeo`), nodo("p", "estado", espera === 0 ? "Uno cada 4 h" : textoEspera(espera)), boton);
+      filas.push(item);
+    }
+    for (const producto of ofertas.productos) {
+      const cabe = productoDisponible(p, producto.id);
+      const precio = textoEuros(producto.centimos);
+      const boton = nodo("button", "", precio);
+      boton.type = "button";
+      boton.id = `producto-${producto.id}`;
+      boton.disabled = !cabe;
+      boton.setAttribute("aria-label", `Comprar ${producto.texto} por ${precio}`);
+      boton.addEventListener("click", () => this.acciones.pagar(producto.id));
+      const item = nodo("li", "articulo producto");
+      item.dataset.articulo = producto.id;
+      const estado = cabe ? "" : `Con él pasarías de ${MAX_OBJETO} de algún objeto (da ${UNIDADES_PACK} de cada)`;
+      item.append(nodo("p", "nombre", producto.texto), nodo("p", "estado", estado), boton);
+      filas.push(item);
+    }
+    return filas;
   }
 }

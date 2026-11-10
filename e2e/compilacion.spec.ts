@@ -84,3 +84,16 @@ test("el favicon es un SVG en línea (data:image/svg+xml) sin texto, y no hay ot
   expect(svg).toMatch(/^<svg xmlns='http:\/\/www\.w3\.org\/2000\/svg' viewBox='0 0 32 32'>/);
   expect(svg).not.toMatch(/<text|<image|href=/);
 });
+
+test("dist/ no lleva el código de la demostración y dist-demo/ sí (R14, K3)", () => {
+  const textos = (carpeta: URL) =>
+    (readdirSync(carpeta, { recursive: true }) as string[])
+      .filter((ruta) => /\.(html|js|css)$/.test(ruta))
+      .map((ruta) => readFileSync(new URL(ruta.replaceAll("\\", "/"), carpeta), "utf8"))
+      .join("\n");
+  const DEMO = /Demostración|Vídeo de prueba|Pago simulado/;
+  expect(textos(DIST)).not.toMatch(DEMO);
+  // El servidor del proyecto `demo` compila dist-demo/ a la vez: ahí sí están, así que la búsqueda no da un falso «limpio».
+  const demo = textos(new URL("../dist-demo/", import.meta.url));
+  for (const texto of ["Demostración", "Vídeo de prueba", "Pago simulado"]) expect(demo).toContain(texto);
+});
