@@ -17,8 +17,8 @@ test("la fuente local se carga sin peticiones a otros orígenes (A1)", async ({ 
 
 /**
  * Suelta la pieza dentro de la página cuando su distancia al objetivo está en
- * `[min, max]` metros (o en el extremo del vaivén con `extremo`). Devuelve
- * `false` si la partida ya ha acabado.
+ * `[min, max]` metros (o en el extremo del vaivén con `extremo`), leídos del
+ * paso ya dado. Devuelve `false` si la partida ya ha acabado.
  */
 async function soltarA(page: Page, min: number, max: number, extremo = false): Promise<boolean> {
   await page.waitForFunction(() => {
@@ -31,9 +31,12 @@ async function soltarA(page: Page, min: number, max: number, extremo = false): P
         const mirar = () => {
           const el = document.getElementById("juego")!;
           if (el.dataset.estado === "fin") return listo(false);
-          const x = Number(el.dataset.x || "0");
-          const d = Math.abs(x - Number(el.dataset.objetivo || "0"));
-          if (el.dataset.fase === "apuntando" && (borde ? Math.abs(x) >= 2.2 : d >= desde && d <= hasta)) {
+          // Al empezar, la fase ya es «apuntando» antes del primer paso, que es
+          // el que escribe `data-x` y `data-objetivo`: sin ellos no se suelta.
+          const listos = !!el.dataset.x && !!el.dataset.objetivo;
+          const x = Number(el.dataset.x);
+          const d = Math.abs(x - Number(el.dataset.objetivo));
+          if (el.dataset.fase === "apuntando" && listos && (borde ? Math.abs(x) >= 2.2 : d >= desde && d <= hasta)) {
             document.getElementById("zona")!.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true }));
             const esperar = () => (el.dataset.fase === "apuntando" && el.dataset.estado !== "fin" ? requestAnimationFrame(esperar) : listo(true));
             return requestAnimationFrame(esperar);
