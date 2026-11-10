@@ -76,7 +76,7 @@ test("con 0 unidades, «+» abre la Tienda en Objetos encima de la partida y al 
   await esperarLibre(page);
 });
 
-test("los botones de la barra solo están activos con la pieza colgando, y la barra no se ve sin objetos desbloqueados (I3)", async ({ page }, testInfo) => {
+test("los botones de la barra solo están activos con la pieza colgando y si hacen algo, y la barra no se ve sin objetos desbloqueados (I3)", async ({ page }, testInfo) => {
   test.skip(conTactil(testInfo), "Solo DOM: basta con escritorio (R17)");
   await preparar(page);
   await sembrarProgreso(page, conObjetos({ reloj: 2, cemento: 2 }));
@@ -84,6 +84,13 @@ test("los botones de la barra solo están activos con la pieza colgando, y la ba
   await jugarLibre(page);
   await apuntando(page);
   await expect(page.locator("#objeto-cemento")).toBeEnabled();
+  // Con un reloj activo, el reloj no haría nada: desactivado. El cemento, sobre la pieza ya de cemento, tampoco.
+  await page.locator("#objeto-reloj").click();
+  await expect(page.locator("#objeto-reloj")).toHaveAttribute("data-cuantos", "1");
+  await expect(page.locator("#objeto-reloj")).toBeDisabled();
+  await page.locator("#objeto-cemento").click();
+  await expect(page.locator("#objeto-cemento")).toHaveAttribute("data-cuantos", "1");
+  await expect(page.locator("#objeto-cemento")).toBeDisabled();
   await soltarEnExtremo(page);
   await expect(page.locator("#objeto-cemento")).toBeDisabled();
   await apuntando(page);

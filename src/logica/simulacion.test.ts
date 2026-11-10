@@ -534,8 +534,10 @@ describe("objetos de ayuda en la simulación (I1)", () => {
 
   it("el reloj no se acumula: usarlo con uno activo no hace nada", () => {
     const partida = new Partida(SEMILLA);
+    expect(partida.puedeUsar("reloj")).toBe(true);
     expect(partida.usar("reloj")).toBe(true);
     const velocidad = partida.estado().colgada!.velocidad;
+    expect(partida.puedeUsar("reloj")).toBe(false);
     expect(partida.usar("reloj")).toBe(false);
     expect(partida.estado().colgada!.velocidad).toBe(velocidad);
   });
@@ -558,9 +560,11 @@ describe("objetos de ayuda en la simulación (I1)", () => {
 
   it("el cemento convierte la pieza que cuelga y luego actúa como en H2; sobre una especial no hace nada", () => {
     const partida = new Partida(SEMILLA);
+    expect(partida.puedeUsar("cemento")).toBe(true);
     expect(partida.usar("cemento")).toBe(true);
     expect(partida.estado().colgada).toMatchObject({ especial: "cemento" });
     // Sobre una pieza que ya es especial (de cemento o, más abajo, la dorada 11), devuelve false.
+    expect(partida.puedeUsar("cemento")).toBe(false);
     expect(partida.usar("cemento")).toBe(false);
     const eventos: Evento[] = [];
     jugarConPartida(partida, sobreObjetivo, 2, eventos);
@@ -572,6 +576,8 @@ describe("objetos de ayuda en la simulación (I1)", () => {
     while (conDorada.fase !== "apuntando") seguir(conDorada, 1);
     expect(conDorada.estado().colgada).toMatchObject({ especial: "dorada" });
     const antes = conDorada.estado();
+    expect(conDorada.puedeUsar("cemento")).toBe(false);
+    expect(conDorada.puedeUsar("reloj")).toBe(true);
     expect(conDorada.usar("cemento")).toBe(false);
     expect(conDorada.estado()).toEqual(antes);
   });
@@ -580,6 +586,8 @@ describe("objetos de ayuda en la simulación (I1)", () => {
     const partida = new Partida(SEMILLA);
     partida.soltar();
     expect(partida.fase).toBe("esperando");
+    expect(partida.puedeUsar("reloj")).toBe(false);
+    expect(partida.puedeUsar("cemento")).toBe(false);
     expect(partida.usar("reloj")).toBe(false);
     expect(partida.usar("cemento")).toBe(false);
   });

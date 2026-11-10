@@ -368,16 +368,20 @@ export class Partida {
    * - Cemento: la pieza que cuelga pasa a ser de cemento (H2).
    */
   usar(objeto: Objeto): boolean {
-    if (this.modo === "reto" || this.faseActual !== "apuntando") return false;
+    if (!this.puedeUsar(objeto)) return false;
     if (objeto === "reloj") {
-      if (this.relojPiezas > 0) return false;
       this.relojPiezas = RELOJ_PIEZAS;
       this.cambiarVelocidad(this.velocidadDeColgar());
       return true;
     }
-    if (this.especialActual() !== null) return false;
     this.cementoUsado.add(this.indice);
     return true;
+  }
+
+  /** ¿Haría algo `usar(objeto)` ahora? La barra de objetos desactiva el botón si no (I3). */
+  puedeUsar(objeto: Objeto): boolean {
+    if (this.modo === "reto" || this.faseActual !== "apuntando") return false;
+    return objeto === "reloj" ? this.relojPiezas <= 0 : this.especialActual() === null;
   }
 
   /**

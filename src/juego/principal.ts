@@ -736,15 +736,20 @@ function usarObjeto(objeto: "reloj" | "cemento"): void {
   actualizarBarra(actual);
 }
 
-/** Barra de objetos (I3): en la libre y en los niveles; los botones, activos solo con la pieza colgando. */
+/**
+ * Barra de objetos (I3): en la libre y en los niveles; los botones, activos
+ * solo si usarlos haría algo: con la pieza colgando, sin otro reloj activo y,
+ * el cemento, sobre una pieza que no es especial.
+ */
 function actualizarBarra(actual: Partida): void {
   const p = guardado.actual;
   const visible = flujo.modo === "libre" || flujo.modo === "nivel";
-  const apuntando = actual.fase === "apuntando";
-  const clave = `${visible}|${apuntando}|${p.objetos.reloj}|${p.objetos.cemento}|${p.objetos.desbloqueados.join()}`;
+  const reloj = actual.puedeUsar("reloj");
+  const cemento = actual.puedeUsar("cemento");
+  const clave = `${visible}|${reloj}|${cemento}|${p.objetos.reloj}|${p.objetos.cemento}|${p.objetos.desbloqueados.join()}`;
   if (clave === barraPintada) return;
   barraPintada = clave;
-  const de = (objeto: "reloj" | "cemento") => ({ desbloqueado: p.objetos.desbloqueados.includes(objeto), cuantos: p.objetos[objeto], activo: apuntando });
+  const de = (objeto: "reloj" | "cemento") => ({ desbloqueado: p.objetos.desbloqueados.includes(objeto), cuantos: p.objetos[objeto], activo: objeto === "reloj" ? reloj : cemento });
   pintarBarraObjetos(visible, { reloj: de("reloj"), cemento: de("cemento") });
 }
 

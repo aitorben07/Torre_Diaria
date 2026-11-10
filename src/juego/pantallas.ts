@@ -266,7 +266,7 @@ export type ObjetoEnBarra = { desbloqueado: boolean; cuantos: number; activo: bo
 
 /**
  * Barra de objetos (I3): solo con algún objeto desbloqueado, y solo los
- * desbloqueados. Con unidades, el número y activo solo con la pieza colgando;
+ * desbloqueados. Con unidades, el número y activo solo si usarlo hace algo;
  * con 0, «+» (abre la Tienda encima de la partida).
  */
 export function pintarBarraObjetos(visible: boolean, objetos: { reloj: ObjetoEnBarra; cemento: ObjetoEnBarra }): void {
