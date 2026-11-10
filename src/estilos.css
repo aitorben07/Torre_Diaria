@@ -1052,9 +1052,10 @@ button.dia.futuro {
   gap: 0.5rem;
 }
 
-/* Tres pestañas en 320 px: se reparten el ancho sin desbordar (J1). */
+/* Tres pestañas en 320 px: se reparten el ancho sin desbordar (J1). Cada una
+   parte de lo que mide su texto: «Escenarios», la más larga, no cabe en un tercio. */
 .pestanas button {
-  flex: 1;
+  flex: 1 1 auto;
   min-width: 0;
   padding-inline: 0.35rem;
 }

@@ -88,3 +88,16 @@ test("en la compilación web no hay pestaña «Monedas» (R12)", async ({ page }
   await expect(page.getByRole("tab", { name: "Monedas" })).toHaveCount(0);
   expect(await page.locator("#tienda").innerText()).not.toMatch(/€|v[ií]deo/i);
 });
+
+test("en 320 px el texto de cada pestaña cabe en su botón, también «Escenarios»", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 568 });
+  await preparar(page);
+  await page.goto("/");
+  await abrirTienda(page);
+  const medidas = await page.locator(".pestanas button:not([hidden])").evaluateAll((botones) =>
+    botones.map((b) => ({ texto: b.textContent, scroll: b.scrollWidth, cliente: b.clientWidth })),
+  );
+  expect(medidas.map((m) => m.texto)).toEqual(["Objetos", "Piezas", "Escenarios"]);
+  for (const m of medidas) expect(m.scroll, m.texto!).toBeLessThanOrEqual(m.cliente);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
+});
