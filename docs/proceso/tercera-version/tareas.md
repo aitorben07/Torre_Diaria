@@ -45,20 +45,20 @@ Al abrir la web se ve el logo y un botón «Jugar» sobre el puerto, con el reto
 
 Son los G1 a G10 de la v2, renumerados, más los nuevos R11 a R15. Si un bloque rompe uno, el bloque no está terminado.
 
-- [ ] R1. `npm test`, `npm run check`, `npm run build` y `npm run e2e` pasan. Prueba: ejecutarlos.
+- [x] R1. `npm test`, `npm run check`, `npm run build` y `npm run e2e` pasan. Prueba: ejecutarlos.
 - [ ] R2. **Determinismo.** En `src/logica/` solo hay `Math.random` en `semillaLibre`. `simulacion.ts` no contiene `Math.random`, `Date.now`, `performance.now`, `Math.sin` ni `Math.cos`. Solo `simulacion.ts` importa `planck`. Prueba: buscar el texto (lo hace ya `src/proyecto.test.ts`; se amplía a los archivos nuevos de `src/logica/`).
 - [ ] R3. **Pantalla igual a Node.** `e2e/partida.spec.ts` sigue pasando en libre, reto diario y nivel, ahora también con objetos usados (`data-ayudas`) y con piezas especiales: mismos puntos y piezas, y altura con 9 decimales. Prueba: `npm run e2e`.
 - [ ] R4. **Pruebas doradas.** Si cambian, el commit dice por qué y con qué valores. Prueba: `git log` y las pruebas.
 - [ ] R5. **Enlaces seguros.** Lo que viene de la URL o del almacenamiento se escribe con `textContent`. Las pruebas de `?reto=` y `?libre=` con `<img src=x onerror=…>` siguen pasando. Prueba: `npm run e2e` y buscar `innerHTML` en `src/`.
-- [ ] R6. **CSP.** `public/_headers` no cambia. `dist/index.html` no tiene `<script>` ni `<style>` en línea ni `style="`. Prueba: `git diff main -- public/_headers` vacío y `e2e/csp.spec.ts`.
+- [x] R6. **CSP.** `public/_headers` no cambia. `dist/index.html` no tiene `<script>` ni `<style>` en línea ni `style="`. Prueba: `git diff main -- public/_headers` vacío y `e2e/csp.spec.ts`.
 - [ ] R7. Todas las peticiones van al mismo origen y no hay errores en consola. Prueba: las comprobaciones de `e2e/`.
-- [ ] R8. **Peso.** JavaScript de `dist/` ≤ 150 KB con `gzip -9` (hoy 79.889 bytes); fuentes ≤ 80 KB. Prueba: medir y anotar en el README.
-- [ ] R9. Licencias: dependencias directas MIT, ISC, BSD, Apache-2.0 u OFL-1.1. **No se añade ninguna dependencia nueva** en este cambio. Prueba: `git diff main -- package.json` sin dependencias nuevas y `npm query "*"`.
+- [x] R8. **Peso.** JavaScript de `dist/` ≤ 150 KB con `gzip -9` (hoy 79.889 bytes); fuentes ≤ 80 KB. Prueba: medir y anotar en el README.
+- [x] R9. Licencias: dependencias directas MIT, ISC, BSD, Apache-2.0 u OFL-1.1. **No se añade ninguna dependencia nueva** en este cambio. Prueba: `git diff main -- package.json` sin dependencias nuevas y `npm query "*"`.
 - [ ] R10. Si el almacenamiento falla, el juego funciona sin guardar. Prueba: Vitest con un almacén que lanza excepciones y la prueba e2e de `localStorage` bloqueado.
-- [ ] R11. **Sin archivos de audio ni imágenes de mapa de bits** en `dist/` (ni `.mp3`, `.ogg`, `.wav`, `.m4a`, `.png`, `.jpg` ni `.webp`). Prueba: listar `dist/` (la prueba de `e2e/compilacion.spec.ts` se amplía).
-- [ ] R12. **Ningún botón que no haga nada.** En la compilación web, sin proveedor de anuncios ni de pagos, no se ve ningún botón de vídeo, de compra con dinero ni la pestaña «Monedas» (regla de `docs/diseno/anuncios.md`, apartado 4). Prueba: Playwright recorriendo inicio, tienda, fin de libre, fin de nivel, «¿Seguir?» y Retos.
+- [x] R11. **Sin archivos de audio ni imágenes de mapa de bits** en `dist/` (ni `.mp3`, `.ogg`, `.wav`, `.m4a`, `.png`, `.jpg` ni `.webp`). Prueba: listar `dist/` (la prueba de `e2e/compilacion.spec.ts` se amplía).
+- [x] R12. **Ningún botón que no haga nada.** En la compilación web, sin proveedor de anuncios ni de pagos, no se ve ningún botón de vídeo, de compra con dinero ni la pestaña «Monedas» (regla de `docs/diseno/anuncios.md`, apartado 4). Prueba: Playwright recorriendo inicio, tienda, fin de libre, fin de nivel, «¿Seguir?» y Retos.
 - [ ] R13. **Reto diario limpio.** En el reto oficial y en su repetición no hay barra de objetos, no se ofrece «¿Seguir?» y `jugar` rechaza ayudas en ese modo. Prueba: Vitest sobre el flujo y Playwright.
-- [ ] R14. **Sin código de demostración en la web.** `dist/` no contiene los textos «Demostración», «Vídeo de prueba» ni «pagosSimulados». Prueba: buscar el texto en `dist/` tras `npm run build`.
+- [x] R14. **Sin código de demostración en la web.** `dist/` no contiene los textos «Demostración», «Vídeo de prueba» ni «pagosSimulados». Prueba: buscar el texto en `dist/` tras `npm run build`.
 - [ ] R15. Todos los botones miden ≥ 44×44 px, se llega a ellos con Tab y el foco se ve. No hay desplazamiento horizontal en 320×568, 360×640, 390×844, 1280×800 ni 1280×600. Prueba: Playwright (se amplía `e2e/pantalla.spec.ts` a las pantallas nuevas).
 
 ## Orden de los bloques
