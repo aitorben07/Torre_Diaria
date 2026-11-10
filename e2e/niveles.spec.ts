@@ -262,3 +262,33 @@ test("«Jugar» en la ventana de un nivel ya superado lo repite (F1)", async ({ 
   await expect(juego(page)).toHaveAttribute("data-estado", "jugando");
   await expect(juego(page)).toHaveAttribute("data-nivel", "2");
 });
+
+test("en 320×568 sin progreso, ningún nivel queda bajo las fichas de arriba, ni al abrir ni al desplazar el mapa (F1)", async ({ page }, testInfo) => {
+  test.skip(conTactil(testInfo), "Solo maquetación: basta con escritorio (R17)");
+  await page.setViewportSize({ width: 320, height: 568 });
+  await preparar(page);
+  await page.goto("/");
+  await abrirNiveles(page);
+  await expect(page.locator("#niveles-jugar")).toHaveText("Jugar nivel 1");
+  /** Niveles cuya parte visible (recortada por el mapa) toca una ficha de arriba. */
+  const tapados = () =>
+    page.evaluate(() => {
+      const mapa = document.getElementById("mapa")!.getBoundingClientRect();
+      const fichas = [...document.querySelectorAll(".niveles-arriba > *")].map((el) => el.getBoundingClientRect());
+      return [...document.querySelectorAll<HTMLElement>(".nivel-boton")]
+        .filter((nivel) => {
+          const r = nivel.getBoundingClientRect();
+          const arriba = Math.max(r.top, mapa.top);
+          const abajo = Math.min(r.bottom, mapa.bottom);
+          if (abajo <= arriba) return false;
+          return fichas.some((f) => r.left < f.right && f.left < r.right && arriba < f.bottom && f.top < abajo);
+        })
+        .map((nivel) => nivel.id);
+    });
+  expect(await tapados(), "al abrir").toEqual([]);
+  const alto = await page.locator("#mapa").evaluate((mapa) => mapa.scrollHeight - mapa.clientHeight);
+  for (let y = 0; y <= alto; y += 40) {
+    await page.locator("#mapa").evaluate((mapa, y) => mapa.scrollTo(0, y), y);
+    expect(await tapados(), `desplazado ${y} px`).toEqual([]);
+  }
+});

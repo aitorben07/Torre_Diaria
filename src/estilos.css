@@ -1268,11 +1268,14 @@ svg.estrella.llena path {
   background: var(--amarillo);
 }
 
-/* Niveles (F1, Anexo D): el mapa llena la columna de arriba abajo; las fichas
-   del margen y «Jugar nivel N» flotan encima con su sombra desplazada. */
+/* Niveles (F1, Anexo D): el mapa llena la columna bajo la franja de las fichas
+   del margen (así ningún nivel queda debajo de ellas al desplazarlo); «Jugar
+   nivel N» flota encima con su sombra desplazada. */
 .niveles {
   top: 0;
   bottom: 0;
+  display: flex;
+  flex-direction: column;
   container-type: inline-size;
   touch-action: manipulation;
 }
@@ -1290,11 +1293,12 @@ svg.estrella.llena path {
 }
 
 .niveles-arriba {
-  position: absolute;
+  position: relative;
   z-index: 2;
-  top: max(0.75rem, env(safe-area-inset-top));
-  left: 0.75rem;
-  right: 0.75rem;
+  flex: none;
+  padding: max(0.75rem, env(safe-area-inset-top)) 0.75rem 0.6rem;
+  border-bottom: var(--borde) solid var(--tinta);
+  background: var(--tarde);
   display: flex;
   align-items: flex-start;
   gap: 0.5rem;
@@ -1352,8 +1356,9 @@ svg.estrella.llena path {
 }
 
 .niveles .mapa {
-  position: absolute;
-  inset: 0;
+  position: relative;
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
   touch-action: pan-y;
