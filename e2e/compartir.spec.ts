@@ -96,7 +96,7 @@ test("la imagen de un nivel es un PNG de 1080×1350 de 600 KB como mucho (F1)", 
   const vigilancia = await preparar(page);
   await page.goto("/");
   await abrirNiveles(page);
-  await page.getByRole("button", { name: "Jugar el nivel 1" }).click();
+  await page.getByRole("button", { name: "Jugar nivel 1", exact: true }).click();
   await jugarHastaElFin(page, conTactil(testInfo), { centradas: 10 });
   await esperarFinListo(page);
   const { png, nombre } = await descargarCon(page, "#boton-descargar");

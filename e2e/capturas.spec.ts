@@ -6,6 +6,7 @@ import { mkdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { expect, test, type Page } from "@playwright/test";
 import { abrirAjustes, abrirColeccion, abrirNiveles, abrirRetos, esperarInicio, juego, jugarLibre, pausar, preparar } from "./ayudas.ts";
+import { faviconSvg } from "../src/juego/logo.ts";
 
 const CARPETA = new URL("../docs/proceso/segunda-version/capturas/", import.meta.url);
 const CARPETA_V3 = new URL("../docs/proceso/tercera-version/capturas/", import.meta.url);
@@ -320,3 +321,74 @@ for (const [nombre, ancho, alto] of [
     await contexto.close();
   });
 }
+
+// Tercera versión (F y G): inicio con el logo, mapa de niveles y ventana de un nivel, con el 8 disponible.
+for (const [nombre, ancho, alto] of [
+  ["movil", 390, 844],
+  ["movil-320", 320, 568],
+  ["escritorio", 1280, 800],
+] as const) {
+  test(`capturas de logo, mapa y ventana ${nombre} ${ancho}x${alto}`, async ({ browser }, testInfo) => {
+    test.skip(testInfo.project.name !== "escritorio", "Una vez basta");
+    mkdirSync(CARPETA_V3, { recursive: true });
+    const contexto = await browser.newContext({
+      viewport: { width: ancho, height: alto },
+      deviceScaleFactor: nombre === "escritorio" ? 1 : 2,
+      hasTouch: nombre !== "escritorio",
+    });
+    const page = await contexto.newPage();
+    const guardar = (paso: string) => page.screenshot({ path: fileURLToPath(new URL(`${nombre}-${paso}.png`, CARPETA_V3)) });
+    const progreso = { ...progresoDeMuestra("puerto", 2), niveles: { 1: 3, 2: 3, 3: 2, 4: 1, 5: 3, 6: 2, 7: 1 } };
+    await page.addInitScript((valor) => localStorage.setItem("torre-diaria:progreso", valor), JSON.stringify(progreso));
+    await preparar(page);
+    await page.goto("/");
+    await esperarInicio(page);
+    await page.evaluate(() => document.fonts.ready);
+    await page.waitForTimeout(600);
+    await guardar("inicio-logo");
+    await abrirNiveles(page);
+    await page.waitForTimeout(400);
+    await guardar("mapa");
+    await page.locator("#nivel-5").click();
+    await expect(page.locator("#ventana-nivel")).toBeVisible();
+    await page.waitForTimeout(400);
+    await guardar("mapa-ventana");
+    // Escape cierra la ventana; al fondo del mapa, el Puerto con el primer nivel.
+    await page.keyboard.press("Escape");
+    await expect(page.locator("#ventana-nivel")).toBeHidden();
+    await page.locator("#mapa").evaluate((mapa) => mapa.scrollTo(0, mapa.scrollHeight));
+    await page.waitForTimeout(300);
+    await guardar("mapa-abajo");
+    await contexto.close();
+  });
+}
+
+// Favicon (G1, Anexo E) a 16 y 32 px, como lo pinta la pestaña, y ampliado ×8 sin suavizar para mirarlo.
+test("capturas del favicon a 16 y 32 px", async ({ browser }, testInfo) => {
+  test.skip(testInfo.project.name !== "escritorio", "Una vez basta");
+  mkdirSync(CARPETA_V3, { recursive: true });
+  const contexto = await browser.newContext({ viewport: { width: 400, height: 300 }, deviceScaleFactor: 1 });
+  const page = await contexto.newPage();
+  const src = "data:image/svg+xml," + encodeURIComponent(faviconSvg());
+  await page.setContent(
+    `<body style="margin:0;background:#fff">` +
+      [16, 32].map((lado) => `<img id="f${lado}" src="${src}" width="${lado}" height="${lado}">`).join("") +
+      `<canvas id="ampliado" width="384" height="256"></canvas></body>`,
+  );
+  await page.evaluate(async () => {
+    const lienzo = document.getElementById("ampliado") as HTMLCanvasElement;
+    const ctx = lienzo.getContext("2d")!;
+    ctx.imageSmoothingEnabled = false;
+    for (const [i, lado] of [16, 32].entries()) {
+      const img = document.getElementById(`f${lado}`) as HTMLImageElement;
+      await img.decode();
+      // Se dibuja a su tamaño en un lienzo pequeño y luego se amplía, para ver los píxeles reales.
+      const pequeno = new OffscreenCanvas(lado, lado);
+      pequeno.getContext("2d")!.drawImage(img, 0, 0, lado, lado);
+      ctx.drawImage(pequeno, i * 136, 0, lado * 8 > 256 ? 256 : lado * 8, lado * 8 > 256 ? 256 : lado * 8);
+    }
+  });
+  for (const lado of [16, 32]) await page.locator(`#f${lado}`).screenshot({ path: fileURLToPath(new URL(`favicon-${lado}.png`, CARPETA_V3)) });
+  await page.locator("#ampliado").screenshot({ path: fileURLToPath(new URL("favicon-ampliado.png", CARPETA_V3)) });
+  await contexto.close();
+});

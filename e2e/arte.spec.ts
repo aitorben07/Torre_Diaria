@@ -237,11 +237,12 @@ test("sin navigator.vibrate no hay error y Ajustes no ofrece la vibración (A4, 
 });
 
 /** Botones visibles de la página: id, tamaño y si están dentro de la ventana. */
-const botonesVisibles = (page: Page) =>
-  page.locator("button:visible").evaluateAll((botones) =>
+/** Botones visibles (dentro de `dentro`, si se da), con su tamaño y si se pueden enfocar (no los desactivados). */
+const botonesVisibles = (page: Page, dentro = "") =>
+  page.locator(`${dentro} button:visible`).evaluateAll((botones) =>
     botones.map((b) => {
       const { width, height } = b.getBoundingClientRect();
-      return { id: b.id, ancho: width, alto: height };
+      return { id: b.id, ancho: width, alto: height, enfocable: !(b as HTMLButtonElement).disabled };
     }),
   );
 
@@ -258,7 +259,7 @@ test("en 1280×800 la columna de juego mide al menos 400 px y el escenario ocupa
   expect(lienzo!.width).toBe(1280);
 });
 
-test("todos los botones visibles miden al menos 44×44 px en el inicio, jugando, en la pausa, en el fin, en el reto de un amigo, en Retos, en Niveles, en Colección y en Ajustes (A5, E3, R15)", async ({ page }, testInfo) => {
+test("todos los botones visibles miden al menos 44×44 px en el inicio, jugando, en la pausa, en el fin, en el reto de un amigo, en Retos, en Niveles y su ventana, en Colección y en Ajustes (A5, E3, F1, R15)", async ({ page }, testInfo) => {
   await preparar(page);
   await page.goto("/");
   const comprobar = async (pantalla: string) => {
@@ -287,6 +288,9 @@ test("todos los botones visibles miden al menos 44×44 px en el inicio, jugando,
   await page.keyboard.press("Escape");
   await abrirNiveles(page);
   await comprobar("niveles");
+  await page.locator("#nivel-1").click();
+  await comprobar("ventana del nivel");
+  await page.keyboard.press("Escape");
   await page.keyboard.press("Escape");
   await abrirColeccion(page);
   await comprobar("coleccion");
@@ -296,12 +300,16 @@ test("todos los botones visibles miden al menos 44×44 px en el inicio, jugando,
   await comprobar("ajustes");
 });
 
-test("con el teclado, Tab llega a todos los botones visibles y el foco se ve (A5)", async ({ page }, testInfo) => {
+test("con el teclado, Tab llega a todos los botones visibles y el foco se ve, también en Niveles y su ventana (A5, F1, R15)", async ({ page }, testInfo) => {
   test.skip(conTactil(testInfo), "Teclado: solo en escritorio");
   await preparar(page);
   await page.goto("/");
-  const recorrer = async (pantalla: string) => {
-    const esperados = (await botonesVisibles(page)).map((b) => b.id).sort();
+  // Con una ventana modal abierta, Tab solo recorre la ventana; los candados no se enfocan.
+  const recorrer = async (pantalla: string, dentro = "") => {
+    const esperados = (await botonesVisibles(page, dentro))
+      .filter((b) => b.enfocable)
+      .map((b) => b.id)
+      .sort();
     const vistos = new Set<string>();
     for (let i = 0; i < esperados.length + 3; i++) {
       await page.keyboard.press("Tab");
@@ -319,6 +327,12 @@ test("con el teclado, Tab llega a todos los botones visibles y el foco se ve (A5
   };
   await esperarInicio(page);
   await recorrer("inicio");
+  await abrirNiveles(page);
+  await recorrer("niveles");
+  await page.locator("#nivel-1").click();
+  await recorrer("ventana del nivel", "#ventana-nivel");
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("Escape");
   await abrirAjustes(page);
   await recorrer("ajustes");
   await page.keyboard.press("Escape");

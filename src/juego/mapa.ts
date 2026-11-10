@@ -1,9 +1,11 @@
-// Pantalla Niveles (E3): la ficha del nivel elegido (objetivo, estrellas y
-// «Jugar») arriba, y debajo el mapa del Puerto, que se lee de abajo arriba: un
-// camino en zigzag con los 10 niveles como fichas redondas (número, estrellas
-// o candado). Al abrir, el último nivel disponible queda centrado en el mapa.
-// Todo el DOM se crea con `createElement` y `textContent`; las posiciones van
-// en clases, no en atributos `style` (G6).
+// Pantalla Niveles (F1, Anexo D): el mapa del Puerto ocupa la columna y se lee
+// de abajo arriba: un camino en zigzag con los 10 niveles como pegatinas
+// (número, estrellas o candado). En los márgenes, «Volver», el mundo, las
+// estrellas y las monedas, y abajo «Jugar nivel N» con el último disponible,
+// que queda centrado al abrir. Tocar un nivel abre su ventana (objetivo,
+// umbrales de estrellas, «Jugar» y «Cerrar»). Todo el DOM se crea con
+// `createElement` y `textContent`; las posiciones van en clases, no en
+// atributos `style` (G6).
 import { ESTRELLAS_POR_NIVEL, estrellasGuardadas, NIVELES, nivelDisponible, nivelPorNumero, textoObjetivo, totalEstrellas, ultimoDisponible } from "../logica/niveles.ts";
 import type { Progreso } from "../logica/progreso.ts";
 import { formatearNumero } from "../logica/tarjeta.ts";
@@ -59,17 +61,28 @@ export type AccionesNiveles = { jugar(nivel: number): void };
 
 const porId = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 
+/** Colores de las pegatinas ya superadas, por turno: el camino hecho se ve variado, como una hoja de pegatinas. */
+const TINTAS_HECHO = 4;
+
 export class PanelNiveles {
+  /** Nivel de la ventana abierta (o de la última que se abrió). */
   private elegido = 1;
 
   constructor(
     private readonly acciones: AccionesNiveles,
     private readonly progreso: () => Progreso,
   ) {
-    porId("ficha-nivel-jugar").addEventListener("click", () => this.acciones.jugar(this.elegido));
+    porId("niveles-jugar").addEventListener("click", () => this.jugar(ultimoDisponible(this.progreso())));
+    porId("ficha-nivel-jugar").addEventListener("click", () => this.jugar(this.elegido));
+    porId("ventana-nivel-cerrar").addEventListener("click", () => this.cerrarVentana());
+    // Tocar fuera del papel (en el fondo oscurecido) también la cierra.
+    const ventana = this.ventana();
+    ventana.addEventListener("click", (evento) => {
+      if (evento.target === ventana) this.cerrarVentana();
+    });
     const sendero = porId("mapa-sendero") as unknown as SVGSVGElement;
     sendero.setAttribute("viewBox", `0 0 100 ${NIVELES.length * FILA}`);
-    // El camino es una cinta de papel con borde de tinta; el tramo abierto lleva puntos encima.
+    // El camino es una cinta de papel con borde de tinta (su doble impresión azul la pone el CSS); el tramo abierto lleva puntos encima.
     const capas = ["borde", "cinta", "hecho"].map((clase) => {
       const ruta = document.createElementNS(SVG, "path");
       ruta.setAttribute("d", rutaSendero(NIVELES.length));
@@ -79,12 +92,31 @@ export class PanelNiveles {
     sendero.replaceChildren(...capas);
   }
 
-  /** Al abrir: elegido el último nivel disponible y centrado en el mapa (con el panel ya visible). */
+  private ventana(): HTMLDialogElement {
+    return porId<HTMLDialogElement>("ventana-nivel");
+  }
+
+  ventanaAbierta(): boolean {
+    return this.ventana().open;
+  }
+
+  /** Cierra la ventana del nivel; el foco vuelve a su pegatina (lo hace el propio `<dialog>`). */
+  cerrarVentana(): void {
+    if (this.ventanaAbierta()) this.ventana().close();
+  }
+
+  private jugar(nivel: number): void {
+    if (!nivelDisponible(this.progreso(), nivel)) return;
+    this.cerrarVentana();
+    this.acciones.jugar(nivel);
+  }
+
+  /** Al abrir (con el panel ya visible): el último nivel disponible, centrado en el mapa. */
   abrir(): void {
-    this.elegido = ultimoDisponible(this.progreso());
+    this.cerrarVentana();
     this.pintar();
     const mapa = porId("mapa");
-    const ficha = porId(`nivel-${this.elegido}`);
+    const ficha = porId(`nivel-${ultimoDisponible(this.progreso())}`);
     const caja = mapa.getBoundingClientRect();
     const deFicha = ficha.getBoundingClientRect();
     mapa.scrollTop += deFicha.top + deFicha.height / 2 - (caja.top + caja.height / 2);
@@ -92,11 +124,11 @@ export class PanelNiveles {
 
   pintar(): void {
     const p = this.progreso();
-    const total = totalEstrellas(p);
-    porId("niveles-estrellas").textContent = String(total);
+    porId("niveles-estrellas").textContent = String(totalEstrellas(p));
     porId("niveles-estrellas-total").textContent = `/${NIVELES.length * ESTRELLAS_POR_NIVEL}`;
+    porId("niveles-monedas").textContent = formatearNumero(p.monedas);
     const ultimo = ultimoDisponible(p);
-    // Hasta dónde se ha completado el camino: el trazo de color llega a la ficha del último disponible.
+    porId("niveles-jugar").textContent = `Jugar nivel ${ultimo}`;
     porId("mapa-niveles").replaceChildren(
       ...NIVELES.map((nivel) => {
         const estrellas = estrellasGuardadas(p, nivel.numero);
@@ -106,11 +138,11 @@ export class PanelNiveles {
         const boton = document.createElement("button");
         boton.type = "button";
         boton.id = `nivel-${nivel.numero}`;
-        const estado = !abierto ? "bloqueado" : estrellas > 0 ? "hecho" : "actual";
-        boton.className = `nivel-boton ${estado}${nivel.jefe ? " jefe" : ""}${nivel.numero === this.elegido ? " elegido" : ""}`;
+        const estado = !abierto ? "bloqueado" : estrellas > 0 ? `hecho t${(nivel.numero - 1) % TINTAS_HECHO}` : "actual";
+        boton.className = `nivel-boton ${estado}${nivel.jefe ? " jefe" : ""}`;
         boton.dataset.estrellas = String(estrellas);
         boton.disabled = !abierto;
-        boton.setAttribute("aria-pressed", String(nivel.numero === this.elegido));
+        if (abierto) boton.setAttribute("aria-haspopup", "dialog");
         const etiqueta = !abierto ? "bloqueado" : estrellas > 0 ? (estrellas === 1 ? "1 estrella" : `${estrellas} estrellas`) : "sin completar";
         boton.setAttribute("aria-label", `Nivel ${nivel.numero}${nivel.jefe ? " (jefe)" : ""}: ${etiqueta}`);
         const numero = document.createElement("span");
@@ -118,11 +150,8 @@ export class PanelNiveles {
         numero.textContent = String(nivel.numero);
         boton.append(numero);
         if (!abierto) boton.append(candado());
-        boton.addEventListener("click", () => {
-          this.elegido = nivel.numero;
-          this.pintar();
-          porId("ficha-nivel").scrollIntoView({ block: "nearest" });
-        });
+        if (nivel.jefe) boton.append(corona());
+        boton.addEventListener("click", () => this.abrirVentana(nivel.numero));
         fila.append(boton);
         if (abierto) {
           const caja = document.createElement("span");
@@ -130,27 +159,79 @@ export class PanelNiveles {
           pintarEstrellas(caja, estrellas);
           fila.append(caja);
         }
-        if (nivel.numero === ultimo && estrellas === 0) fila.classList.add("aqui");
+        // «Estás aquí»: la pieza con ojos espera sobre el último nivel disponible.
+        if (nivel.numero === ultimo) {
+          fila.classList.add("aqui");
+          fila.append(avatar());
+        }
         return fila;
       }),
     );
+    // Hasta dónde se ha completado el camino: el trazo de color llega a la ficha del último disponible.
     porId("mapa-sendero").dataset.hasta = String(ultimo);
     const hecho = porId("mapa-sendero").querySelector("path.hecho");
     hecho?.setAttribute("d", rutaSendero(NIVELES.length, ultimo));
-    this.pintarFicha(p);
   }
 
-  private pintarFicha(p: Progreso): void {
-    const nivel = nivelPorNumero(this.elegido) ?? NIVELES[0]!;
+  /** Ventana del nivel (F1): título, estrellas, objetivo, umbrales y «Jugar» o «Repetir». */
+  private abrirVentana(numero: number): void {
+    const p = this.progreso();
+    if (!nivelDisponible(p, numero)) return;
+    this.elegido = numero;
+    const nivel = nivelPorNumero(numero) ?? NIVELES[0]!;
     const estrellas = estrellasGuardadas(p, nivel.numero);
     porId("ficha-nivel-titulo").textContent = `Nivel ${nivel.numero}${nivel.jefe ? " · Jefe" : ""}`;
     porId("ficha-nivel-objetivo").textContent = textoObjetivo(nivel);
     pintarEstrellas(porId("ficha-nivel-estrellas"), estrellas);
     porId("ficha-nivel-detalle").textContent = estrellas >= ESTRELLAS_POR_NIVEL ? "Completado con 3 estrellas" : `2 estrellas: ${formatearNumero(nivel.p2)} puntos · 3: ${formatearNumero(nivel.p3)}`;
     const jugar = porId<HTMLButtonElement>("ficha-nivel-jugar");
-    jugar.textContent = estrellas > 0 ? `Repetir el nivel ${nivel.numero}` : `Jugar el nivel ${nivel.numero}`;
-    jugar.disabled = !nivelDisponible(p, nivel.numero);
+    const verbo = estrellas > 0 ? "Repetir" : "Jugar";
+    jugar.textContent = verbo;
+    jugar.setAttribute("aria-label", `${verbo} el nivel ${nivel.numero}`);
+    this.ventana().showModal();
   }
+}
+
+/** Pieza turquesa con dos ojos, la del juego: marca en el mapa dónde está el jugador. */
+function avatar(): SVGSVGElement {
+  const svg = document.createElementNS(SVG, "svg");
+  svg.setAttribute("viewBox", "0 0 32 32");
+  svg.setAttribute("aria-hidden", "true");
+  svg.classList.add("avatar");
+  for (const [clase, desplazamiento] of [
+    ["registro", 6],
+    ["cuerpo", 3],
+  ] as const) {
+    const rect = document.createElementNS(SVG, "rect");
+    rect.setAttribute("x", String(desplazamiento));
+    rect.setAttribute("y", String(desplazamiento));
+    rect.setAttribute("width", "23");
+    rect.setAttribute("height", "23");
+    rect.setAttribute("rx", "4");
+    rect.classList.add(clase);
+    svg.append(rect);
+  }
+  for (const cx of [11, 20]) {
+    const ojo = document.createElementNS(SVG, "circle");
+    ojo.setAttribute("cx", String(cx));
+    ojo.setAttribute("cy", "13");
+    ojo.setAttribute("r", "2.6");
+    ojo.classList.add("ojo");
+    svg.append(ojo);
+  }
+  return svg;
+}
+
+/** Corona del nivel jefe, encima de su pegatina. */
+function corona(): SVGSVGElement {
+  const svg = document.createElementNS(SVG, "svg");
+  svg.setAttribute("viewBox", "0 0 24 16");
+  svg.setAttribute("aria-hidden", "true");
+  svg.classList.add("corona");
+  const ruta = document.createElementNS(SVG, "path");
+  ruta.setAttribute("d", "M2 14L3.5 3l5 5L12 1.5 15.5 8l5-5L22 14z");
+  svg.append(ruta);
+  return svg;
 }
 
 function candado(): SVGSVGElement {

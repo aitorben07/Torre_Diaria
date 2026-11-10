@@ -1122,56 +1122,113 @@ svg.estrella.llena path {
   background: var(--amarillo);
 }
 
-/* Panel Niveles (E3): la ficha arriba y el mapa, que se desplaza, debajo. */
-#niveles {
-  margin: 0 0.5rem;
-  width: calc(var(--columna) - 1rem);
-  height: calc(100% - var(--alto-hud) - 0.8rem - max(0.8rem, env(safe-area-inset-bottom)));
-  padding: 0.8rem 0.7rem 0.7rem;
-  gap: 0.55rem;
-  overflow: hidden;
+/* Niveles (F1, Anexo D): el mapa llena la columna de arriba abajo; las fichas
+   del margen y «Jugar nivel N» flotan encima con su sombra desplazada. */
+.niveles {
+  top: 0;
+  bottom: 0;
+  container-type: inline-size;
+  touch-action: manipulation;
 }
 
-.ficha-nivel {
-  flex: none;
-  gap: 0.35rem;
+/* En el mapa no se ve el marcador, tampoco si se abre desde el fin (F1). */
+#juego[data-estado="niveles"] .hud {
+  visibility: hidden;
 }
 
-.ficha-nivel-cabeza {
+/* En escritorio la columna es un pliego: borde de tinta a los lados y el escenario fuera. */
+@media (min-aspect-ratio: 10/16) {
+  .niveles {
+    border-inline: var(--borde) solid var(--tinta);
+  }
+}
+
+.niveles-arriba {
+  position: absolute;
+  z-index: 2;
+  top: max(0.75rem, env(safe-area-inset-top));
+  left: 0.75rem;
+  right: 0.75rem;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  align-items: flex-start;
   gap: 0.5rem;
+  pointer-events: none;
 }
 
-.ficha-nivel .objetivo {
-  font-size: 1.15rem;
+.niveles-arriba > * {
+  pointer-events: auto;
+}
+
+/* Fichas del margen: pastillas de papel, no se pulsan. */
+.ficha-margen {
+  margin: 0;
+  padding: 0.25rem 0.7rem 0.25rem 0.5rem;
+  border: var(--borde) solid var(--tinta);
+  border-radius: 999px;
+  background: var(--papel);
+  box-shadow: 3px 3px 0 var(--tinta);
   font-weight: 800;
+  white-space: nowrap;
 }
 
-.mapa {
-  position: relative;
-  flex: 1;
-  min-height: 12rem;
+.titulo-mundo {
+  align-self: center;
+  padding: 0.3rem 0.9rem;
+  background: var(--turquesa);
+  font-size: 1.05rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  transform: rotate(-2deg);
+}
+
+.niveles-saldos {
+  margin-left: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.45rem;
+}
+
+.niveles-saldos .saldo {
+  font-size: 1rem;
+}
+
+.niveles-saldos .saldo .suave {
+  font-size: 0.85rem;
+}
+
+/* Con sitio (escritorio y móviles anchos), estrellas y monedas en una fila. */
+@container (min-width: 26rem) {
+  .niveles-saldos {
+    flex-direction: row;
+    align-items: center;
+  }
+}
+
+.niveles .mapa {
+  position: absolute;
+  inset: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  border: 2px solid var(--tinta);
-  border-radius: 10px;
-  /* Cielo del Puerto (Anexo 1, 1.2): tarde arriba, amanecer abajo, sobre papel. */
-  background: linear-gradient(to bottom, var(--tarde), var(--amanecer) 70%, var(--papel));
+  touch-action: pan-y;
+  scrollbar-width: none;
+  /* Cielo del Puerto (Anexo 1, 1.2): tarde arriba y amanecer abajo; se desplaza con el camino. */
+  background: linear-gradient(to bottom, var(--tarde), var(--amanecer) 75%, var(--papel)) local;
 }
 
 .mapa-camino {
   position: relative;
-  padding-top: 1rem;
+  padding-top: 6.5rem;
 }
 
 .sendero {
   position: absolute;
-  inset: 1rem 0 0;
+  inset: 6.5rem 0 0;
   width: 100%;
-  height: calc(100% - 1rem);
+  height: calc(100% - 6.5rem);
   overflow: visible;
+  /* Doble impresión: la cinta entera, repetida en azul y algo desplazada. */
+  filter: drop-shadow(4px 5px 0 color-mix(in srgb, var(--azul) 40%, transparent));
 }
 
 .sendero path {
@@ -1182,22 +1239,22 @@ svg.estrella.llena path {
 
 .sendero path.borde {
   stroke: var(--tinta);
-  stroke-width: 18;
+  stroke-width: 22;
 }
 
 .sendero path.cinta {
   stroke: var(--papel);
-  stroke-width: 12;
+  stroke-width: 15;
 }
 
 /* El tramo ya abierto: puntos de tinta rosa sobre la cinta, como un camino marcado. */
 .sendero path.hecho {
   stroke: var(--rosa);
-  stroke-width: 4;
-  stroke-dasharray: 1 10;
+  stroke-width: 5;
+  stroke-dasharray: 1 11;
 }
 
-/* Cielo del mapa: nubes de papel, gaviotas y globos (Anexo 1, 1.4), solo adorno. */
+/* Cielo del mapa: nubes de papel, gaviotas, globos y el faro (Anexo 1, 1.4), solo adorno. */
 .mapa-cielo {
   position: absolute;
   inset: 0;
@@ -1214,6 +1271,7 @@ svg.estrella.llena path {
 
 .mapa-cielo .nube {
   width: 4.5rem;
+  filter: drop-shadow(3px 3px 0 color-mix(in srgb, var(--rosa) 35%, transparent));
 }
 
 .mapa-cielo .gaviota {
@@ -1235,8 +1293,8 @@ svg.estrella.llena path {
 }
 
 .mapa-cielo .n1 {
-  top: 4%;
-  left: 2%;
+  top: 7%;
+  left: 3%;
 }
 
 .mapa-cielo .n2 {
@@ -1245,42 +1303,71 @@ svg.estrella.llena path {
 }
 
 .mapa-cielo .n3 {
-  top: 52%;
-  left: 4%;
+  top: 50%;
+  left: 2%;
   width: 3.6rem;
 }
 
 .mapa-cielo .n4 {
-  top: 76%;
-  right: 6%;
+  top: 70%;
+  right: 4%;
   width: 3.8rem;
 }
 
 .mapa-cielo .g1 {
-  top: 63%;
-  left: 30%;
+  top: 61%;
+  left: 33%;
 }
 
 .mapa-cielo .g2 {
-  top: 66%;
-  left: 38%;
+  top: 63%;
+  left: 41%;
   width: 1.1rem;
 }
 
 .mapa-cielo .g3 {
-  top: 86%;
+  top: 17%;
   left: 62%;
 }
 
 .mapa-cielo .b1 {
-  top: 13%;
-  left: 7%;
+  top: 15%;
+  left: 6%;
 }
 
 .mapa-cielo .b2 {
   top: 40%;
-  right: 6%;
+  right: 5%;
   width: 1.9rem;
+}
+
+/* Faro sobre su roca, junto al primer tramo del camino. */
+.mapa-cielo .faro {
+  bottom: 0.4rem;
+  left: 4%;
+  width: 2.6rem;
+}
+
+.faro .luz {
+  fill: color-mix(in srgb, var(--amarillo) 55%, transparent);
+  stroke: none;
+}
+
+.faro .roca {
+  fill: color-mix(in srgb, var(--azul) 40%, var(--papel));
+}
+
+.faro .rayas {
+  fill: var(--rosa);
+  stroke: none;
+}
+
+.faro .linterna {
+  fill: var(--amarillo);
+}
+
+.faro .tejado {
+  fill: var(--rosa);
 }
 
 .mapa-niveles {
@@ -1294,12 +1381,12 @@ svg.estrella.llena path {
 
 .fila {
   position: relative;
-  height: 6rem;
+  height: 6.5rem;
 }
 
 .fila > * {
   position: absolute;
-  transform: translateX(-50%);
+  translate: -50% 0;
 }
 
 .fila.x0 > *,
@@ -1315,57 +1402,109 @@ svg.estrella.llena path {
   left: 24%;
 }
 
-/* Ficha redonda del nivel: número grande, con sombra de impresión. */
+/* Pegatina del nivel: disco de color con su número, borde de papel recortado,
+   contorno de tinta y sombra de impresión; cada columna, con su giro. */
 button.nivel-boton {
-  top: 0.9rem;
-  width: 3.6rem;
-  height: 3.6rem;
+  top: 1rem;
+  width: 3.7rem;
+  height: 3.7rem;
   min-width: 0;
   padding: 0;
   display: grid;
   place-items: center;
   border-radius: 50%;
   background: var(--amarillo);
-  box-shadow: 3px 4px 0 var(--tinta);
-  font-size: 1.4rem;
+  box-shadow:
+    0 0 0 4px var(--papel),
+    0 0 0 6.5px var(--tinta),
+    4px 6px 0 6.5px var(--tinta);
+  font-size: 1.55rem;
   font-weight: 800;
+  line-height: 1;
+}
+
+.fila.x0 button.nivel-boton {
+  rotate: -3deg;
+}
+
+.fila.x1 button.nivel-boton {
+  rotate: 4deg;
+}
+
+.fila.x2 button.nivel-boton {
+  rotate: 2deg;
+}
+
+.fila.x3 button.nivel-boton {
+  rotate: -4deg;
+}
+
+.nivel-boton .numero {
+  text-shadow: 2px 2px 0 color-mix(in srgb, var(--papel) 75%, transparent);
 }
 
 button.nivel-boton:active {
-  transform: translateX(-50%) translateY(3px);
+  transform: translateY(3px);
+  box-shadow:
+    0 0 0 4px var(--papel),
+    0 0 0 6.5px var(--tinta),
+    1px 2px 0 6.5px var(--tinta);
+}
+
+button.nivel-boton:focus-visible {
+  outline-offset: 10px;
+}
+
+button.nivel-boton.hecho.t1 {
+  background: var(--turquesa);
+}
+
+button.nivel-boton.hecho.t2 {
+  background: var(--naranja);
+}
+
+button.nivel-boton.hecho.t3 {
+  background: var(--verde);
 }
 
 button.nivel-boton.actual {
   background: var(--rosa);
+}
+
+/* El nivel actual late con un aro alrededor: la pegatina no se mueve y se puede tocar en cualquier momento. */
+button.nivel-boton.actual::after {
+  content: "";
+  position: absolute;
+  inset: -0.8rem;
+  border: 3px solid var(--rosa);
+  border-radius: 50%;
+  pointer-events: none;
   animation: llama 1.3s ease-in-out infinite;
 }
 
 button.nivel-boton.jefe {
-  width: 4.3rem;
-  height: 4.3rem;
-  top: 0.5rem;
-  border-width: 4px;
-  font-size: 1.7rem;
+  top: 0.7rem;
+  width: 4.4rem;
+  height: 4.4rem;
+  font-size: 1.9rem;
 }
 
 button.nivel-boton.jefe.hecho {
-  background: var(--turquesa);
+  background: var(--violeta);
 }
 
 button.nivel-boton.bloqueado {
   background: var(--papel-oscuro);
   opacity: 1;
-  box-shadow: 2px 2px 0 var(--tinta);
+  box-shadow:
+    0 0 0 4px var(--papel),
+    0 0 0 6.5px var(--tinta),
+    2px 3px 0 6.5px var(--tinta);
   color: color-mix(in srgb, var(--tinta) 55%, transparent);
 }
 
 button.nivel-boton.bloqueado .numero {
   display: none;
-}
-
-button.nivel-boton.elegido {
-  outline: 4px solid var(--azul);
-  outline-offset: 3px;
 }
 
 svg.candado {
@@ -1377,8 +1516,28 @@ svg.candado {
   stroke-linejoin: round;
 }
 
+/* Corona del jefe, ladeada sobre la pegatina. */
+svg.corona {
+  position: absolute;
+  top: -1.55rem;
+  left: 50%;
+  width: 2.2rem;
+  translate: -50% 0;
+  rotate: 8deg;
+  fill: var(--amarillo);
+  stroke: var(--tinta);
+  stroke-width: 1.6;
+  stroke-linejoin: round;
+}
+
+/* Estrellas de cada nivel: en una tira de papel bajo la pegatina, la del medio más alta. */
 .fila .estrellas {
-  top: 4.75rem;
+  top: 5.55rem;
+  padding: 0.05rem 0.3rem 0.15rem;
+  border: 2px solid var(--tinta);
+  border-radius: 999px;
+  background: var(--papel);
+  box-shadow: 2px 2px 0 var(--tinta);
 }
 
 .fila .estrellas svg.estrella {
@@ -1386,27 +1545,69 @@ svg.candado {
   height: 1.05rem;
 }
 
-.fila.x1 .estrellas,
-.fila.x3 .estrellas {
-  top: 4.75rem;
+.fila .estrellas svg.estrella:nth-child(2) {
+  translate: 0 -0.15rem;
+  width: 1.2rem;
+  height: 1.2rem;
 }
 
-/* «Estás aquí»: el siguiente nivel sin completar late. */
+.fila:has(.jefe) .estrellas {
+  top: 5.9rem;
+}
+
+/* «Estás aquí»: la pieza con ojos del juego asoma junto al último nivel disponible y da saltitos. */
+svg.avatar {
+  top: -0.6rem;
+  width: 2.3rem;
+  height: 2.3rem;
+  margin-left: -2.6rem;
+  rotate: -8deg;
+  animation: saltito 1.1s ease-in-out infinite;
+}
+
+.avatar .registro {
+  fill: var(--rosa);
+}
+
+.avatar .cuerpo {
+  fill: var(--turquesa);
+  stroke: var(--tinta);
+  stroke-width: 2.4;
+}
+
+.avatar .ojo {
+  fill: var(--tinta);
+}
+
+@keyframes saltito {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+/* El siguiente nivel sin completar late. */
 @keyframes llama {
   0%,
   100% {
-    transform: translateX(-50%) scale(1);
+    scale: 0.88;
+    opacity: 0.9;
   }
   50% {
-    transform: translateX(-50%) scale(1.08);
+    scale: 1.1;
+    opacity: 0.2;
   }
 }
 
+/* El Puerto al pie del mapa; «Jugar nivel N» flota sobre el agua. */
 .mapa-puerto {
   display: block;
   width: 100%;
-  height: 8rem;
-  margin-top: -1rem;
+  height: 13rem;
+  margin-top: -1.5rem;
 }
 
 .mapa-puerto .sol {
@@ -1433,6 +1634,25 @@ svg.candado {
   stroke-linecap: round;
 }
 
+.mapa-puerto .casco {
+  fill: var(--turquesa);
+  stroke: var(--tinta);
+  stroke-width: 0.7;
+  stroke-linejoin: round;
+}
+
+.mapa-puerto .vela {
+  fill: var(--papel);
+  stroke: var(--tinta);
+  stroke-width: 0.6;
+  stroke-linejoin: round;
+}
+
+.mapa-puerto .mastil {
+  stroke: var(--tinta);
+  stroke-width: 0.8;
+}
+
 .mapa-puerto .muelle {
   fill: var(--naranja);
   stroke: var(--tinta);
@@ -1444,9 +1664,114 @@ svg.candado {
   stroke-width: 1.6;
 }
 
+/* «Jugar nivel N»: el botón dominante del mapa, abajo y centrado. */
+button.jugar-nivel {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  bottom: max(1.1rem, calc(env(safe-area-inset-bottom) + 0.6rem));
+  width: min(20rem, calc(100% - 2rem));
+  padding: 0.7rem 1rem;
+  translate: -50% 0;
+  font-size: 1.4rem;
+  white-space: nowrap;
+}
+
+/* Ventana del nivel (F1): papel sobre el mapa oscurecido, con el título en una cinta. */
+.ventana-nivel {
+  width: min(21rem, calc(100vw - 2.5rem));
+  max-height: calc(100dvh - 2rem);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--tinta);
+  overflow: visible;
+}
+
+.ventana-nivel::backdrop {
+  background: color-mix(in srgb, var(--tinta) 55%, transparent);
+}
+
+.ventana-papel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 1.1rem 1.2rem 1.3rem;
+  border: var(--borde) solid var(--tinta);
+  border-radius: 18px;
+  background: var(--papel);
+  box-shadow: 7px 7px 0 var(--tinta);
+  text-align: center;
+}
+
+.ventana-nivel[open] .ventana-papel {
+  animation: asoma 200ms ease-out;
+}
+
+@keyframes asoma {
+  0% {
+    transform: scale(0.85) rotate(-3deg);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+.ventana-cabeza {
+  position: relative;
+  align-self: stretch;
+  display: flex;
+  justify-content: center;
+}
+
+.ventana-cabeza h3 {
+  margin: -2.2rem 0 0;
+  padding: 0.35rem 1.2rem;
+  border: var(--borde) solid var(--tinta);
+  border-radius: 10px;
+  background: var(--rosa);
+  box-shadow: 4px 4px 0 var(--tinta);
+  font-size: 1.4rem;
+  font-weight: 800;
+  transform: rotate(-2deg);
+}
+
+.ventana-cabeza button.icono {
+  position: absolute;
+  top: -2.1rem;
+  right: -2rem;
+}
+
+.ventana-papel .estrellas.grandes svg.estrella:nth-child(2) {
+  translate: 0 -0.5rem;
+  width: 3.1rem;
+  height: 3.1rem;
+}
+
+.ventana-papel .objetivo {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.ventana-papel .suave {
+  margin: 0;
+}
+
+.ventana-papel button.principal {
+  align-self: stretch;
+  font-size: 1.35rem;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .estrellas.aparecen svg.estrella.llena,
-  button.nivel-boton.actual {
+  button.nivel-boton.actual::after,
+  svg.avatar,
+  .ventana-nivel[open] .ventana-papel {
     animation: none;
   }
 }
@@ -1543,33 +1868,168 @@ svg.candado {
   fill: var(--amarillo);
 }
 
-/* Logo provisional (hasta el bloque G): dos líneas impresas fuera de registro. */
+/* Logo (G1, Anexo E): el título recortado en papel e impreso en tinta, con la
+   doble impresión rosa y azul fuera de registro; la «O» es la pieza que cuelga
+   y las «I», piezas apiladas. Los colores van aquí y no en el SVG. */
 .logo {
   align-self: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin: 0.2rem 0 0;
-  padding: 0.3rem 1.1rem 0.45rem;
-  border: var(--borde) solid var(--tinta);
-  border-radius: var(--radio);
-  background: var(--papel);
-  box-shadow: 6px 6px 0 var(--tinta);
-  font-size: min(3.4rem, calc(var(--columna) * 0.13));
+  /* Cabe en la columna menos 2 rem también en 320 px (G1). */
+  width: min(100%, calc(var(--columna) - 2rem), 22rem);
+  margin: 0.1rem 0 0;
+  line-height: 0;
+}
+
+.logo-dibujo {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 34dvh;
+  overflow: visible;
+}
+
+.logo-letras {
+  font-family: inherit;
   font-weight: 800;
-  line-height: 0.95;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  transform: rotate(-2deg);
 }
 
-.logo span:first-child {
-  text-shadow: 3px 3px 0 var(--rosa);
+.logo-letras.recorte {
+  fill: var(--papel);
+  stroke: var(--papel);
+  stroke-width: 11;
+  stroke-linejoin: round;
 }
 
-.logo span:last-child {
-  color: var(--rosa);
-  text-shadow: 3px 3px 0 var(--tinta);
+.logo-letras.rosa {
+  fill: var(--rosa);
+  translate: 3px 3px;
+}
+
+.logo-letras.azul {
+  fill: var(--azul);
+  opacity: 0.85;
+  translate: -1.5px -1.5px;
+}
+
+.logo-letras.tinta {
+  fill: var(--tinta);
+}
+
+.logo-pieza .recorte {
+  fill: var(--papel);
+  stroke: var(--papel);
+  stroke-width: 7;
+}
+
+.logo-pieza .registro {
+  fill: var(--rosa);
+}
+
+.logo-pieza .cuerpo {
+  stroke: var(--tinta);
+  stroke-width: 3;
+}
+
+.logo-pieza .turquesa {
+  fill: var(--turquesa);
+}
+
+.logo-pieza .amarillo {
+  fill: var(--amarillo);
+}
+
+.logo-pieza .rosa {
+  fill: var(--rosa);
+}
+
+.logo-pieza .violeta {
+  fill: var(--violeta);
+}
+
+/* La pila de la segunda «I» lleva arriba la amarilla: su sombra, en azul para que se vea. */
+.logo-pieza:has(.amarillo) .registro {
+  fill: var(--azul);
+}
+
+.logo-pieza .ojos {
+  fill: var(--tinta);
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: parpadeo 4.2s ease-in-out infinite;
+}
+
+.logo-pieza.p3 .ojos {
+  animation-duration: 3.4s;
+  animation-delay: 1.3s;
+}
+
+.logo-colgada .ojos {
+  animation-duration: 5s;
+  animation-delay: 0.6s;
+}
+
+.logo-cable {
+  fill: none;
+  stroke: var(--tinta);
+  stroke-width: 3;
+}
+
+.logo-gancho {
+  fill: var(--amarillo);
+  stroke: var(--tinta);
+  stroke-width: 2.5;
+}
+
+.logo-colgada {
+  animation: mece 3.6s ease-in-out infinite;
+}
+
+.logo-muelle {
+  fill: var(--naranja);
+  stroke: var(--tinta);
+  stroke-width: 3;
+}
+
+.logo-pilotes {
+  fill: none;
+  stroke: var(--tinta);
+  stroke-width: 4;
+  stroke-linecap: round;
+}
+
+.logo-agua {
+  fill: none;
+  stroke: var(--azul);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+/* Parpadeo cada pocos segundos (solo SVG y CSS). */
+@keyframes parpadeo {
+  0%,
+  92%,
+  100% {
+    transform: scaleY(1);
+  }
+  95% {
+    transform: scaleY(0.1);
+  }
+}
+
+@keyframes mece {
+  0%,
+  100% {
+    transform: rotate(-2.5deg);
+  }
+  50% {
+    transform: rotate(2.5deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .logo-pieza .ojos,
+  .logo-colgada {
+    animation: none;
+  }
 }
 
 .inicio-abajo {

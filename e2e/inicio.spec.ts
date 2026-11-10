@@ -247,3 +247,29 @@ test("Créditos y licencias nombra la letra, planck, la música original y la pr
   await expect(page.locator("#ajustes")).not.toContainText(/efectos reducidos|cómo se juega/i);
   expect(await page.locator("#ajustes .interruptor").evaluateAll((botones) => botones.map((b) => b.id))).toEqual(["ajuste-musica", "ajuste-sonidos", "ajuste-vibracion"]);
 });
+
+test("el logo es el <h1> «Torre Diaria» y su caja cabe en la columna menos 2 rem (G1)", async ({ page }, testInfo) => {
+  test.skip(conTactil(testInfo), "Solo maquetación: basta con escritorio (R17)");
+  await preparar(page);
+  for (const tam of [
+    { width: 320, height: 568 },
+    { width: 390, height: 844 },
+    { width: 1280, height: 800 },
+  ]) {
+    await page.setViewportSize(tam);
+    await page.goto("/");
+    await esperarInicio(page);
+    const caso = `${tam.width}×${tam.height}`;
+    const logo = page.getByRole("heading", { level: 1 });
+    await expect(logo, caso).toHaveCount(1);
+    await expect(logo, caso).toHaveAccessibleName("Torre Diaria");
+    await expect(logo, caso).toBeVisible();
+    await expect(page.locator("#inicio h1.logo svg.logo-dibujo"), caso).toBeVisible();
+    const caja = (await logo.boundingBox())!;
+    const columna = (await page.locator("#inicio").boundingBox())!;
+    const rem = await page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).fontSize));
+    expect(caja.width, caso).toBeLessThanOrEqual(columna.width - 2 * rem);
+    expect(caja.x, caso).toBeGreaterThanOrEqual(columna.x + rem - 0.5);
+    expect(caja.x + caja.width, caso).toBeLessThanOrEqual(columna.x + columna.width - rem + 0.5);
+  }
+});

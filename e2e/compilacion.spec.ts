@@ -74,3 +74,13 @@ test("dist/ no lleva direcciones de SDK de anuncios (G1)", () => {
     expect(readFileSync(new URL(ruta, DIST), "utf8"), ruta).not.toMatch(/crazygames|poki|googlesyndication|adsbygoogle/i);
   }
 });
+
+test("el favicon es un SVG en línea (data:image/svg+xml) sin texto, y no hay otro icono (G1, R11)", () => {
+  const iconos = html().match(/<link rel="icon"[^>]*>/g) ?? [];
+  expect(iconos).toHaveLength(1);
+  const href = /href="([^"]+)"/.exec(iconos[0]!)?.[1] ?? "";
+  expect(href.startsWith("data:image/svg+xml,")).toBe(true);
+  const svg = decodeURIComponent(href.slice("data:image/svg+xml,".length).replace(/&amp;/g, "&").replace(/&#39;/g, "'"));
+  expect(svg).toMatch(/^<svg xmlns='http:\/\/www\.w3\.org\/2000\/svg' viewBox='0 0 32 32'>/);
+  expect(svg).not.toMatch(/<text|<image|href=/);
+});

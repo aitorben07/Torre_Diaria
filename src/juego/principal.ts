@@ -1040,6 +1040,12 @@ document.addEventListener("keydown", (evento) => {
   const pausaConP = (evento.key === "p" || evento.key === "P") && !evento.ctrlKey && !evento.metaKey && !evento.altKey;
   if (evento.key === "Escape" || pausaConP) {
     if (evento.repeat) return;
+    // Con la ventana de un nivel abierta, Escape la cierra a ella sola y el mapa sigue (F1).
+    if (evento.key === "Escape" && panelNiveles.ventanaAbierta()) {
+      evento.preventDefault();
+      panelNiveles.cerrarVentana();
+      return;
+    }
     if (evento.key === "Escape" && esPanel(flujo.pantalla)) actuar({ tipo: "cerrar" });
     else if (flujo.pantalla === "pausa") actuar({ tipo: "seguirPartida" });
     else if (flujo.pantalla === "jugando") actuar({ tipo: "pausar" });

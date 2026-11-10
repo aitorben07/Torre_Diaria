@@ -26,7 +26,7 @@ test("ningún botón de anuncio en el inicio, la pausa, el fin de la libre, el f
   await sinBotonesDeAnuncio(page, "fin de la libre");
   await irAlInicio(page);
   await abrirNiveles(page);
-  await page.getByRole("button", { name: "Jugar el nivel 1" }).click();
+  await page.getByRole("button", { name: "Jugar nivel 1", exact: true }).click();
   await expect(juego(page)).toHaveAttribute("data-modo", "nivel");
   await jugarHastaElFin(page, conTactil(testInfo));
   await sinBotonesDeAnuncio(page, "fin de nivel");

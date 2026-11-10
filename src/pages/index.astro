@@ -1,21 +1,19 @@
 ---
 import "../estilos.css";
+import { ALTO_LOGO, ALTO_MAYUSCULA, ANCHO_LOGO, faviconSvg, LOGO, MUELLE, type LetraLogo, type PiezaLogo } from "../juego/logo.ts";
+import { COLORES } from "../juego/temas.ts";
 
 const titulo = "Torre Diaria";
 const descripcion =
   "Apila piezas con un solo toque. Juega al momento, encadena perfectos y prueba el reto de cada día, igual para todos. Gratis y sin registrarse.";
-// Favicon en SVG en línea: sin archivos de imagen en dist/. Colores de la paleta «Riso» (Anexo 1, 1.2).
-const favicon =
-  "data:image/svg+xml," +
-  encodeURIComponent(
-    "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'>" +
-      "<rect width='16' height='16' fill='#F3EAD7'/>" +
-      "<rect x='2' y='13' width='12' height='3' fill='#1E1B33'/>" +
-      "<rect x='4' y='9' width='8' height='4' fill='#FF4F8B' stroke='#1E1B33' stroke-width='0.6'/>" +
-      "<rect x='5' y='5' width='6' height='4' fill='#12A4A0' stroke='#1E1B33' stroke-width='0.6'/>" +
-      "<rect x='6' y='1' width='4' height='4' fill='#FFC93C' stroke='#1E1B33' stroke-width='0.6'/>" +
-      "</svg>",
-  );
+// Favicon en SVG en línea, con trazados y sin archivos de imagen en dist/: la pieza con ojos del logo (G1, Anexo E).
+const favicon = "data:image/svg+xml," + encodeURIComponent(faviconSvg());
+// Logo (G1): letras con la fuente de la página; cada una gira sobre el centro de sus mayúsculas.
+const capas = ["recorte", "rosa", "azul", "tinta"] as const;
+const giroLetra = (l: LetraLogo) => `rotate(${l.giro} ${l.x} ${l.base - (l.tamano * ALTO_MAYUSCULA) / 2})`;
+const giroPieza = (p: PiezaLogo) => `rotate(${p.giro} ${p.x + p.ancho / 2} ${p.y + p.alto / 2})`;
+const [colgada, ...apiladas] = LOGO.piezas as [PiezaLogo, ...PiezaLogo[]];
+const pilotes = MUELLE.pilotes.map((x) => `M${x} ${MUELLE.tablero.y + MUELLE.tablero.alto}v14`).join("");
 ---
 
 <!doctype html>
@@ -28,12 +26,11 @@ const favicon =
     <meta property="og:type" content="website" />
     <meta property="og:title" content={titulo} />
     <meta property="og:description" content={descripcion} />
-    <meta name="theme-color" content="#F3EAD7" />
+    <meta name="theme-color" content={COLORES.papel} />
     <link rel="icon" type="image/svg+xml" href={favicon} />
   </head>
   <body>
     <main id="juego" data-estado="inicio" data-modo="libre">
-      <h1 class="solo-lectores">Torre Diaria</h1>
       <div id="zona" class="zona">
         <canvas id="lienzo" aria-label="Zona de juego: toca o pulsa Espacio para soltar la pieza"></canvas>
 
@@ -71,8 +68,55 @@ const favicon =
               </svg>
             </button>
           </div>
-          {/* Logo provisional en texto hasta el bloque G; el título para lectores es el <h1>. */}
-          <p class="logo" aria-hidden="true"><span>Torre</span><span>Diaria</span></p>
+          {/* Logo (G1, Anexo E): el <h1> de la página. El dibujo es SVG en el HTML, sin `style="`; los colores, en estilos.css. */}
+          <h1 class="logo">
+            <span class="solo-lectores">Torre Diaria</span>
+            <svg class="logo-dibujo" viewBox={`0 0 ${ANCHO_LOGO} ${ALTO_LOGO}`} aria-hidden="true">
+              <path class="logo-agua" d={MUELLE.agua} />
+              <path class="logo-pilotes" d={pilotes} />
+              <rect class="logo-muelle" x={MUELLE.tablero.x} y={MUELLE.tablero.y} width={MUELLE.tablero.ancho} height={MUELLE.tablero.alto} rx="2" />
+              {
+                capas.map((capa) => (
+                  <g class={`logo-letras ${capa}`}>
+                    {LOGO.letras.map((l) => (
+                      <text x={l.x} y={l.base} font-size={l.tamano} text-anchor="middle" transform={giroLetra(l)}>
+                        {l.letra}
+                      </text>
+                    ))}
+                  </g>
+                ))
+              }
+              {
+                apiladas.map((p, i) => (
+                  <g class={`logo-pieza p${i}`} transform={giroPieza(p)}>
+                    <rect class="recorte" x={p.x} y={p.y} width={p.ancho} height={p.alto} rx="3" />
+                    <rect class="registro" x={p.x + 2.5} y={p.y + 2.5} width={p.ancho} height={p.alto} rx="3" />
+                    <rect class={`cuerpo ${p.color}`} x={p.x} y={p.y} width={p.ancho} height={p.alto} rx="3" />
+                    {p.ojos && (
+                      <g class="ojos">
+                        <circle cx={p.x + p.ancho * 0.32} cy={p.y + p.alto * 0.45} r="2.6" />
+                        <circle cx={p.x + p.ancho * 0.68} cy={p.y + p.alto * 0.45} r="2.6" />
+                      </g>
+                    )}
+                  </g>
+                ))
+              }
+              {/* La «O» cuelga del gancho y se mece desde lo alto del cable. */}
+              <g class="logo-colgada" transform-origin={`${LOGO.gancho.x} 0`}>
+                <path class="logo-cable" d={`M${LOGO.gancho.x} 0V${colgada.y}`} />
+                <rect class="logo-gancho" x={LOGO.gancho.x - 9} y={LOGO.gancho.y} width="18" height="7" rx="1.5" />
+                <g class="logo-pieza" transform={giroPieza(colgada)}>
+                  <rect class="recorte" x={colgada.x} y={colgada.y} width={colgada.ancho} height={colgada.alto} rx="6" />
+                  <rect class="registro" x={colgada.x + 3.5} y={colgada.y + 3.5} width={colgada.ancho} height={colgada.alto} rx="6" />
+                  <rect class={`cuerpo ${colgada.color}`} x={colgada.x} y={colgada.y} width={colgada.ancho} height={colgada.alto} rx="6" />
+                  <g class="ojos">
+                    <circle cx={colgada.x + colgada.ancho * 0.34} cy={colgada.y + colgada.alto * 0.42} r="5" />
+                    <circle cx={colgada.x + colgada.ancho * 0.66} cy={colgada.y + colgada.alto * 0.42} r="5" />
+                  </g>
+                </g>
+              </g>
+            </svg>
+          </h1>
           <div class="inicio-abajo">
             <p id="inicio-siguiente" class="siguiente" hidden></p>
             <button id="inicio-jugar" type="button" class="principal jugar">Jugar</button>
@@ -214,26 +258,24 @@ const favicon =
           <div id="calendario" class="calendario"></div>
         </section>
 
-        {/* Niveles (E3): ficha del nivel elegido y mapa del Puerto, de abajo arriba, con el camino en zigzag. */}
-        <section id="niveles" class="panel columna" aria-labelledby="niveles-titulo" hidden>
-          <div class="cabecera">
-            <h2 id="niveles-titulo">Niveles · Puerto</h2>
-            <p class="saldo">
-              <svg class="estrella llena" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.6l2.8 5.9 6.5.8-4.8 4.5 1.2 6.4L12 17l-5.7 3.2 1.2-6.4-4.8-4.5 6.5-.8z" /></svg>
-              <span id="niveles-estrellas">0</span><span id="niveles-estrellas-total" class="suave"></span><span class="solo-lectores"> estrellas</span>
-            </p>
-            <button id="cerrar-niveles" type="button" class="icono" aria-label="Cerrar">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+        {/* Niveles (F1, Anexo D): el mapa del Puerto ocupa la columna y se lee de abajo arriba; en los márgenes,
+            «Volver», el nombre del mundo, las estrellas y las monedas, y abajo «Jugar nivel N». Cada nivel abre su ventana. */}
+        <section id="niveles" class="niveles columna" aria-labelledby="niveles-titulo" hidden>
+          <div class="niveles-arriba">
+            <button id="cerrar-niveles" type="button" class="icono" aria-label="Volver">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 5l-7 7 7 7M8 12h11" /></svg>
             </button>
-          </div>
-          <div id="ficha-nivel" class="ficha ficha-nivel">
-            <div class="ficha-nivel-cabeza">
-              <h3 id="ficha-nivel-titulo"></h3>
-              <div id="ficha-nivel-estrellas" class="estrellas" role="img"></div>
+            <h2 id="niveles-titulo" class="ficha-margen titulo-mundo"><span class="solo-lectores">Niveles: </span>Puerto</h2>
+            <div class="niveles-saldos">
+              <p class="ficha-margen saldo">
+                <svg class="estrella llena" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.6l2.8 5.9 6.5.8-4.8 4.5 1.2 6.4L12 17l-5.7 3.2 1.2-6.4-4.8-4.5 6.5-.8z" /></svg>
+                <span id="niveles-estrellas">0</span><span id="niveles-estrellas-total" class="suave"></span><span class="solo-lectores"> estrellas</span>
+              </p>
+              <p class="ficha-margen saldo">
+                <svg class="moneda" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><circle class="canto" cx="12" cy="12" r="5.5" /></svg>
+                <span id="niveles-monedas">0</span><span class="solo-lectores"> monedas</span>
+              </p>
             </div>
-            <p id="ficha-nivel-objetivo" class="objetivo"></p>
-            <p id="ficha-nivel-detalle" class="suave"></p>
-            <button id="ficha-nivel-jugar" type="button" class="principal">Jugar</button>
           </div>
           <div id="mapa" class="mapa">
             <div class="mapa-camino">
@@ -247,21 +289,49 @@ const favicon =
                 <svg class="gaviota g3" aria-hidden="true" viewBox="0 0 24 10"><path d="M2 7q5-6 10 0q5-6 10 0" /></svg>
                 <svg class="globo b1" aria-hidden="true" viewBox="0 0 24 34"><path class="tela" d="M12 2a10 10 0 0 0-10 10c0 6 6 10 8 14h4c2-4 8-8 8-14A10 10 0 0 0 12 2z" /><path class="franja" d="M12 2c-3 3-4 7-4 10s1 9 2 14h4c1-5 2-11 2-14s-1-7-4-10z" /><path d="M10 27h4v5h-4z" /></svg>
                 <svg class="globo b2" aria-hidden="true" viewBox="0 0 24 34"><path class="tela" d="M12 2a10 10 0 0 0-10 10c0 6 6 10 8 14h4c2-4 8-8 8-14A10 10 0 0 0 12 2z" /><path class="franja" d="M12 2c-3 3-4 7-4 10s1 9 2 14h4c1-5 2-11 2-14s-1-7-4-10z" /><path d="M10 27h4v5h-4z" /></svg>
+                {/* Faro sobre su roca, a media altura: rayas rosas impresas fuera de registro. */}
+                <svg class="faro" aria-hidden="true" viewBox="0 0 32 64">
+                  <path class="luz" d="M16 9L1 3v12zM16 9l15-6v12z" />
+                  <path class="roca" d="M2 63c1-6 5-9 9-9h10c4 0 8 3 9 9z" />
+                  <path class="torre-faro" d="M10 55l2.5-38h7L22 55z" />
+                  <path class="rayas" d="M11.2 44h9.6l.5 6H10.7zM12 30.5h8l.4 6h-8.8z" />
+                  <path class="linterna" d="M11.5 10h9v7h-9z" />
+                  <path class="tejado" d="M10 10l6-6 6 6z" />
+                </svg>
               </div>
               <svg id="mapa-sendero" class="sendero" aria-hidden="true" preserveAspectRatio="none"></svg>
               <ol id="mapa-niveles" class="mapa-niveles" aria-label="Mapa de niveles"></ol>
             </div>
-            {/* El Puerto al pie del mapa, dibujado en SVG (sin imágenes en dist/, G8). */}
-            <svg class="mapa-puerto" viewBox="0 0 120 44" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+            {/* El Puerto al pie del mapa, dibujado en SVG (sin imágenes en dist/, G8): muelle, barco y agua, donde flota «Jugar nivel N». */}
+            <svg class="mapa-puerto" viewBox="0 0 120 60" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
               <circle class="sol" cx="30" cy="22" r="11" />
               <circle class="sol-registro" cx="31.5" cy="21" r="11" />
               <path class="siluetas" d="M6 30V12h2v-3h14v2H10v1h2v18zM84 30v-9l3-2 3 2v9zM92 30v-6h10v6zM104 30l2-10h2l2 10z" />
-              <path class="agua" d="M0 30q5-2 10 0t10 0 10 0 10 0 10 0 10 0 10 0 10 0 10 0 10 0 10 0 10 0V44H0z" />
-              <path class="espuma" d="M4 35q3-1.5 6 0M30 38q3-1.5 6 0M62 34q3-1.5 6 0M92 39q3-1.5 6 0" />
+              <path class="agua" d="M0 30q5-2 10 0t10 0 10 0 10 0 10 0 10 0 10 0 10 0 10 0 10 0 10 0 10 0V60H0z" />
+              <path class="espuma" d="M4 35q3-1.5 6 0M30 38q3-1.5 6 0M62 34q3-1.5 6 0M92 39q3-1.5 6 0M14 46q3-1.5 6 0M48 50q3-1.5 6 0M80 47q3-1.5 6 0M106 53q3-1.5 6 0" />
+              <path class="casco" d="M88 31.5h20l-3 5h-14z" />
+              <path class="vela" d="M98 30.5V18l8 12.5z" />
+              <path class="mastil" d="M98 31V17" />
               <rect class="muelle" x="38" y="27" width="44" height="4" rx="0.6" />
               <path class="pilotes" d="M42 31v8M52 31v8M68 31v8M78 31v8" />
             </svg>
           </div>
+          <button id="niveles-jugar" type="button" class="principal jugar jugar-nivel">Jugar nivel 1</button>
+          {/* Ventana del nivel (F1): se abre al tocar un nivel; Escape, «Cerrar» o tocar fuera la cierran. */}
+          <dialog id="ventana-nivel" class="ventana-nivel" aria-labelledby="ficha-nivel-titulo">
+            <div class="ventana-papel">
+              <div class="ventana-cabeza">
+                <h3 id="ficha-nivel-titulo"></h3>
+                <button id="ventana-nivel-cerrar" type="button" class="icono" aria-label="Cerrar">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+                </button>
+              </div>
+              <div id="ficha-nivel-estrellas" class="estrellas grandes" role="img"></div>
+              <p id="ficha-nivel-objetivo" class="objetivo"></p>
+              <p id="ficha-nivel-detalle" class="suave"></p>
+              <button id="ficha-nivel-jugar" type="button" class="principal" autofocus>Jugar</button>
+            </div>
+          </dialog>
         </section>
 
         {/* Colección (C3): temas de piezas y escenarios, con muestra dibujada, precio o condición. */}
