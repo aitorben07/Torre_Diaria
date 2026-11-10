@@ -79,10 +79,24 @@ test("la primera dorada avisa sin parar la partida; al volver a llegar ya no avi
   const aviso = page.locator("#aviso-especial");
   await expect(aviso).toBeVisible();
   await expect(aviso).toHaveText("Pieza dorada: vale el doble");
-  // El aviso no para la partida: los pasos siguen subiendo mientras se ve.
-  const antes = await pasos(page);
-  await expect.poll(() => pasos(page)).toBeGreaterThan(antes + 20);
-  await expect(aviso).toBeVisible();
+  // El aviso no para la partida: los pasos siguen subiendo mientras se ve. Se
+  // mira dentro de la página, fotograma a fotograma: desde Playwright, con el
+  // equipo cargado, la consulta podía llegar después de los 2,5 s del aviso.
+  const subenConAviso = await page.evaluate(
+    () =>
+      new Promise<boolean>((listo) => {
+        const el = document.getElementById("juego")!;
+        const avisoEl = document.getElementById("aviso-especial")!;
+        const desde = Number(el.dataset.pasos);
+        const mirar = () => {
+          if (avisoEl.hidden || !avisoEl.checkVisibility()) return listo(false);
+          if (Number(el.dataset.pasos) > desde + 20) return listo(true);
+          requestAnimationFrame(mirar);
+        };
+        mirar();
+      }),
+  );
+  expect(subenConAviso, "más de 20 pasos con el aviso a la vista").toBe(true);
   expect((await leerProgreso(page))?.vistos).toEqual(["dorada"]);
   // La dorada colocada: su efecto suma en data-efectos.
   await soltarCentrada(page);
