@@ -810,16 +810,19 @@ const panelTienda = new PanelTienda(
       cambiarTienda((p) => comprarObjeto(p, id), puede ? `${objetoPorId(id).nombre}: tienes ${guardado.actual.objetos[id] + 1}` : "");
     },
     // Vídeos (K2): el premio solo con «visto»; con «cancelado» o «error», nada y el botón sigue.
+    // El mensaje, solo si de verdad se cobra (otra pestaña puede haberlo cobrado mientras tanto).
     verVideoMonedas: () => {
       void anuncios.recompensado("monedas").then((resultado) => {
         if (resultado !== "visto") return cambiarTienda((p) => p, "Sin vídeo completo no hay premio");
-        cambiarTienda((p) => cobrarVideoMonedas(p, Date.now()), `+${MONEDAS_VIDEO} monedas`);
+        const da = cobrarVideoMonedas(guardado.releer(), Date.now()) !== guardado.actual;
+        cambiarTienda((p) => cobrarVideoMonedas(p, Date.now()), da ? `+${MONEDAS_VIDEO} monedas` : "");
       });
     },
     verVideoObjeto: (id) => {
       void anuncios.recompensado("objeto").then((resultado) => {
         if (resultado !== "visto") return cambiarTienda((p) => p, "Sin vídeo completo no hay premio");
-        cambiarTienda((p) => cobrarObjetoVideo(p, Date.now(), id), `${objetoPorId(id).nombre}: tienes ${guardado.releer().objetos[id] + 1}`);
+        const da = cobrarObjetoVideo(guardado.releer(), Date.now(), id) !== guardado.actual;
+        cambiarTienda((p) => cobrarObjetoVideo(p, Date.now(), id), da ? `${objetoPorId(id).nombre}: tienes ${guardado.actual.objetos[id] + 1}` : "");
       });
     },
     // Pagos (K1): solo con «pagado» se acredita, una vez por transacción.

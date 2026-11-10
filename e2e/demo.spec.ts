@@ -7,7 +7,7 @@
 // dura 3 s de verdad: con `page.clock.setFixedTime` los temporizadores siguen
 // en marcha y solo la hora queda fijada, así que se mueve a mano.
 import { expect, test, type Page } from "@playwright/test";
-import { abrirTienda, FECHA, juego, jugarLibre, leerProgreso, preparar, pulsarEnSeguir, sembrarProgreso, soltarEnExtremo } from "./ayudas.ts";
+import { abrirTienda, CLAVE_PROGRESO, FECHA, juego, jugarLibre, leerProgreso, preparar, pulsarEnSeguir, sembrarProgreso, soltarEnExtremo } from "./ayudas.ts";
 
 const conObjetos = (monedas: number) => ({
   version: 3,
@@ -101,6 +101,46 @@ test("vídeo de monedas: suma 60; a las 3 h 59 min dice «Disponible en 1 min» 
   await page.getByRole("dialog", { name: "Vídeo de prueba" }).getByRole("button", { name: "Cerrar" }).click();
   await expect(saldo(page)).toHaveText("60");
   await expect(page.locator("#video-monedas")).toBeEnabled();
+});
+
+test("si otra pestaña cobra el vídeo mientras se ve, al acabar no suma otra vez ni dice que ha sumado (K2)", async ({ page }) => {
+  await preparar(page);
+  await sembrarProgreso(page, conObjetos(0));
+  await page.goto("/");
+  await abrirTienda(page);
+  /** Mientras se ve el vídeo, otra pestaña guarda el premio en el progreso. */
+  const cobrarEnOtraPestana = (cambio: "monedas" | "objeto") =>
+    page.evaluate(
+      ([clave, cambio]) => {
+        const p = JSON.parse(localStorage.getItem(clave)!);
+        p.recompensas = { ultimoVideoMonedas: 0, diaObjetoVideo: 0, objetosVideo: 0, ...p.recompensas };
+        if (cambio === "monedas") {
+          p.monedas += 60;
+          p.recompensas.ultimoVideoMonedas = Date.now();
+        } else {
+          // Un día guardado en el futuro cuenta como hoy: el de hoy ya está gastado.
+          p.objetos.cemento += 1;
+          p.recompensas.diaObjetoVideo = 999_999;
+          p.recompensas.objetosVideo = 1;
+        }
+        localStorage.setItem(clave, JSON.stringify(p));
+      },
+      [CLAVE_PROGRESO, cambio] as const,
+    );
+  await page.locator("#objeto-video-cemento").click();
+  await expect(page.getByRole("dialog", { name: "Vídeo de prueba" })).toBeVisible();
+  await cobrarEnOtraPestana("objeto");
+  await verVideoEntero(page);
+  expect((await leerProgreso(page))!.objetos.cemento).toBe(1);
+  await expect(page.locator("#tienda-mensaje")).not.toContainText("tienes");
+  await pestana(page, "Monedas").click();
+  await page.locator("#video-monedas").click();
+  await expect(page.getByRole("dialog", { name: "Vídeo de prueba" })).toBeVisible();
+  await cobrarEnOtraPestana("monedas");
+  await verVideoEntero(page);
+  expect((await leerProgreso(page))!.monedas).toBe(60);
+  await expect(saldo(page)).toHaveText("60");
+  await expect(page.locator("#tienda-mensaje")).not.toContainText("+60");
 });
 
 test("un objeto gratis con vídeo al día: tras verlo, «Tienes 1» más y ningún objeto lo ofrece ya (K2)", async ({ page }) => {
