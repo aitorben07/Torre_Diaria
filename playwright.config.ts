@@ -24,8 +24,10 @@ export default defineConfig({
   use: {
     baseURL: `http://localhost:${PUERTO}`,
   },
-  // Las dos compilaciones van a la vez, cada una en su carpeta. El segundo
-  // `astro preview` no mira el cerrojo del primero (`--ignore-lock`).
+  // Las dos compilaciones van una tras otra, cada una en su carpeta: Playwright
+  // arranca cada `webServer` cuando el anterior ya responde, así que no se
+  // pisan `.astro/`. El segundo `astro preview` no mira el cerrojo del primero
+  // (`--ignore-lock`).
   webServer: [
     {
       command: `npm run build && npx astro preview --port ${PUERTO}`,
