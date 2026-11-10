@@ -263,6 +263,16 @@ test("todos los botones visibles miden al menos 44×44 px en el inicio, jugando,
   await preparar(page);
   await page.goto("/");
   const comprobar = async (pantalla: string) => {
+    // Se mide con las animaciones de entrada acabadas: la ventana del nivel
+    // entra escalando (200 ms) y, con el equipo cargado, se medía a medias.
+    await page.evaluate(() =>
+      Promise.all(
+        document
+          .getAnimations()
+          .filter((a) => a.effect?.getComputedTiming().iterations !== Infinity)
+          .map((a) => a.finished.catch(() => undefined)),
+      ),
+    );
     const botones = await botonesVisibles(page);
     expect(botones.length, pantalla).toBeGreaterThan(0);
     for (const b of botones) {
