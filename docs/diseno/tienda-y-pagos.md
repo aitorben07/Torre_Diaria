@@ -54,7 +54,7 @@ Los productos (qué da cada id) y la acreditación están en `src/logica/tienda.
 
 - `acreditarCompra` es pura: recibe el progreso y la transacción y devuelve el progreso nuevo.
 - No acredita dos veces la misma transacción: busca su id en `compras.transacciones`.
-- Cada compra acreditada se guarda como `{ id, producto, monedas, fecha }`, como mucho 50. Así se sabe cuántas monedas compradas quedan sin gastar (desistimiento de 14 días de la moneda no usada, pautas de la red CPC de 2025).
+- Cada compra acreditada se guarda como `{ id, producto, monedas, fecha }`, como mucho 50; `monedas` son las acreditadas de verdad (en el pack, las de las unidades que no cupieron). Así se sabe cuántas monedas compradas quedan sin gastar (desistimiento de 14 días de la moneda no usada, pautas de la red CPC de 2025).
 - Se acredita con `Guardado.cambiar`, que ya resuelve dos pestañas abiertas.
 - Nada pagado se recorta por topes. Si dos pestañas compran el pack a la vez y una unidad ya no cabe, esa unidad se acredita en monedas a su precio de la tienda.
 - El pack desbloquea los tres objetos al acreditarse: lo pagado se puede usar ya, aunque aún no tocara por partidas.
@@ -77,7 +77,7 @@ La política está en `src/logica/recompensas.ts` (`MONEDAS_VIDEO`, `HORAS_VIDEO
 
 - `npm run build:demo` deja `dist-demo/` (en `.gitignore`), con la banda fija «Demostración: no se cobra nada y los vídeos son de prueba». **No se despliega nunca** (Decisión T21).
 - Se ven la pestaña Monedas, el «≈ X,XX €» bajo cada precio en monedas, «Gratis con vídeo» en los objetos y «Ver vídeo» en «¿Seguir?». No hay ficha «Monedas gratis» en el inicio (recorte R-10).
-- `npm run e2e` la compila y la sirve en el puerto 4330 (segundo `webServer` de `playwright.config.ts`, con `--ignore-lock`) y corre el proyecto `demo` (`e2e/demo.spec.ts`, 5 pruebas, solo escritorio).
+- `npm run e2e` la compila y la sirve en el puerto 4330 (segundo `webServer` de `playwright.config.ts`, con `--ignore-lock`) y corre el proyecto `demo` (`e2e/demo.spec.ts`, 6 pruebas, solo escritorio).
 
 ## 7. Qué haría falta para activarlo
 
@@ -94,6 +94,8 @@ Fase posterior. Cada punto marcado **[usuario]** lo tiene que dar o decidir el u
 6. **Asesoría legal** [usuario]: condiciones de venta, renuncia expresa al desistimiento en contenido digital, menores, política de privacidad y, con anuncios, consentimiento y edad mínima para consentir en España (a revisar).
 7. **Vídeos:** [usuario] cuenta en el portal o en AdSense o AdMob y adaptador de `Anuncios` en una compilación aparte (`anuncios.md`, apartado 5).
 8. Cambiar el texto de «Privacidad» en Ajustes.
+9. **Duplicados con más de 50 compras.** `acreditarCompra` solo mira las últimas `MAX_TRANSACCIONES` (50) transacciones guardadas: un id más antiguo que el proveedor volviera a mandar se acreditaría otra vez. Hará falta registrar los ids en el servidor o confirmar con el proveedor que cada transacción se entrega una sola vez.
+10. **Pagos pendientes.** Con `"pendiente"` la Tienda dice «Pago pendiente de confirmar» y no guarda nada: si el pago se confirma después, nadie lo concilia ni lo acredita. Hará falta que el adaptador entregue las compras pendientes al abrir la página (o un aviso del servidor) y acreditarlas entonces con `acreditarCompra`.
 
 ## Fuentes (consultadas el 2026-11-09)
 
