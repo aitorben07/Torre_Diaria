@@ -146,9 +146,11 @@ export class Musica {
   programar(): void {
     const s = this.salida();
     if (!s) {
-      // Sin contexto en marcha (antes del primer gesto, o suspendido): nada que programar,
-      // y el motivo de fin ya no toca: sonaría tarde.
+      // Sin contexto en marcha (antes del primer gesto, apagada o suspendido): nada que programar,
+      // y el motivo de fin ya no toca: sonaría tarde. La sesión se suelta ya (no suena) y el
+      // secuenciador también: si siguiera, al volver daría de golpe todo lo que faltaba.
       this.finPendiente = false;
+      this.soltarSesion();
       return;
     }
     this.programarEn(s, s.ctx.currentTime);
@@ -183,7 +185,16 @@ export class Musica {
     const sec = this.secuenciador;
     if (sec.nombre !== pista) sec.pedirPista(PISTAS[pista]);
     sec.capaPedida = this.capaPedida;
-    for (const nota of sec.notas(ahora + ANTICIPACION_S)) this.tocar(s.ctx, this.sesion, nota.instrumento, nota.midi, nota.tiempo, nota.duracion, nota.volumen);
+    for (const nota of sec.notas(ahora + ANTICIPACION_S, ahora)) this.tocar(s.ctx, this.sesion, nota.instrumento, nota.midi, nota.tiempo, nota.duracion, nota.volumen);
+  }
+
+  /** Suelta la sesión sin contexto y guarda el compás si la música sigue encendida, para seguir por él. */
+  private soltarSesion(): void {
+    const pista = this.tema === "inicio" || this.tema === "partida" ? this.tema : null;
+    if (pista && this.encendida && this.secuenciador?.nombre === pista) this.reanudar = { pista, compas: this.secuenciador.compas };
+    this.sesion?.filtro.disconnect();
+    this.sesion = null;
+    this.secuenciador = null;
   }
 
   /** Salida de la sesión: un filtro por instrumento, el de la caída y el volumen de la música. */

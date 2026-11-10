@@ -79,8 +79,12 @@ export class Secuenciador {
     return this.inicioCompas + pulsos * negra;
   }
 
-  /** Las notas que empiezan antes de `hasta` y aún no se han dado, en orden. */
-  notas(hasta: number): NotaProgramada[] {
+  /**
+   * Las notas que empiezan antes de `hasta` y aún no se han dado, en orden. Las
+   * que empezaban antes de `desde` (un fotograma muy tardío) se saltan: sonarían
+   * tarde y todas a la vez.
+   */
+  notas(hasta: number, desde = -Infinity): NotaProgramada[] {
     const salida: NotaProgramada[] = [];
     for (;;) {
       const compas = this.pista.compases[this.compasActual]!;
@@ -88,7 +92,7 @@ export class Secuenciador {
         const nota = compas.notas[this.siguiente]!;
         const tiempo = this.inicioCompas + momentoDe(this.pista, nota.corchea);
         if (tiempo >= hasta) return salida;
-        if (nota.capa <= this.capaDelCompas) {
+        if (nota.capa <= this.capaDelCompas && tiempo >= desde) {
           salida.push({
             instrumento: nota.instrumento,
             midi: nota.midi,

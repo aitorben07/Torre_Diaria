@@ -190,6 +190,43 @@ describe("música programada desde el bucle de fotogramas (D1)", () => {
     expect(musica.etiqueta).toBe("fin:0");
   });
 
+  it("al apagarla sin salida suelta la sesión y, al encenderla 10 min después, no da de golpe lo que faltaba", () => {
+    const { ctx, salida, cuenta } = contextoFalso();
+    let conMusica = true;
+    // Como `Sonido.paraMusica()`: con la música apagada, la salida es `null`.
+    const musica = new Musica(() => (conMusica ? salida : null));
+    musica.poner("partida");
+    fotogramas(musica, ctx, 10);
+    musica.cambiar(false);
+    conMusica = false;
+    fotogramas(musica, ctx, 1);
+    expect(cuenta.desconectados).toBe(1);
+    ctx.currentTime += 600;
+    const notas = musica.notas;
+    const nodos = cuenta.nodos;
+    musica.cambiar(true);
+    conMusica = true;
+    fotogramas(musica, ctx, 1 / 60);
+    expect(musica.notas - notas).toBeLessThan(8);
+    expect(cuenta.nodos - nodos).toBeLessThan(40);
+  });
+
+  it("si el contexto se suspende a mitad de pista, al volver sigue por su compás sin notas atrasadas", () => {
+    const { ctx, salida, cuenta } = contextoFalso();
+    let enMarcha = true;
+    const musica = new Musica(() => (enMarcha ? salida : null));
+    musica.poner("partida");
+    fotogramas(musica, ctx, 10);
+    enMarcha = false;
+    fotogramas(musica, ctx, 30);
+    const antes = cuenta.arranques.length;
+    enMarcha = true;
+    fotogramas(musica, ctx, 1 / 60);
+    for (const t of cuenta.arranques.slice(antes)) expect(t).toBeGreaterThanOrEqual(ctx.currentTime);
+    expect(cuenta.arranques.length - antes).toBeLessThan(8);
+    expect(musica.etiqueta).toMatch(/^partida:/);
+  });
+
   it("la salida de la música va a 0,25 y se suelta al cortarla", () => {
     const { ctx, salida, cuenta } = contextoFalso();
     expect(VOLUMEN_MUSICA).toBe(0.25);

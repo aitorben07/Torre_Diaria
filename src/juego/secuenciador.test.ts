@@ -49,6 +49,15 @@ describe("secuenciador (D1)", () => {
     tres.forEach((n, i) => expect(n.tiempo).toBeCloseTo(quiero[i]!.tiempo, 9));
   });
 
+  it("tras un fotograma muy tardío salta las notas que ya pasaron y da solo las de la ventana", () => {
+    const sec = new Secuenciador(PARTIDA, 0, 2);
+    sec.notas(0.2, 0);
+    const notas = sec.notas(61, 60);
+    const quiero = new Secuenciador(PARTIDA, 0, 2).notas(61).filter((n) => n.tiempo >= 60);
+    expect(quiero.length).toBeGreaterThan(0);
+    expect(notas).toEqual(quiero);
+  });
+
   it("la capa pedida a mitad de compás se aplica al empezar el siguiente", () => {
     const compas = CORCHEAS * segundosCorchea(PARTIDA.bpm);
     const sec = new Secuenciador(PARTIDA, 0, 0);
