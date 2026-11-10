@@ -145,3 +145,37 @@ Ninguno.
 ## Procesos y puertos
 
 Los servidores y navegadores de las e2e los lanzó y cerró Playwright. Un `python3 -` mío quedó esperando entrada y lo cerré por PID (10900). Archivo temporal `e2e/zz-tmp.spec.ts` creado y borrado. Al terminar no queda ningún `node`, `chrome` ni `python` mío ni puerto ocupado por mí (el 42050 es de otro proceso, `/silentConfig`).
+
+# Vuelta 3
+
+Commit probado: 6df7b98 (diff desde 01a2530). `docs/diseno/anuncios.md` figura modificado en el árbol de trabajo desde antes de esta vuelta; no es mío y no lo he tocado.
+
+**Veredicto: APROBADO salvo: toque/Espacio con la última vida en un navegador real a mano y barra de objetos a mano (solo comprobados con e2e, ver «Sin comprobar»).**
+
+## Requisitos
+
+| Requisito | Cómo se comprobó | Resultado |
+|---|---|---|
+| Diff sin relajar pruebas ni seguridad | Leído el diff de `src`, `e2e` y `playwright.config.ts`. `pulsarEnSeguir` reintenta la pulsación hasta pasados 700 ms, no la salta; las comprobaciones de gasto siguen intactas y hay una prueba nueva más estricta | Cumple |
+| `npm test` | 35 archivos, 463 pruebas | Pasa |
+| `npm run check` | 0 errores, 0 avisos, 3 sugerencias | Pasa |
+| `npm run build` y `build:demo` | Ejecutados | Pasan |
+| `npm run e2e` completo | 243 pasadas, 87 omitidas (proyectos y motores que no tocan), 0 fallos, 28,4 min | Pasa |
+| «¿Seguir?»: la pulsación previa no gasta (punto 2) | Restauré `flujo.ts` y `principal.ts` de 01a2530 y ejecuté la e2e nueva: falla (la partida pasa a «fin» por el clic al aparecer). Con el arreglo pasa. Restaurados los archivos; `git status` limpio | Cumple |
+| Música: no programa de golpe tras reencender | Con el `AudioContext` real, Música apagada, una pieza, 90 s en pausa, encendida de nuevo: 2 nodos creados en todo el tiempo apagado y 5, 13, 14, 15, 19, 19 nodos acumulados en los 3 s siguientes (unos 6 por segundo, sin pico). Más pruebas unitarias nuevas (`musica.test.ts`, `secuenciador.test.ts`) | Cumple |
+| La barra de objetos desactiva el reloj activo (y el cemento sobre pieza de cemento) | e2e `objetos.spec.ts` (reloj y cemento usados quedan `disabled` con `data-cuantos` bajando a 1) y `simulacion.test.ts` | Cumple (por e2e) |
+| Espacio/Intro con el foco en el título de «¿Seguir?» | e2e nueva: Enter y Space no gastan y el foco está en `#seguir-titulo` | Cumple (por e2e) |
+
+## Fallos
+
+Ninguno.
+
+## Sin comprobar
+
+- La pulsación real de Espacio o el toque con la última vida y la barra de objetos no las hice con una persona en un navegador abierto; solo con las e2e automatizadas (Chromium de Playwright), que sí fallan sin el arreglo.
+- La prueba del `AudioContext` real no la hice jugando 2 minutos seguidos, sino con 90 s de pausa con la música apagada tras una pieza, porque una partida sin vigilancia acaba antes. No se oye el audio (sin salida de sonido en la prueba): solo se cuentan nodos.
+- No se ejecuta en GitHub Actions ni en móvil físico.
+
+## Procesos y puertos
+
+Los servidores y navegadores los lanzó y cerró Playwright. Archivo temporal `e2e/tmp-vuelta3.spec.ts` creado y borrado; `flujo.ts` y `principal.ts` restaurados byte a byte. Al terminar no queda ningún proceso mío ni puerto 4329/4330 ocupado.
