@@ -207,3 +207,18 @@ Ninguno.
 ## Procesos y puertos
 
 Servidores y navegadores los lanzó y cerró Playwright. Archivo temporal `e2e/tmp-real.spec.ts` creado y borrado. Código de `src/` sin cambios entre 48c6a82 y el HEAD probado. No queda ningún proceso mío ni puerto 4329/4330 ocupado.
+
+## Vuelta 5: precios de temas ×1,5 (commit 5426204)
+
+**Veredicto: APROBADO.** El diff solo toca precios de temas, las pruebas que dependen de ellos y documentación; no se relaja nada más.
+
+| Comprobación | Resultado |
+|---|---|
+| `npm test` | 35 archivos, 465 pruebas, todas pasan (sin intermitencias esta vez) |
+| `npm run check` | 0 errores, 0 avisos, 3 hints |
+| `npm run build` | Correcto |
+| `npm run medir:economia` | Coincide con `mediciones.md` («L3 tras la revisión final»): medio 3 temas el día 7 y catálogo el día 14, experto día 7, novato 10,1 min, reloj con una partida del medio |
+| e2e `tienda` y `progreso`, escritorio y móvil | 23 pasan, 5 omitidas (tienda en móvil, omitida por diseño: solo DOM, R17) |
+| Guardado con temas a precio antiguo | `catalogo.test.ts` (Madera y Oro comprados, 50 monedas): se conservan, se pueden equipar y no se recompran |
+
+Sin comprobar: no se repitió la suite e2e completa (indicado). Procesos: los lanzó y cerró Playwright; no queda ninguno mío ni puerto ocupado. Rama en 5426204 al terminar.
