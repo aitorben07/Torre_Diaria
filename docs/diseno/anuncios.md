@@ -4,7 +4,7 @@ Nada de esto se implementa en la segunda versión. El bloque G solo deja los hue
 
 **Estado en el código (2026-11-09):** no hay ningún anuncio activo, ni SDK, ni peticiones a otros orígenes, ni botones de anuncio. Existen solo los puntos de llamada de `src/juego/anuncios.ts`, que con `anunciosNulos` no hacen nada: `partidaEmpieza` y `partidaPara` (al empezar, seguir, acabar o pausar una partida) y el intersticial de los puntos 4 («Otra vez» desde el fin de una partida libre) y 5 («Siguiente nivel»). En la v2, los puntos 1 a 3 (recompensados) solo tenían sus tipos en la interfaz (`recompensado`, `MotivoRecompensado`) y ningún botón. Tampoco existe la política del apartado 3: las llamadas se hacen siempre y, si hubiera un anuncio listo, el juego lo espera. `anunciosDePlataforma` ignora `PUBLIC_PLATAFORMA` y devuelve siempre `anunciosNulos`; el reto diario no tiene ninguna llamada de intersticial.
 
-**Cambiado en la v3 (plan del 2026-11-09, `docs/proceso/tercera-version/`):** los recompensados pasan a tener llamada y botón, pero **solo se ven con un adaptador de anuncios disponible** (`anuncios.disponible()`). En la web, con `anunciosNulos`, no se ve ningún botón de vídeo (apartado 4). Los motivos son `"monedas"` (60 monedas cada 4 h, en Tienda > Monedas), `"objeto"` (1 objeto al día) y `"seguir"` (1 vida en «¿Seguir?», una vez por partida y solo en la partida libre). El premio solo se da con `"visto"` y la política vive en `src/logica/recompensas.ts`. Diseño completo en [`tienda-y-pagos.md`](tienda-y-pagos.md). Los puntos 2 («×2 monedas») y 3 («Congelador gratis») de la tabla siguen sin hacerse.
+**Cambiado en la v3 (plan del 2026-11-09, `docs/proceso/tercera-version/`; lo que difiere del plan, abajo):** los recompensados pasan a tener llamada y botón, pero **solo se ven con un adaptador de anuncios disponible** (`anuncios.disponible()`). En la web, con `anunciosNulos`, no se ve ningún botón de vídeo (apartado 4). Los motivos son `"monedas"` (60 monedas cada 4 h, en Tienda > Monedas), `"objeto"` (1 objeto al día) y `"seguir"` (1 vida en «¿Seguir?», una vez por partida y solo en la partida libre). El premio solo se da con `"visto"` y la política vive en `src/logica/recompensas.ts`. Diseño completo en [`tienda-y-pagos.md`](tienda-y-pagos.md). Los puntos 2 («×2 monedas») y 3 («Congelador gratis») de la tabla siguen sin hacerse.
 
 ## 1. Papel de los anuncios
 
@@ -28,7 +28,7 @@ Se pide solo si se cumplen todas: han pasado ≥ 180 s desde el último anuncio 
 
 ## 4. Lo que nunca se hace
 
-- Anuncios durante la partida, al pulsar botones de navegación (Inicio, Retos, Colección, Ajustes) o nada más abrir la web propia.
+- Anuncios durante la partida, al pulsar botones de navegación (Inicio, Retos, Tienda, Ajustes) o nada más abrir la web propia.
 - Anuncios en el reto diario oficial, o cualquier ventaja de puntuación a cambio de verlos.
 - Encadenar anuncios por un premio, dar el premio si el anuncio falla, o mostrar botones de anuncio que no hacen nada.
 - Botones engañosos, cierre escondido o retrasado.
@@ -70,3 +70,11 @@ Cuenta de desarrollador en el portal elegido; si es web propia, cuenta AdSense, 
 - [Poki: SDK HTML5](https://sdk.poki.com/html5.html) y [requisitos](https://sdk.poki.com/new-requirements)
 - [Google: API de colocación de anuncios](https://developers.google.com/ad-placement/apis) y [tipos de colocación](https://developers.google.com/ad-placement/docs/placement-types)
 - [Registro de npm: @fontsource-variable/bricolage-grotesque](https://registry.npmjs.org/@fontsource-variable/bricolage-grotesque/latest)
+
+## 9. Dónde la implementación de la v3 difiere de este plan (2026-11-10)
+
+- «Seguir» (punto 1) solo existe en la partida libre (recorte R-4); en el reto y en los niveles no se ofrece.
+- «¿Seguir?» no acepta toques durante 700 ms (`ESPERA_FIN_MS`) y lleva el foco en el título, para que un toque rezagado de la partida no elija sin querer.
+- Los mensajes de vídeo solo salen si hubo premio (decisión tras el revisor); en la web no hay vídeos, porque `anuncios.disponible()` es falso.
+- No existe la ficha «Monedas gratis» del inicio (recorte R-10): el vídeo de monedas vive solo en Tienda > Monedas, visible únicamente en la compilación de demostración.
+- Siguen sin hacerse los puntos 2 y 3 de la tabla, y la política del apartado 3 (frecuencias del intersticial) sigue sin existir: las llamadas se hacen siempre.

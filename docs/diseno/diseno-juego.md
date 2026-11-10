@@ -348,7 +348,7 @@ Cada interruptor es un `button` con `role="switch"` y `aria-checked`, de 44 px o
 └──────────────────────────────┘
 ```
 
-Al tocar un nivel abierto se abre una ventana con «Nivel 8», sus estrellas, el objetivo en una frase, «2 estrellas: 550 puntos · 3: 600», «Jugar» y «Cerrar». En escritorio, el mapa ocupa la columna de 9:16 y a los lados sigue el escenario. Se mantienen los mismos 10 niveles, el camino en zigzag, las nubes, los globos y las gaviotas de la v2.
+Al tocar un nivel abierto se abre una ventana con «Nivel 8», sus estrellas, el objetivo en una frase, «2 estrellas: 750 puntos · 3: 800», «Jugar» y «Cerrar». En escritorio, el mapa ocupa la columna de 9:16 y a los lados sigue el escenario. Se mantienen los mismos 10 niveles, el camino en zigzag, las nubes, los globos y las gaviotas de la v2.
 
 ### 10.4. Logo
 
@@ -373,8 +373,8 @@ Al tocar un nivel abierto se abre una ventana con «Nivel 8», sus estrellas, el
 
 | Pista | Compases | Tempo | Cuándo |
 |---|---|---|---|
-| Inicio | 8, en bucle | 88 BPM | Inicio, mapa, tienda, retos y ajustes (al abrir un panel desde la partida, sigue la de partida) |
-| Partida | 16, en bucle, una variación | 104 BPM, fijo | Libre, reto y nivel |
+| Inicio | 16, en bucle | 88 BPM | Inicio, mapa, tienda, retos y ajustes (al abrir un panel desde la partida, sigue la de partida) |
+| Partida | 32, en bucle, forma A A' B A' | 104 BPM, fijo | Libre, reto y nivel |
 | Fin | Motivo Sol, Mi, Do; 1,5 s | — | Al perder la última vida o acabar el reto |
 | Victoria | El arpegio de `sonido.record()` | — | Nivel ganado, antes de las estrellas |
 
@@ -457,7 +457,7 @@ No hay velocidad mínima: con el ritmo ≥ 0, la velocidad base nunca baja de la
 | Niveles | Cada nivel fija su velocidad inicial | Se miden con las reglas 3 |
 | Reto diario | La misma curva que la libre | Igual para todos |
 
-Medido antes de programar (días 1 a 30, sin especiales, `impacto.md` 2.1): cadencia inicial del medio 2,47 s y duraciones medianas de 62,4 s (novato), 142,0 s (medio) y 262,4 s (experto). Las cifras con el código final están en el `README.md`.
+Medido antes de programar (días 1 a 30, sin especiales, `impacto.md` 2.1): cadencia inicial del medio 2,47 s y duraciones medianas de 62,4 s (novato), 142,0 s (medio) y 262,4 s (experto). Con el código final y las especiales: 60,1, 145,1 y 261,8 s (README, apartado Mediciones).
 
 **Reglas 3 y días ya jugados:** los días guardados con `reglas: 2` conservan sus puntos y su medalla con los umbrales de la v2 (550, 2.400 y 4.000); los de `reglas: 3` usan los suyos. Repetir o jugar atrasado un día de la v2 se hace con las reglas 3.
 
@@ -481,3 +481,22 @@ estadisticas: { …v2, partidas: número }                  // nuevo campo dentr
 - Al migrar, `ajustes.musica` copia `ajustes.sonido`: quien silenció el juego no oye música de repente.
 - `estadisticas.partidas` migrado = partidas libres + días jugados + niveles con estrellas.
 - **Volver a la v2:** el código de la v2 lee un guardado v3 (acepta `version ≥ 2`) y conserva monedas, retos, racha, niveles y catálogo, pero al guardar borra los campos v3 (objetos, desbloqueos, avisos vistos y música).
+
+### 10.11. Dónde la implementación difiere de este diseño (2026-11-10)
+
+Valen el código y el `README.md`; los motivos están en `docs/proceso/tercera-version/` (`estado.md`, línea «Decisiones tomadas», e `impacto.md`, apartado 5).
+
+- **Recortes R-1 a R-10:** los de la cabecera de este apartado. No hay «Efectos reducidos» ni «Cómo se juega» en Ajustes, ni ficha «Monedas gratis» en el inicio (R-10 prevalece sobre K3), ni logo en el canvas, ni lote de inicio.
+- **Velocidad:** constantes del analista sin ajustar (`VEL_INICIAL` 1,3, `VEL_INCREMENTO` 0,025, `AMPLITUD` 2,6, `HUECO_COLGADA` 1,8, `RESPIRO_CAIDA` 4). El novato queda en 60,1 s, a 0,1 s del mínimo de su objetivo: si baja, subir `RESPIRO_CAIDA`.
+- **Medallas:** `UMBRALES[3]` = bronce 450, plata 2.600, oro 6.750 (medidos con `npm run medir:duracion`; los provisionales iguales a los de la v2 se sustituyeron en L1). `UMBRALES[2]` no cambia.
+- **Niveles recalculados:** los niveles 1 a 3 empiezan a 1,1 m/s (no a 0,9); el 4 pide 14 piezas a 1,5 m/s; el 7, 16 piezas; el 8, 750 puntos; `p2` y `p3` recalculados en el 4, 6, 7, 8 y 10, para que la mediana del medio al ganar siga por encima de 30 s (31,7 s). Tabla en el README.
+- **Mapa (10.3):** el botón de arriba a la izquierda dice «Volver» (no «Inicio») porque el mapa también se abre desde el fin y vuelve allí. Las fichas van en una franja propia encima del mapa, no sobre él (en 320×568 el mapa ocupa el 82 %). El nivel actual late con un aro (`::after`), no escalando la pegatina, para que se pueda pulsar.
+- **HUD:** en dos filas, con la cifra de puntos escalonada según su longitud.
+- **Piezas especiales:** textos «¡PEGADA!» y «¡A PIEDRA!» y una moneda en los efectos; el aviso de la primera vez sale abajo; las cementadas se ven como piedra.
+- **Objetos:** un objeto aún bloqueado no se puede comprar; las compras con monedas no se apuntan en `compras.transacciones` (solo las de dinero); los objetos se desbloquean al acabar una partida, no al cargar un progreso v2 con partidas hechas; la barra solo muestra los desbloqueados y sus botones se desactivan si no se pueden usar; usar un objeto quita el foco del botón para que Espacio siga soltando.
+- **«¿Seguir?»:** con 250 monedas exige el corazón desbloqueado; no acepta toques durante `ESPERA_FIN_MS` (700 ms) y lleva el foco en el título.
+- **Música:** inicio de 16 compases y partida de 32 (la tabla de 10.5 ya lo recoge); la música suelta su sesión al apagarse y salta las notas atrasadas; efectos como marimba pentatónica.
+- **Lienzo táctil:** `RATIO_MAXIMO_TACTIL` = 1,25 píxeles por píxel CSS (v2: 1,5), porque el p95 de fotogramas del móvil emulado con la música pasaba de 33 ms; con 1,25 da de 29 a 31 ms. Sin medir en un móvil real.
+- **Tienda:** el panel y sus ids pasan de «coleccion» a «tienda»; las pestañas siguen el orden de Tab además de las flechas.
+- **Pagos y vídeos:** el pack de ayudas desbloquea los tres objetos al acreditarse; los precios simulados de la demostración son 1,99, 4,99, 9,99 y 2,99 €; el vídeo de prueba dura 3 s; la pestaña Monedas va en una segunda fila de pestañas.
+- **Economía (pendiente de decidir en la revisión final):** con las reglas 3 el medio completa los temas el día 9 (objetivo 10 a 30), el experto el día 4 (no antes del 7) y el medio con vídeos el día 8 (no antes del 10). Los precios de los temas no se han cambiado; propuesta, ×1,5.
