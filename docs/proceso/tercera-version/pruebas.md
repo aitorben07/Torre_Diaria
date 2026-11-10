@@ -101,3 +101,47 @@ Ninguno funcional. Defectos menores:
 ## Procesos y puertos
 
 Los servidores de la prueba (4329, 4330, 4401 y 4402) y los navegadores los lanzó y cerró Playwright. Al terminar no queda ningún proceso `node` ni `chrome` mío, ningún puerto en escucha (solo conexiones `TIME_WAIT` sin dueño) y borré mi carpeta temporal `tmp-verif/` y `test-results/`. No modifiqué código, pruebas del producto ni `estado.md`. En `tareas.md` solo marqué las casillas R1, R6, R8, R9, R11, R12 y R14.
+
+---
+
+# Vuelta 2
+
+Commit probado: `75f8ddc` (arreglos 18e3ca2 a 3c56df6, diff desde f849765). `git status` solo muestra `docs/diseno/anuncios.md` modificado, que no es mío ni del cambio.
+
+**Veredicto: APROBADO.** Sin fallos. Los 5 fallos de la vuelta 1 están corregidos.
+
+## Comprobaciones completas
+
+| Comprobación | Resultado |
+|---|---|
+| `npm test` | 35 archivos, 458 pruebas, todas pasan |
+| `npm run check` | 0 errores, 0 avisos (3 hints) |
+| `npm run build` y `npm run build:demo` | Compilan |
+| `npm run e2e` completo (primer plano, 27,7 min) | 240 pasan, 87 saltadas (rendimiento y táctil en CI), 0 fallan |
+| `npm run e2e:ci -- --shard=N/3 --list` | Trozos de 114, 113 y 98 pruebas = 325; la unión ordenada es idéntica a la lista sin `--shard` (sin duplicadas ni perdidas): 160 escritorio + 160 móvil + 5 demo |
+
+## Requisitos de la vuelta
+
+| Requisito | Cómo se comprobó | Resultado |
+|---|---|---|
+| Pestañas de la Tienda en 320 px (`flex: 1 1 auto`) | Diff, prueba nueva de `tienda.spec` (scrollWidth <= clientWidth, sin desborde horizontal) y captura a mano en 320 y 390 | Cumple: «Objetos / Piezas / Escenarios» caben enteras |
+| Mapa: fichas en franja propia | Diff CSS (`.niveles` en columna, `.niveles-arriba` fija con fondo y borde, `.mapa` con `flex: 1`), prueba nueva que recorre el scroll cada 40 px en 320×568, y capturas regeneradas | Cumple: ningún nivel queda bajo las fichas; el mapa sigue siendo lo principal (la franja ocupa unos 100 px de 568) |
+| Barra de objetos no tapa el muelle | Diff (`margenSuelo`, `reservarAbajo`, `ResizeObserver` de la barra), 3 pruebas unitarias nuevas, prueba e2e con `data-muelle` y captura a mano en 320×568 y 390×844 | Cumple: la cara y el frente del muelle quedan sobre la barra y la pieza que cuelga se ve entera. Solo las patas del muelle quedan detrás de los botones (estético) |
+| CSS de demo fuera de `dist/` | Diff (`demo.css` con `import()` dinámico solo en DEMO) y prueba nueva en `compilacion.spec` y `demo.spec` | Cumple (la prueba pasó en el e2e completo) |
+| CI en 3 trozos | Lectura del workflow | Cumple: `concurrency` con `cancel-in-progress`, `timeout-minutes: 30` y guarda `!github.event.repository.private` en ambos trabajos, sin secretos, `fail-fast: false`, `e2e:ci` sin los proyectos de rendimiento |
+| Sin relajar pruebas ni seguridad | Lectura del diff de `e2e/`, `proyecto.test.ts` | Cumple: solo se añaden pruebas; `proyecto.test.ts` pasa de un único trabajo a comprobar guarda y 30 min en cada trabajo, y comprueba el reparto en 3 |
+| Capturas regeneradas | Vistas `movil-320-mapa`, `movil-mapa-abajo`, `movil-320-mapa-ventana` | Coinciden con la interfaz final |
+
+## Fallos
+
+Ninguno.
+
+## Sin comprobar
+
+- El workflow no se ejecutó en GitHub Actions (sin acceso); solo se verificó el reparto con `--list` y el texto del archivo. Cada trozo no se ejecutó por separado, solo la suite entera.
+- Las e2e de rendimiento se saltan con `CI` y no se pueden comparar en esta vuelta más que por su paso en local.
+- Las capturas a mano se hicieron con Chromium de escritorio con viewport de 320×568 y 390×844, no en un móvil real.
+
+## Procesos y puertos
+
+Los servidores y navegadores de las e2e los lanzó y cerró Playwright. Un `python3 -` mío quedó esperando entrada y lo cerré por PID (10900). Archivo temporal `e2e/zz-tmp.spec.ts` creado y borrado. Al terminar no queda ningún `node`, `chrome` ni `python` mío ni puerto ocupado por mí (el 42050 es de otro proceso, `/silentConfig`).
