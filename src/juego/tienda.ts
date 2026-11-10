@@ -11,7 +11,7 @@
 import { CONGELADOR, desbloqueado, ESCENARIOS, equipado, loTiene, TEMAS, type Articulo } from "../logica/catalogo.ts";
 import { CATALOGO_OBJETOS, estaDesbloqueado, MAX_OBJETO, sePuedeComprar, type Objeto } from "../logica/objetos.ts";
 import type { Progreso } from "../logica/progreso.ts";
-import { esperaVideoMonedas, MONEDAS_VIDEO, objetoVideoDisponible, textoEspera } from "../logica/recompensas.ts";
+import { esperaVideoMonedas, HORAS_VIDEO, MONEDAS_VIDEO, objetoVideoDisponible, textoEspera } from "../logica/recompensas.ts";
 import { centimosPorMoneda, productoDisponible, textoEuros, UNIDADES_PACK } from "../logica/tienda.ts";
 import type { ProductoPago } from "./pagos.ts";
 import { formatearNumero } from "../logica/tarjeta.ts";
@@ -317,7 +317,7 @@ export class PanelTienda {
       boton.addEventListener("click", () => this.acciones.verVideoMonedas());
       const item = nodo("li", "articulo producto");
       item.dataset.articulo = "video-monedas";
-      item.append(nodo("p", "nombre", `${MONEDAS_VIDEO} monedas con un vídeo`), nodo("p", "estado", espera === 0 ? "Uno cada 4 h" : textoEspera(espera)), boton);
+      item.append(nodo("p", "nombre", `${MONEDAS_VIDEO} monedas con un vídeo`), nodo("p", "estado", espera === 0 ? `Uno cada ${HORAS_VIDEO} h` : textoEspera(espera)), boton);
       filas.push(item);
     }
     for (const producto of ofertas.productos) {

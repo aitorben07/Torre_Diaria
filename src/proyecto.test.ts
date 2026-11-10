@@ -33,6 +33,10 @@ describe("textos de src/", () => {
     expect(archivos.filter((ruta) => /[★☆♥→]/.test(readFileSync(new URL(ruta, raiz), "utf8")))).toEqual([]);
   });
 
+  it("ningún texto fija las horas entre vídeos: «Uno cada N h» sale de `HORAS_VIDEO` (K2)", () => {
+    expect(archivos.filter((ruta) => /cada \d+ h\b/.test(readFileSync(new URL(ruta, raiz), "utf8")))).toEqual([]);
+  });
+
   it("ningún código compara con las reglas actuales para saber si un día es de la v1 (R16)", () => {
     expect(archivos.filter((ruta) => /[!=]==\s*REGLAS\b/.test(readFileSync(new URL(ruta, raiz), "utf8")))).toEqual([]);
   });
