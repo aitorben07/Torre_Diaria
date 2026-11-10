@@ -197,6 +197,6 @@ Límite de A2 sin cambiar: p95 ≤ 33 ms en el Pixel 7 emulado con la CPU ×4. A
 
 ## L4. Peso, guardado y coste por paso (2026-11-10)
 
-- **JavaScript de `dist/`** (`npm run build` y `gzip -9 -c` de cada `.js`): un solo archivo, **93.016 bytes** con gzip -9 (v2: 79.889 B; presupuesto R8: 150 KB). Tras J eran 91.614 B; K y L suman 1,4 KB.
+- **JavaScript de `dist/`** (`npm run build` y `gzip -9 -c` de cada `.js`): un solo archivo, **93.029 bytes** con gzip -9 tras L4 (93.016 justo antes; v2: 79.889 B; presupuesto R8: 150 KB). Tras J eran 91.614 B; K y L suman 1,4 KB. Sin mapas de bits ni audio en `dist/`.
 - **Guardado** (C1, el progreso de la prueba «365 días de experto, el inventario lleno y 50 compras» de `src/logica/progreso.test.ts`, escrito con `escribirProgreso`): **52.607 bytes** (v2 con 365 días: 47.125 B; límite 100 KB). La migración v2→v3 la cubren las pruebas de «guardado v3 con migración aditiva» del mismo archivo.
 - **Coste por paso con especiales** (`npm run medir`, semilla `2026-11-09`, 150 piezas con dorada, pegajosa y cemento de la semilla): 0,097 ms por paso tras la pieza 10 y 0,014 ms tras la 150 (cociente 0,14; límite 2). Partida de 40 piezas (`2026-11-06`): mediana de 400 ms en 5 vueltas.
