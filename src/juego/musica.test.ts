@@ -3,14 +3,14 @@ import { ANTICIPACION_S, capaMusical, CAPA_INICIO, Musica, VOLUMEN_MUSICA, type 
 import { CORCHEAS, INICIO, PARTIDA } from "./partituras.ts";
 import { segundosCorchea } from "./secuenciador.ts";
 
-/** Parámetro de audio falso: guarda el valor y acepta las rampas. */
-function parametro(valor = 1) {
+/** Parámetro de audio falso: guarda el valor y acepta las rampas; `alCaer` avisa de cada `setTargetAtTime`. */
+function parametro(valor = 1, alCaer: (v: number) => void = () => undefined) {
   const p = {
     value: valor,
     setValueAtTime: (v: number) => ((p.value = v), p),
     linearRampToValueAtTime: () => p,
     exponentialRampToValueAtTime: () => p,
-    setTargetAtTime: () => p,
+    setTargetAtTime: (v: number) => (alCaer(v), p),
     cancelScheduledValues: () => p,
   };
   return p;
@@ -18,7 +18,7 @@ function parametro(valor = 1) {
 
 /** `AudioContext` falso con reloj a mano: cuenta los nodos y los osciladores que se arrancan, con su momento. */
 function contextoFalso() {
-  const cuenta = { nodos: 0, arranques: [] as number[], desconectados: 0 };
+  const cuenta = { nodos: 0, arranques: [] as number[], desconectados: 0, caidasACero: 0 };
   const nodo = (extra: Record<string, unknown> = {}) => {
     cuenta.nodos++;
     const n = {
@@ -42,7 +42,7 @@ function contextoFalso() {
     currentTime: 0,
     sampleRate: 8000,
     destination: {},
-    createGain: () => nodo({ gain: parametro(1) }),
+    createGain: () => nodo({ gain: parametro(1, (v) => void (v === 0 && cuenta.caidasACero++)) }),
     createBiquadFilter: () => nodo({ type: "lowpass", frequency: parametro(350), Q: parametro(1) }),
     createOscillator: fuente,
     createBufferSource: fuente,
@@ -200,7 +200,6 @@ describe("música programada desde el bucle de fotogramas (D1)", () => {
     musica.cambiar(false);
     conMusica = false;
     fotogramas(musica, ctx, 1);
-    expect(cuenta.desconectados).toBe(1);
     ctx.currentTime += 600;
     const notas = musica.notas;
     const nodos = cuenta.nodos;
@@ -209,6 +208,24 @@ describe("música programada desde el bucle de fotogramas (D1)", () => {
     fotogramas(musica, ctx, 1 / 60);
     expect(musica.notas - notas).toBeLessThan(8);
     expect(cuenta.nodos - nodos).toBeLessThan(40);
+  });
+
+  it("al apagarla con el contexto en marcha (los Sonidos siguen), la corta con su caída y no la suelta de golpe", () => {
+    const { ctx, salida, cuenta } = contextoFalso();
+    let conMusica = true;
+    // Como el interruptor de Ajustes: `Musica` se apaga primero y `Sonido` deja de dar salida justo después.
+    const musica = new Musica(() => (conMusica ? salida : null));
+    musica.poner("partida");
+    fotogramas(musica, ctx, 10);
+    musica.cambiar(false);
+    conMusica = false;
+    fotogramas(musica, ctx, 1);
+    expect(cuenta.caidasACero).toBe(1);
+    expect(cuenta.desconectados).toBe(0);
+    // Con la salida de vuelta, la sesión cortada (ya muda) se suelta.
+    conMusica = true;
+    fotogramas(musica, ctx, 1 / 60);
+    expect(cuenta.desconectados).toBe(1);
   });
 
   it("si el contexto se suspende a mitad de pista, al volver sigue por su compás sin notas atrasadas", () => {

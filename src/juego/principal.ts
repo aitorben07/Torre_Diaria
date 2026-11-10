@@ -1153,6 +1153,7 @@ function pintarAjustes(): void {
 ui.ajustesVersion().textContent = `Torre Diaria · reglas ${REGLAS}`;
 ui.ajusteMusica().addEventListener("click", () => {
   const activa = !musica.activa;
+  // Antes que `Sonido`: al apagarla, la música aún tiene salida para cortarse sin chasquido.
   musica.cambiar(activa);
   sonido.cambiarMusica(activa);
   guardado.cambiar((p) => ({ ...p, ajustes: { ...p.ajustes, musica: activa } }));

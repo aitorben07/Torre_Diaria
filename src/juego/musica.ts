@@ -86,10 +86,17 @@ export class Musica {
     return this.encendida;
   }
 
-  /** Enciende o apaga. Apagada no se crea ningún nodo de música. */
+  /**
+   * Enciende o apaga. Apagada no se crea ningún nodo de música. Al apagarla se
+   * corta ya, con su caída corta, mientras aún hay salida: justo después
+   * `Sonido` deja de darla y soltarla de golpe chascaría a mitad de las notas.
+   */
   cambiar(activa: boolean): void {
     this.encendida = activa;
-    if (!activa) this.reanudar = null;
+    if (activa) return;
+    this.reanudar = null;
+    const s = this.sesion ? this.salida() : null;
+    if (s) this.cortar(s, s.ctx.currentTime);
   }
 
   /** Pista o motivo que toca. Las pistas cambian al empezar el compás; el fin, en el pulso siguiente. */
