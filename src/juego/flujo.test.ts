@@ -82,11 +82,11 @@ describe("retos diarios (D1, D2 y D3)", () => {
   });
 });
 
-describe("paneles de Retos y Colección (C3, D2)", () => {
+describe("paneles de Retos y Tienda (C3, D2)", () => {
   it("abrir un panel durante la partida libre la deja en pausa y cerrarlo la sigue", () => {
-    const { flujo: panel, orden } = transicion(empezar("libre", HOY), { tipo: "abrir", panel: "coleccion" }, contexto(0));
-    expect(orden).toEqual({ tipo: "panel", panel: "coleccion" });
-    expect(panel).toMatchObject({ pantalla: "coleccion", debajo: "jugando" });
+    const { flujo: panel, orden } = transicion(empezar("libre", HOY), { tipo: "abrir", panel: "tienda" }, contexto(0));
+    expect(orden).toEqual({ tipo: "panel", panel: "tienda" });
+    expect(panel).toMatchObject({ pantalla: "tienda", debajo: "jugando" });
     const cerrado = transicion(panel, { tipo: "cerrar" }, contexto(0));
     expect(cerrado.orden).toEqual({ tipo: "volver", pantalla: "jugando" });
     expect(cerrado.flujo).toEqual(empezar("libre", HOY));
@@ -95,9 +95,9 @@ describe("paneles de Retos y Colección (C3, D2)", () => {
   it("de un panel a otro se vuelve a la pantalla de debajo", () => {
     const fin = verResultado(HOY);
     const retos = transicion(fin, { tipo: "abrir", panel: "retos" }, contexto(0)).flujo;
-    const coleccion = transicion(retos, { tipo: "abrir", panel: "coleccion" }, contexto(0)).flujo;
-    expect(coleccion).toMatchObject({ pantalla: "coleccion", debajo: "fin" });
-    expect(transicion(coleccion, { tipo: "cerrar" }, contexto(0)).orden).toEqual({ tipo: "volver", pantalla: "fin" });
+    const tienda = transicion(retos, { tipo: "abrir", panel: "tienda" }, contexto(0)).flujo;
+    expect(tienda).toMatchObject({ pantalla: "tienda", debajo: "fin" });
+    expect(transicion(tienda, { tipo: "cerrar" }, contexto(0)).orden).toEqual({ tipo: "volver", pantalla: "fin" });
   });
 
   it("durante un reto diario no se abren paneles (no se puede dejar a medias)", () => {
@@ -155,7 +155,7 @@ describe("niveles (E3)", () => {
 
 describe("inicio y pausa (E1, E3)", () => {
   const conNiveles = (ahora: number): Contexto => ({ ...contexto(ahora), nivelDisponible: (n) => n === 1 });
-  const PANELES: Panel[] = ["retos", "niveles", "coleccion", "ajustes"];
+  const PANELES: Panel[] = ["retos", "niveles", "tienda", "ajustes"];
 
   it("desde el inicio, «Jugar» empieza la partida libre", () => {
     expect(transicion(enInicio(HOY), { tipo: "libre" }, contexto(0))).toEqual({
@@ -192,7 +192,7 @@ describe("inicio y pausa (E1, E3)", () => {
     for (const reto of [empezar("oficial", HOY), empezar("repeticion", 3)]) {
       const { flujo: pausa } = transicion(reto, { tipo: "pausar" }, contexto(0));
       expect(pausa.pantalla).toBe("pausa");
-      for (const panel of ["retos", "niveles", "coleccion"] as const) {
+      for (const panel of ["retos", "niveles", "tienda"] as const) {
         expect(transicion(pausa, { tipo: "abrir", panel }, contexto(0))).toEqual({ flujo: pausa, orden: { tipo: "nada" } });
       }
       expect(transicion(pausa, { tipo: "inicio" }, contexto(0))).toEqual({ flujo: pausa, orden: { tipo: "nada" } });
@@ -238,7 +238,7 @@ describe("«¿Seguir?» (I3, impacto R-4)", () => {
 
   it("en «¿Seguir?» no se pausa, no se abre ningún panel ni se va al inicio", () => {
     const seguir = transicion(empezar("libre", HOY), { tipo: "ofrecerSeguir" }, contexto(0)).flujo;
-    for (const accion of [{ tipo: "pausar" }, { tipo: "inicio" }, { tipo: "abrir", panel: "ajustes" }, { tipo: "abrir", panel: "coleccion" }, { tipo: "seguirPartida" }] as const) {
+    for (const accion of [{ tipo: "pausar" }, { tipo: "inicio" }, { tipo: "abrir", panel: "ajustes" }, { tipo: "abrir", panel: "tienda" }, { tipo: "seguirPartida" }] as const) {
       expect(transicion(seguir, accion, contexto(0))).toEqual({ flujo: seguir, orden: { tipo: "nada" } });
     }
   });

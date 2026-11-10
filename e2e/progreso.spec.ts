@@ -1,7 +1,7 @@
 // Bloque C: guardado v2, migración de la v1, monedas, récord, colección y
 // ajustes guardados.
 import { expect, test } from "@playwright/test";
-import { abrirAjustes, abrirColeccion, abrirRetos, CLAVE_PROGRESO, conTactil, DIA, empezarHoy, esperarFinListo, esperarInicio, irAlInicio, juego, jugarHastaElFin, jugarLibre, leerProgreso, preparar, sembrarProgreso, tocar } from "./ayudas.ts";
+import { abrirAjustes, abrirTienda, abrirRetos, CLAVE_PROGRESO, conTactil, DIA, empezarHoy, esperarFinListo, esperarInicio, irAlInicio, juego, jugarHastaElFin, jugarLibre, leerProgreso, preparar, sembrarProgreso, tocar } from "./ayudas.ts";
 
 test("solo se escribe torre-diaria:progreso, y un día de la v1 se ve en piezas, sin medalla (C1)", async ({ page }, testInfo) => {
   const v1 = JSON.stringify({ dia: DIA, puntos: 7, altura: 4.2, formas: [{ forma: "bloque", color: 0 }] });
@@ -59,7 +59,7 @@ test("las monedas de la partida libre se suman una vez: recargar en el fin no la
   await esperarInicio(page);
   expect((await leerProgreso(page))!.monedas).toBe(monedas);
   // La ficha de monedas del inicio (E2).
-  await expect(page.locator("#inicio-monedas")).toHaveAccessibleName(`Colección: ${monedas} ${monedas === 1 ? "moneda" : "monedas"}`);
+  await expect(page.locator("#inicio-monedas")).toHaveAccessibleName(`Tienda: ${monedas} ${monedas === 1 ? "moneda" : "monedas"}`);
 });
 
 for (const [record, nuevo] of [
@@ -89,7 +89,7 @@ test("comprar Madera resta su precio, la pone en el lienzo y sigue tras recargar
   const { errores } = await preparar(page);
   await page.goto("/");
   await expect(page.locator("#lienzo")).toHaveAttribute("data-tema", "riso");
-  await abrirColeccion(page);
+  await abrirTienda(page);
   // Cada artículo de la pestaña tiene su muestra dibujada.
   for (const pestana of ["Escenarios", "Piezas"]) {
     await page.getByRole("tab", { name: pestana }).click();
@@ -107,7 +107,7 @@ test("comprar Madera resta su precio, la pone en el lienzo y sigue tras recargar
   }
   await expect(page.getByRole("button", { name: "Comprar Oro por 4.200 monedas" })).toBeDisabled();
   await page.getByRole("button", { name: "Comprar Madera por 300 monedas" }).click();
-  await expect(page.locator("#coleccion-monedas")).toHaveText("700");
+  await expect(page.locator("#tienda-monedas")).toHaveText("700");
   await expect(page.locator('[data-articulo="madera"]')).toHaveAttribute("data-estado-articulo", "equipado");
   await expect(page.locator("#lienzo")).toHaveAttribute("data-tema", "madera");
   expect((await leerProgreso(page))!).toMatchObject({ monedas: 700, catalogo: { comprados: ["madera"], equipado: { tema: "madera" } } });
@@ -123,7 +123,7 @@ test("una racha de 3 desbloquea la Ciudad aunque la altura récord sea menor de 
   await sembrarProgreso(page, { libre: { record: 100, alturaRecord: 3, partidas: 1 }, racha: { actual: 0, mejor: 3, ultimoDia: 1, congeladores: 0 } });
   await preparar(page);
   await page.goto("/");
-  await abrirColeccion(page);
+  await abrirTienda(page);
   await page.getByRole("tab", { name: "Escenarios" }).click();
   await expect(page.locator('[data-articulo="nubes"]')).toHaveAttribute("data-estado-articulo", "bloqueado");
   await page.getByRole("button", { name: "Usar Ciudad" }).click();
@@ -203,7 +203,7 @@ test("un progreso con texto hostil no inyecta nada y el juego sigue (G5, G10)", 
   await page.goto("/");
   await abrirRetos(page);
   await page.keyboard.press("Escape");
-  await abrirColeccion(page);
+  await abrirTienda(page);
   await page.keyboard.press("Escape");
   await jugarLibre(page);
   await tocar(page, conTactil(testInfo));

@@ -8,7 +8,7 @@ import { actualizarRacha, medallaDe, medallaDePuntos, rachaDeHoy, registrarOfici
 import { cobrarLibre, sumarEstadisticas, type LibreCobrada, type Medalla, type PartidaAcabada } from "../logica/economia.ts";
 import { AVISO_ESPECIAL, especialDe, REGLAS_CON_ESPECIALES, type Especial } from "../logica/especiales.ts";
 import { estrellasDe, nivelDisponible, nivelPorNumero, opcionesDeNivel, registrarNivel, textoMeta, textoObjetivo, totalEstrellas, ultimoDisponible, type NivelRegistrado } from "../logica/niveles.ts";
-import { gastarObjeto, objetoPorId, objetosNuevos, pagarSeguir, pagosSeguir, REGALO_DESBLOQUEO, type PagoSeguir } from "../logica/objetos.ts";
+import { comprarObjeto, gastarObjeto, objetoPorId, objetosNuevos, pagarSeguir, pagosSeguir, REGALO_DESBLOQUEO, type PagoSeguir } from "../logica/objetos.ts";
 import { leerLibre, leerReto } from "../logica/reto.ts";
 import { almacenDelNavegador } from "../logica/registro.ts";
 import { deTramos, Guardado, type DiaJugado } from "../logica/progreso.ts";
@@ -20,7 +20,7 @@ import type { Calidad } from "../logica/puntuacion.ts";
 import { Partida, REGLAS, type Ayuda, type EstadoPartida, type Evento, type OpcionesPartida } from "../logica/simulacion.ts";
 import { formatearAltura, formatearNumero, formatearPuntos, generarTarjeta, type DatosTarjeta } from "../logica/tarjeta.ts";
 import { Bucle, PASO_MS } from "./bucle.ts";
-import { PanelColeccion } from "./coleccion.ts";
+import { PanelTienda } from "./tienda.ts";
 import { PanelNiveles } from "./mapa.ts";
 import { Lienzo, NIVEL_AGUA, ratioDePantalla } from "./dibujo.ts";
 import { Caidas, Efectos } from "./efectos.ts";
@@ -696,14 +696,14 @@ function noSeguir(): void {
 
 /**
  * Usa un objeto de la barra con la pieza colgando (I3): lo gasta, lo guarda y
- * lo anota en `data-ayudas` con su paso (R3). Con 0, abre la Colección encima
- * de la partida (impacto R-6; en J, la Tienda en Objetos).
+ * lo anota en `data-ayudas` con su paso (R3). Con 0, abre la Tienda (pestaña
+ * Objetos) encima de la partida, que queda quieta (impacto R-6).
  */
 function usarObjeto(objeto: "reloj" | "cemento"): void {
   const actual = partida;
   if (!actual || flujo.pantalla !== "jugando") return;
   if (guardado.releer().objetos[objeto] <= 0) {
-    actuar({ tipo: "abrir", panel: "coleccion" });
+    actuar({ tipo: "abrir", panel: "tienda" });
     return;
   }
   const paso = actual.pasos;
@@ -728,14 +728,14 @@ function actualizarBarra(actual: Partida): void {
   pintarBarraObjetos(visible, { reloj: de("reloj"), cemento: de("cemento") });
 }
 
-/** Abre Retos, Niveles, Colección o Ajustes encima de la pantalla que hubiera (si era una partida, queda en pausa). */
+/** Abre Retos, Niveles, Tienda o Ajustes encima de la pantalla que hubiera (si era una partida, queda en pausa). */
 function mostrarPanel(panel: Panel): void {
   abridor = document.activeElement instanceof HTMLButtonElement ? document.activeElement : null;
   cambiarEstado(panel, flujo.debajo);
   ui.avisoToque().hidden = true;
   if (panel === "retos") panelRetos.abrir();
   else if (panel === "niveles") panelNiveles.abrir();
-  else if (panel === "coleccion") panelColeccion.pintar(guardado.actual);
+  else if (panel === "tienda") panelTienda.abrir(guardado.actual);
   else pintarAjustes();
   pintarInicioActual();
 }
@@ -763,28 +763,32 @@ function volver(pantalla: Exclude<Pantalla, Panel>): void {
 }
 
 /** Tras comprar o equipar: se guarda, se aplica al lienzo y se repintan barra y panel. */
-function cambiarColeccion(cambio: (p: typeof guardado.actual) => typeof guardado.actual, mensaje: string): void {
+function cambiarTienda(cambio: (p: typeof guardado.actual) => typeof guardado.actual, mensaje: string): void {
   guardado.cambiar(cambio);
   aplicarEquipado();
   pintarInicioActual();
-  ui.mensajeColeccion().textContent = mensaje;
-  if (flujo.pantalla === "coleccion") panelColeccion.pintar(guardado.actual);
+  ui.mensajeTienda().textContent = mensaje;
+  if (flujo.pantalla === "tienda") panelTienda.pintar(guardado.actual);
   if (flujo.pantalla === "retos") panelRetos.pintar();
 }
 
 const panelNiveles = new PanelNiveles({ jugar: (nivel) => actuar({ tipo: "jugarNivel", nivel }) }, () => guardado.actual);
 
-const panelColeccion = new PanelColeccion(
+const panelTienda = new PanelTienda(
   {
     // Comprar un tema lo pone al momento: se ve lo que se ha ganado.
     comprar: (id) => {
       const puede = comprar(guardado.releer(), id) !== guardado.actual;
-      cambiarColeccion((p) => {
+      cambiarTienda((p) => {
         const comprado = comprar(p, id);
         return comprado === p ? p : equipar(comprado, id);
       }, puede ? `Tema ${temaPorId(id).nombre} comprado y puesto` : "");
     },
-    equipar: (id) => cambiarColeccion((p) => equipar(p, id), ""),
+    equipar: (id) => cambiarTienda((p) => equipar(p, id), ""),
+    comprarObjeto: (id) => {
+      const puede = comprarObjeto(guardado.releer(), id) !== guardado.actual;
+      cambiarTienda((p) => comprarObjeto(p, id), puede ? `${objetoPorId(id).nombre}: tienes ${guardado.actual.objetos[id] + 1}` : "");
+    },
   },
   () => guardado.actual,
 );
@@ -830,7 +834,7 @@ const panelRetos = new PanelRetos(
     compartir: compartirDia,
     preparar: prepararDia,
     descargar: descargarDia,
-    comprarCongelador: () => cambiarColeccion((p) => comprar(p, "congelador"), ""),
+    comprarCongelador: () => cambiarTienda((p) => comprar(p, "congelador"), ""),
   },
   () => ({ progreso: guardado.actual, hoy }),
 );
@@ -1127,7 +1131,7 @@ ui.zona().addEventListener("pointerdown", (evento) => {
 });
 /** ¿Es un panel que se abre encima de otra pantalla? */
 function esPanel(pantalla: Pantalla): pantalla is Panel {
-  return pantalla === "retos" || pantalla === "niveles" || pantalla === "coleccion" || pantalla === "ajustes";
+  return pantalla === "retos" || pantalla === "niveles" || pantalla === "tienda" || pantalla === "ajustes";
 }
 
 document.addEventListener("keydown", (evento) => {
@@ -1173,8 +1177,8 @@ ui.botonInicio().addEventListener("click", () => actuar({ tipo: "inicio" }));
 ui.botonJugar().addEventListener("click", () => actuar({ tipo: "libre" }));
 ui.tarjetaReto().addEventListener("click", () => actuar({ tipo: "abrir", panel: "retos" }));
 ui.tarjetaNiveles().addEventListener("click", () => actuar({ tipo: "abrir", panel: "niveles" }));
-ui.tarjetaColeccion().addEventListener("click", () => actuar({ tipo: "abrir", panel: "coleccion" }));
-ui.inicioMonedas().addEventListener("click", () => actuar({ tipo: "abrir", panel: "coleccion" }));
+ui.tarjetaTienda().addEventListener("click", () => actuar({ tipo: "abrir", panel: "tienda" }));
+ui.inicioMonedas().addEventListener("click", () => actuar({ tipo: "abrir", panel: "tienda" }));
 ui.inicioAjustes().addEventListener("click", () => actuar({ tipo: "abrir", panel: "ajustes" }));
 // Pausa (E3).
 ui.botonPausa().addEventListener("click", () => actuar({ tipo: "pausar" }));
@@ -1194,7 +1198,7 @@ ui.seguirVideo().addEventListener("click", () => {
 ui.seguirNo().addEventListener("click", noSeguir);
 ui.botonCerrarRetos().addEventListener("click", () => actuar({ tipo: "cerrar" }));
 ui.botonCerrarNiveles().addEventListener("click", () => actuar({ tipo: "cerrar" }));
-ui.botonCerrarColeccion().addEventListener("click", () => actuar({ tipo: "cerrar" }));
+ui.botonCerrarTienda().addEventListener("click", () => actuar({ tipo: "cerrar" }));
 ui.botonCerrarAjustes().addEventListener("click", () => actuar({ tipo: "cerrar" }));
 ui.botonReto().addEventListener("click", () => {
   if (reto) actuar({ tipo: "jugarReto", reto });
@@ -1210,7 +1214,7 @@ function finListo(): boolean {
 ui.botonEquiparNuevo().addEventListener("click", () => {
   if (!finListo()) return;
   const id = ui.botonEquiparNuevo().dataset.articulo ?? "";
-  cambiarColeccion((p) => equipar(p, id), "");
+  cambiarTienda((p) => equipar(p, id), "");
   ui.finDesbloqueoTexto().textContent = `${escenarioPorId(id).nombre}: en uso`;
   ui.botonEquiparNuevo().hidden = true;
 });

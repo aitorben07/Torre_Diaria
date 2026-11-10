@@ -52,7 +52,7 @@ const pilotes = MUELLE.pilotes.map((x) => `M${x} ${MUELLE.tablero.y + MUELLE.tab
           </button>
         </header>
         <p id="aviso-toque" class="aviso-toque" hidden>Toca para soltar</p>
-        {/* Barra de objetos (I3): reloj y cemento con su número, en la libre y en los niveles; con 0, «+» abre la Colección. */}
+        {/* Barra de objetos (I3): reloj y cemento con su número, en la libre y en los niveles; con 0, «+» abre la Tienda. */}
         <div id="barra-objetos" class="barra-objetos" hidden>
           <button id="objeto-reloj" type="button" class="objeto" data-objeto="reloj" aria-label="Reloj de arena">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path class="marco" d="M6 3h12M6 21h12" /><path class="vidrio" d="M7.5 3.5c0 4.5 4.5 6 4.5 8.5s-4.5 4-4.5 8.5h9c0-4.5-4.5-6-4.5-8.5s4.5-4 4.5-8.5z" /><path class="arena" d="M9.5 19.5c.5-2 2.5-3 2.5-4.5 0 1.5 2 2.5 2.5 4.5z" /></svg>
@@ -68,7 +68,7 @@ const pilotes = MUELLE.pilotes.map((x) => `M${x} ${MUELLE.tablero.y + MUELLE.tab
         {/* Pantalla de inicio (E2, Anexo B): monedas y ajustes arriba, el logo, «Jugar» sobre el puerto y las tarjetas. */}
         <section id="inicio" class="inicio columna" aria-label="Inicio">
           <div class="inicio-arriba">
-            <button id="inicio-monedas" type="button" class="con-icono ficha-monedas" aria-label="Colección: 0 monedas">
+            <button id="inicio-monedas" type="button" class="con-icono ficha-monedas" aria-label="Tienda: 0 monedas">
               <svg class="moneda" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><circle class="canto" cx="12" cy="12" r="5.5" /></svg>
               <span id="inicio-monedas-numero" aria-hidden="true">0</span>
             </button>
@@ -148,12 +148,12 @@ const pilotes = MUELLE.pilotes.map((x) => `M${x} ${MUELLE.tablero.y + MUELLE.tab
                 <span class="tarjeta-nombre" aria-hidden="true">Niveles</span>
                 <span id="tarjeta-nivel" class="tarjeta-estado" aria-hidden="true">Nivel 1</span>
               </button>
-              <button id="tarjeta-coleccion" type="button" class="tarjeta" aria-label="Colección: piezas y escenarios">
+              <button id="tarjeta-tienda" type="button" class="tarjeta" aria-label="Tienda: objetos, piezas y escenarios">
                 <span class="tarjeta-cabeza" aria-hidden="true">
                   <svg class="bolsa" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14l-1 13H6zM9 8V6a3 3 0 0 1 6 0v2" /></svg>
                 </span>
-                <span class="tarjeta-nombre" aria-hidden="true">Colección</span>
-                <span class="tarjeta-estado" aria-hidden="true">Piezas y escenarios</span>
+                <span class="tarjeta-nombre" aria-hidden="true">Tienda</span>
+                <span class="tarjeta-estado" aria-hidden="true">Objetos y piezas</span>
               </button>
             </div>
           </div>
@@ -358,24 +358,25 @@ const pilotes = MUELLE.pilotes.map((x) => `M${x} ${MUELLE.tablero.y + MUELLE.tab
           </dialog>
         </section>
 
-        {/* Colección (C3): temas de piezas y escenarios, con muestra dibujada, precio o condición. */}
-        <section id="coleccion" class="panel columna" aria-labelledby="coleccion-titulo" hidden>
+        {/* Tienda (J1; antes Colección, C3): objetos, temas de piezas y escenarios, con su dibujo, precio o condición. */}
+        <section id="tienda" class="panel columna" aria-labelledby="tienda-titulo" hidden>
           <div class="cabecera">
-            <h2 id="coleccion-titulo">Colección</h2>
+            <h2 id="tienda-titulo">Tienda</h2>
             <p class="saldo">
               <svg class="moneda" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><circle class="canto" cx="12" cy="12" r="5.5" /></svg>
-              <span id="coleccion-monedas">0</span><span class="solo-lectores"> monedas</span>
+              <span id="tienda-monedas">0</span><span class="solo-lectores"> monedas</span>
             </p>
-            <button id="cerrar-coleccion" type="button" class="icono" aria-label="Cerrar">
+            <button id="cerrar-tienda" type="button" class="icono" aria-label="Cerrar">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
             </button>
           </div>
           <div class="pestanas" role="tablist" aria-label="Tipo">
-            <button id="pestana-piezas" type="button" role="tab" aria-selected="true" aria-controls="articulos">Piezas</button>
+            <button id="pestana-objetos" type="button" role="tab" aria-selected="true" aria-controls="articulos">Objetos</button>
+            <button id="pestana-piezas" type="button" role="tab" aria-selected="false" aria-controls="articulos">Piezas</button>
             <button id="pestana-escenarios" type="button" role="tab" aria-selected="false" aria-controls="articulos">Escenarios</button>
           </div>
           <ul id="articulos" class="articulos" role="tabpanel"></ul>
-          <p id="coleccion-mensaje" role="status"></p>
+          <p id="tienda-mensaje" role="status"></p>
         </section>
 
         {/* Ajustes (C2, Anexo C con impacto §5): interruptores, créditos con la privacidad y la versión. */}

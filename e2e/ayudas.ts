@@ -243,11 +243,11 @@ export async function abrirNiveles(page: Page): Promise<void> {
   await expect(juego(page)).toHaveAttribute("data-estado", "niveles");
 }
 
-/** Abre Colección desde su tarjeta del inicio (E4). */
-export async function abrirColeccion(page: Page): Promise<void> {
+/** Abre Tienda desde su tarjeta del inicio (E4). */
+export async function abrirTienda(page: Page): Promise<void> {
   await esperarInicio(page);
-  await page.locator("#tarjeta-coleccion").click();
-  await expect(juego(page)).toHaveAttribute("data-estado", "coleccion");
+  await page.locator("#tarjeta-tienda").click();
+  await expect(juego(page)).toHaveAttribute("data-estado", "tienda");
 }
 
 /** Abre Ajustes con la rueda del inicio (C2). */

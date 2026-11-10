@@ -2,7 +2,7 @@
 // 999.999 en todas las pantallas, con combo, récord y meta a la vista y el
 // hueco del botón de pausa (E3) ya reservado. Solo maquetación: va en escritorio (R17).
 import { expect, test, type Page } from "@playwright/test";
-import { abrirColeccion, conTactil, esperarFinListo, irAlInicio, jugarHastaElFin, jugarLibre, preparar } from "./ayudas.ts";
+import { abrirTienda, conTactil, esperarFinListo, irAlInicio, jugarHastaElFin, jugarLibre, preparar } from "./ayudas.ts";
 
 const PANTALLAS = [
   { width: 320, height: 568 },
@@ -118,10 +118,10 @@ test("en 320×568 «999.999 puntos» cabe en el fin y el saldo de monedas, en su
   expect(m.documento).toBeLessThanOrEqual(320);
 
   await irAlInicio(page);
-  await abrirColeccion(page);
+  await abrirTienda(page);
   const saldo = await page.evaluate(() => {
-    document.getElementById("coleccion-monedas")!.textContent = "999.999";
-    const panel = document.getElementById("coleccion")!;
+    document.getElementById("tienda-monedas")!.textContent = "999.999";
+    const panel = document.getElementById("tienda")!;
     const cabecera = panel.querySelector(".cabecera")!;
     return { scroll: panel.scrollWidth, cliente: panel.clientWidth, cabecera: cabecera.scrollWidth <= cabecera.clientWidth };
   });

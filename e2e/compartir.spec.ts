@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
 import { COLORES, TEMA_RISO } from "../src/juego/temas.ts";
 import { deTramos } from "../src/logica/progreso.ts";
-import { abrirColeccion, abrirNiveles, abrirRetos, conTactil, datosFin, DIA, esperarFinListo, esperarLibre, juego, jugarHastaElFin, jugarLibre, preparar, sembrarProgreso } from "./ayudas.ts";
+import { abrirTienda, abrirNiveles, abrirRetos, conTactil, datosFin, DIA, esperarFinListo, esperarLibre, juego, jugarHastaElFin, jugarLibre, preparar, sembrarProgreso } from "./ayudas.ts";
 
 test("abrir /?libre=<código>.300 avisa con 300 y hace jugar esa semilla, que cuenta como libre (F2)", async ({ page }, testInfo) => {
   test.setTimeout(90_000);
@@ -132,7 +132,8 @@ test("la imagen de la ficha del día se vuelve a generar al cambiar de tema (F3)
   const { png: conRiso } = await descargarCon(page, "#ficha-descargar");
 
   await page.keyboard.press("Escape");
-  await abrirColeccion(page);
+  await abrirTienda(page);
+  await page.getByRole("tab", { name: "Piezas" }).click();
   await page.getByRole("button", { name: "Usar Madera" }).click();
   await expect(page.locator("#lienzo")).toHaveAttribute("data-tema", "madera");
   await page.keyboard.press("Escape");

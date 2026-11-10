@@ -62,15 +62,16 @@ test("con 1 reloj, tocarlo con la pieza colgando deja 0, baja la velocidad a ×R
   expect(vigilancia.errores).toEqual([]);
 });
 
-test("con 0 unidades, «+» abre la Colección encima de la partida y al cerrar sigue (I3, impacto R-6)", async ({ page }, testInfo) => {
+test("con 0 unidades, «+» abre la Tienda en Objetos encima de la partida y al cerrar sigue (I3, J1, impacto R-6)", async ({ page }, testInfo) => {
   test.skip(conTactil(testInfo), "Solo DOM: basta con escritorio (R17)");
   await preparar(page);
   await sembrarProgreso(page, conObjetos({}));
   await page.goto("/");
   await jugarLibre(page);
   await page.locator("#objeto-cemento").click();
-  await expect(juego(page)).toHaveAttribute("data-estado", "coleccion");
+  await expect(juego(page)).toHaveAttribute("data-estado", "tienda");
   await expect(juego(page)).toHaveAttribute("data-debajo", "jugando");
+  await expect(page.getByRole("tab", { name: "Objetos" })).toHaveAttribute("aria-selected", "true");
   await page.keyboard.press("Escape");
   await esperarLibre(page);
 });

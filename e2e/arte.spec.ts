@@ -1,6 +1,6 @@
 // Bloque A: fuente local, efectos, sonido, háptica e interfaz.
 import { expect, test, type Page } from "@playwright/test";
-import { abrirAjustes, abrirColeccion, abrirNiveles, abrirRetos, conTactil, esperarFinListo, esperarInicio, esperarLibre, juego, jugarHastaElFin, jugarLibre, pausar, preparar } from "./ayudas.ts";
+import { abrirAjustes, abrirTienda, abrirNiveles, abrirRetos, conTactil, esperarFinListo, esperarInicio, esperarLibre, juego, jugarHastaElFin, jugarLibre, pausar, preparar } from "./ayudas.ts";
 
 test("la fuente local se carga sin peticiones a otros orígenes (A1)", async ({ page }) => {
   const vigilancia = await preparar(page);
@@ -259,7 +259,7 @@ test("en 1280×800 la columna de juego mide al menos 400 px y el escenario ocupa
   expect(lienzo!.width).toBe(1280);
 });
 
-test("todos los botones visibles miden al menos 44×44 px en el inicio, jugando, en la pausa, en el fin, en el reto de un amigo, en Retos, en Niveles y su ventana, en Colección y en Ajustes (A5, E3, F1, R15)", async ({ page }, testInfo) => {
+test("todos los botones visibles miden al menos 44×44 px en el inicio, jugando, en la pausa, en el fin, en el reto de un amigo, en Retos, en Niveles y su ventana, en Tienda y en Ajustes (A5, E3, F1, R15)", async ({ page }, testInfo) => {
   await preparar(page);
   await page.goto("/");
   const comprobar = async (pantalla: string) => {
@@ -292,8 +292,8 @@ test("todos los botones visibles miden al menos 44×44 px en el inicio, jugando,
   await comprobar("ventana del nivel");
   await page.keyboard.press("Escape");
   await page.keyboard.press("Escape");
-  await abrirColeccion(page);
-  await comprobar("coleccion");
+  await abrirTienda(page);
+  await comprobar("tienda");
   await page.keyboard.press("Escape");
   await abrirAjustes(page);
   await page.locator("#boton-creditos").click();

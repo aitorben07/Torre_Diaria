@@ -40,7 +40,7 @@ export const ui = {
   tarjetaNiveles: () => elemento<HTMLButtonElement>("tarjeta-niveles"),
   tarjetaEstrellas: () => elemento("tarjeta-estrellas"),
   tarjetaNivel: () => elemento("tarjeta-nivel"),
-  tarjetaColeccion: () => elemento<HTMLButtonElement>("tarjeta-coleccion"),
+  tarjetaTienda: () => elemento<HTMLButtonElement>("tarjeta-tienda"),
   pausa: () => elemento("pausa"),
   pausaTexto: () => elemento("pausa-texto"),
   botonSeguir: () => elemento<HTMLButtonElement>("boton-seguir"),
@@ -109,11 +109,11 @@ export const ui = {
   botonInicio: () => elemento<HTMLButtonElement>("boton-inicio"),
   retos: () => elemento("retos"),
   niveles: () => elemento("niveles"),
-  coleccion: () => elemento("coleccion"),
+  tienda: () => elemento("tienda"),
   botonCerrarRetos: () => elemento<HTMLButtonElement>("cerrar-retos"),
   botonCerrarNiveles: () => elemento<HTMLButtonElement>("cerrar-niveles"),
-  botonCerrarColeccion: () => elemento<HTMLButtonElement>("cerrar-coleccion"),
-  mensajeColeccion: () => elemento("coleccion-mensaje"),
+  botonCerrarTienda: () => elemento<HTMLButtonElement>("cerrar-tienda"),
+  mensajeTienda: () => elemento("tienda-mensaje"),
 };
 
 /**
@@ -134,7 +134,7 @@ export function cambiarEstado(estado: Pantalla, debajo: Pantalla | null = null):
   ui.fin().hidden = estado !== "fin";
   ui.retos().hidden = estado !== "retos";
   ui.niveles().hidden = estado !== "niveles";
-  ui.coleccion().hidden = estado !== "coleccion";
+  ui.tienda().hidden = estado !== "tienda";
 }
 
 export function mostrarTexto(nodo: HTMLElement, texto: string | null): void {
@@ -231,7 +231,7 @@ export type DatosInicio = {
 export function pintarInicio({ monedas, racha, hoy, jugadoHoy, nivel, estrellas, siguiente }: DatosInicio): void {
   const textoMonedas = formatearNumero(monedas);
   ui.inicioMonedasNumero().textContent = textoMonedas;
-  ui.inicioMonedas().setAttribute("aria-label", `Colección: ${textoMonedas} ${monedas === 1 ? "moneda" : "monedas"}`);
+  ui.inicioMonedas().setAttribute("aria-label", `Tienda: ${textoMonedas} ${monedas === 1 ? "moneda" : "monedas"}`);
   ui.tarjetaRacha().textContent = String(racha);
   const marca = ui.tarjetaRetoMarca();
   if (jugadoHoy) {
@@ -266,7 +266,7 @@ export type ObjetoEnBarra = { desbloqueado: boolean; cuantos: number; activo: bo
 /**
  * Barra de objetos (I3): solo con algún objeto desbloqueado, y solo los
  * desbloqueados. Con unidades, el número y activo solo con la pieza colgando;
- * con 0, «+» (abre la Colección encima de la partida).
+ * con 0, «+» (abre la Tienda encima de la partida).
  */
 export function pintarBarraObjetos(visible: boolean, objetos: { reloj: ObjetoEnBarra; cemento: ObjetoEnBarra }): void {
   ui.barraObjetos().hidden = !visible || (!objetos.reloj.desbloqueado && !objetos.cemento.desbloqueado);

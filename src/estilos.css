@@ -844,9 +844,9 @@ button.con-icono {
   transform: rotate(45deg);
 }
 
-/* Paneles de Retos y Colección: algo más anchos para que quepan las 7 columnas. */
+/* Paneles de Retos y Tienda: algo más anchos para que quepan las 7 columnas. */
 #retos,
-#coleccion {
+#tienda {
   margin: 0 0.5rem;
   width: calc(var(--columna) - 1rem);
   padding: 0.8rem 0.7rem 1rem;
@@ -1042,18 +1042,21 @@ button.dia.futuro {
 }
 
 #ficha-mensaje:empty,
-#coleccion-mensaje:empty {
+#tienda-mensaje:empty {
   display: none;
 }
 
-/* Colección (C3): pestañas y tarjetas con muestra. */
+/* Tienda (C3): pestañas y tarjetas con muestra. */
 .pestanas {
   display: flex;
   gap: 0.5rem;
 }
 
+/* Tres pestañas en 320 px: se reparten el ancho sin desbordar (J1). */
 .pestanas button {
   flex: 1;
+  min-width: 0;
+  padding-inline: 0.35rem;
 }
 
 .pestanas button[aria-selected="true"] {
@@ -1097,8 +1100,46 @@ button.dia.futuro {
   border-radius: 6px;
 }
 
+/* Objetos de la tienda (J1): el dibujo sobre papel, con los colores de la barra. */
+svg.objeto-dibujo {
+  padding: 0.5rem;
+  background: var(--amanecer);
+  fill: var(--papel);
+  stroke: var(--tinta);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+svg.objeto-dibujo .arena {
+  fill: var(--naranja);
+  stroke: none;
+}
+
+svg.objeto-dibujo .cinta,
+svg.objeto-dibujo .copo {
+  fill: none;
+}
+
+svg.objeto-dibujo .saco {
+  fill: var(--plata);
+}
+
+svg.objeto-dibujo .corazon {
+  fill: var(--rosa);
+}
+
+svg.objeto-dibujo .hielo {
+  fill: var(--turquesa);
+}
+
+.articulo .que-hace {
+  font-size: 0.85rem;
+}
+
 .articulo .nombre {
   font-weight: 800;
+  overflow-wrap: anywhere;
 }
 
 .articulo .estado {

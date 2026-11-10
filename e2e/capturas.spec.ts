@@ -5,7 +5,7 @@
 import { mkdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { expect, test, type Page } from "@playwright/test";
-import { abrirAjustes, abrirColeccion, abrirNiveles, abrirRetos, esperarInicio, juego, jugarLibre, pausar, preparar } from "./ayudas.ts";
+import { abrirAjustes, abrirTienda, abrirNiveles, abrirRetos, esperarInicio, juego, jugarLibre, pausar, preparar } from "./ayudas.ts";
 import { faviconSvg } from "../src/juego/logo.ts";
 
 const CARPETA = new URL("../docs/proceso/segunda-version/capturas/", import.meta.url);
@@ -163,7 +163,7 @@ for (const [nombre, ancho, alto] of [
 
     // Colección: pestaña de piezas y de escenarios.
     let page = await abrirCon("puerto", 2);
-    await abrirColeccion(page);
+    await abrirTienda(page);
     await page.waitForTimeout(400);
     await guardarEn(page, "6-coleccion-piezas");
     await page.getByRole("tab", { name: "Escenarios" }).click();

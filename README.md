@@ -24,7 +24,7 @@ Diseño completo en [`docs/diseno/diseno-juego.md`](docs/diseno/diseno-juego.md)
 
 Una sola moneda, que se gana jugando: 1 por pieza colocada, +1 por perfecto y +5 por cada 5 m en las partidas libres; el reto diario oficial da de 15 a 100 según la medalla más 10 por día de racha (hasta 7); cada estrella nueva de nivel, 20, y los 10 niveles con 3 estrellas, 200 una vez. Repetir un nivel sin mejorar no da nada.
 
-En **Colección** se compran 6 temas de piezas (Riso gratis; Madera 300, Caramelo 980, Neón 1.680, Mármol 2.520 y Oro 4.200) y se equipan 3 escenarios: Puerto (gratis), Ciudad (25 m en libre o una racha de 3) y Nubes (50 m o una racha de 7). La pantalla de fin muestra siempre el siguiente objetivo cercano.
+En la **Tienda** (antes Colección) se compran objetos de ayuda (pestaña Objetos), 6 temas de piezas (Riso gratis; Madera 300, Caramelo 980, Neón 1.680, Mármol 2.520 y Oro 4.200) y se equipan 3 escenarios: Puerto (gratis), Ciudad (25 m en libre o una racha de 3) y Nubes (50 m o una racha de 7). La pantalla de fin muestra siempre el siguiente objetivo cercano.
 
 ## Compartir
 
@@ -81,7 +81,7 @@ Requiere iniciar sesión en Cloudflare con la cuenta del propietario (`wrangler`
 ## Estructura
 
 - `src/logica/`: lógica pura, sin navegador. `semilla.ts` (fecha UTC, número de día, generador y código de partida libre), `piezas.ts` (secuencia), `simulacion.ts` (física con planck, vidas, objetivos de nivel y `jugar(semilla, toques, opciones)`), `puntuacion.ts` (puntos, combo y vidas), `niveles.ts`, `economia.ts`, `diarios.ts` (medallas y racha), `catalogo.ts`, `progreso.ts` (guardado v2 y migración), `tarjeta.ts`, `reto.ts` (enlaces `?reto=` y `?libre=`) y `registro.ts` (lectura de la v1).
-- `src/juego/`: pantalla. `flujo.ts` (máquina de estados pura de las pantallas), `principal.ts` (une todo con el DOM), `bucle.ts` (paso fijo), `dibujo.ts` (lienzo), `efectos.ts`, `sonido.ts` y `haptica.ts` (jugosidad), `temas.ts` (paleta, temas y escenarios), `pantallas.ts` (HUD y fin), `retos.ts`, `mapa.ts` (niveles) y `coleccion.ts` (paneles), `imagen.ts` y `compartir.ts` (imagen PNG y compartir) y `anuncios.ts` (huecos para anuncios, sin anuncios).
+- `src/juego/`: pantalla. `flujo.ts` (máquina de estados pura de las pantallas), `principal.ts` (une todo con el DOM), `bucle.ts` (paso fijo), `dibujo.ts` (lienzo), `efectos.ts`, `sonido.ts` y `haptica.ts` (jugosidad), `temas.ts` (paleta, temas y escenarios), `pantallas.ts` (HUD y fin), `retos.ts`, `mapa.ts` (niveles) y `tienda.ts` (la Tienda, antes Colección), `imagen.ts` y `compartir.ts` (imagen PNG y compartir) y `anuncios.ts` (huecos para anuncios, sin anuncios).
 - `src/pages/index.astro` y `src/estilos.css`: la única página.
 - `e2e/`: pruebas de Playwright. `scripts/`: jugadores simulados y mediciones.
 

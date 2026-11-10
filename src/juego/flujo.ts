@@ -1,7 +1,7 @@
 // Flujo de pantallas (B5): máquina de estados pura, sin DOM ni reloj. La página
 // (`principal.ts`) le pasa la acción, la hora y lo que sabe de los días, y
 // ejecuta la orden que recibe. Así las transiciones se prueban con Vitest.
-// Retos, Niveles, Colección y Ajustes (C3, D2, E3 y, en la v3, C2) se abren
+// Retos, Niveles, Tienda y Ajustes (C3, D2, E3 y, en la v3, C2) se abren
 // encima de la pantalla que hubiera; si era una partida, queda en pausa y al
 // cerrar sigue. Desde la v3 se abre en la pantalla de inicio y la partida se
 // puede pausar en todos los modos (E1).
@@ -17,9 +17,9 @@ export const ESPERA_FIN_MS = 700;
  */
 export type Modo = "libre" | "oficial" | "repeticion" | "nivel";
 /** `seguir`: «¿Seguir?» al perder la última vida en la libre, con la partida quieta (I3). */
-export type Pantalla = "inicio" | "reto" | "jugando" | "pausa" | "seguir" | "fin" | "retos" | "niveles" | "coleccion" | "ajustes";
+export type Pantalla = "inicio" | "reto" | "jugando" | "pausa" | "seguir" | "fin" | "retos" | "niveles" | "tienda" | "ajustes";
 /** Pantallas que se abren encima de otra. */
-export type Panel = "retos" | "niveles" | "coleccion" | "ajustes";
+export type Panel = "retos" | "niveles" | "tienda" | "ajustes";
 
 export type Flujo = {
   pantalla: Pantalla;

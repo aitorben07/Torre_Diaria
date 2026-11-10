@@ -8,7 +8,7 @@ import { cuadriculaMes, estadoDia, MAX_CONGELADORES, medallaDe, mesVisible, rach
 import type { Progreso } from "../logica/progreso.ts";
 import { fechaDeDia } from "../logica/semilla.ts";
 import { formatearAltura, formatearNumero, formatearPiezas, formatearPuntos } from "../logica/tarjeta.ts";
-import { iconoMoneda } from "./coleccion.ts";
+import { iconoMoneda } from "./tienda.ts";
 import { puedeCompartirArchivos } from "./compartir.ts";
 import { mostrarTexto, NOMBRE_MEDALLA, pintarMedalla } from "./pantallas.ts";
 
