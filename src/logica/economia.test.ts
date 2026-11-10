@@ -41,7 +41,7 @@ describe("cobrar la partida libre (C2)", () => {
     expect(nuevoRecord).toBe(true);
     expect(nuevo).toBe(true);
     expect(p.libre).toEqual({ record: 610, alturaRecord: 8.6, partidas: 1 });
-    expect(p.estadisticas).toEqual({ piezas: 12, perfectos: 11, comboMax: 11, alturaMax: 8.6, partidas: 0 });
+    expect(p.estadisticas).toEqual({ piezas: 12, perfectos: 11, comboMax: 11, alturaMax: 8.6, partidas: 1 });
   });
 
   it("dos doradas colocadas suman 20 monedas a la partida libre (H2)", () => {

@@ -2,6 +2,7 @@
 // página las aplica al progreso con `Guardado.cambiar`. La simulación no sabe
 // nada de esto: solo da el resultado de la partida.
 import { MONEDAS_DORADA } from "./especiales.ts";
+import { desbloquear } from "./objetos.ts";
 import { MONEDAS_COLOCADA, MONEDAS_HITO, MONEDAS_PERFECTO, METROS_HITO } from "./puntuacion.ts";
 import type { Progreso } from "./progreso.ts";
 
@@ -55,10 +56,14 @@ export type PartidaAcabada = {
   doradas?: number;
 };
 
-/** Suma las estadísticas de una partida (cualquier modo). */
+/**
+ * Suma las estadísticas de una partida terminada (libre, oficial o nivel; la
+ * repetición de un día no pasa por aquí) y desbloquea los objetos que ya
+ * tocan por partidas (I2).
+ */
 export function sumarEstadisticas(p: Progreso, partida: PartidaAcabada): Progreso {
   const e = p.estadisticas;
-  return {
+  return desbloquear({
     ...p,
     estadisticas: {
       ...e,
@@ -66,8 +71,9 @@ export function sumarEstadisticas(p: Progreso, partida: PartidaAcabada): Progres
       perfectos: e.perfectos + partida.perfectos,
       comboMax: Math.max(e.comboMax, partida.comboMax),
       alturaMax: Math.max(e.alturaMax, partida.alturaMax),
+      partidas: e.partidas + 1,
     },
-  };
+  });
 }
 
 /** Partida libre cobrada: el progreso y lo que se ha guardado de verdad. */
