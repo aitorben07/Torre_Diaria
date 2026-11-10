@@ -30,6 +30,9 @@ test("la banda avisa de la demostración; la Tienda tiene Monedas, «≈ X,XX �
   await sembrarProgreso(page, conObjetos(500));
   await page.goto("/");
   await expect(page.locator("#banda-demo")).toHaveText("Demostración: no se cobra nada y los vídeos son de prueba");
+  // Sus estilos (`demo.css`) se cargan aparte, solo en la demostración: la banda queda fija abajo y no recibe toques.
+  await expect(page.locator("#banda-demo")).toHaveCSS("position", "fixed");
+  await expect(page.locator("#banda-demo")).toHaveCSS("pointer-events", "none");
   await expect(page.locator("#inicio")).not.toContainText(/monedas gratis/i);
   await abrirTienda(page);
   await expect(page.getByRole("tab")).toHaveCount(4);

@@ -65,7 +65,11 @@ const DEMO = import.meta.env.MODE === "demo";
 const anuncios = DEMO ? anunciosDemo() : anunciosDePlataforma(import.meta.env.PUBLIC_PLATAFORMA);
 /** Pagos de esta compilación (K1): en la web, ninguno (`pagosNulos`); en la demo, simulados. */
 const pagos = DEMO ? pagosDemo() : pagosDePlataforma(import.meta.env.PUBLIC_PLATAFORMA);
-if (DEMO) ponerBandaDemo();
+if (DEMO) {
+  // Sus estilos, aparte: con un `import` estático irían también en el CSS de `dist/` (R14).
+  void import("../demo.css");
+  ponerBandaDemo();
+}
 const reto = leerReto(location.search, hoy);
 /** Partida libre del enlace de un amigo (F2); si hay reto, manda el reto. */
 const libreAmigo = reto ? null : leerLibre(location.search);

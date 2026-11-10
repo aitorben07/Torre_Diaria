@@ -96,4 +96,8 @@ test("dist/ no lleva el código de la demostración y dist-demo/ sí (R14, K3)",
   // El servidor del proyecto `demo` compila dist-demo/ a la vez: ahí sí están, así que la búsqueda no da un falso «limpio».
   const demo = textos(new URL("../dist-demo/", import.meta.url));
   for (const texto of ["Demostración", "Vídeo de prueba", "Pago simulado"]) expect(demo).toContain(texto);
+  // Tampoco sus estilos: `demo.css` solo se carga en la demostración.
+  const CLASES = /\.(banda|capa|panel)-demo\b/;
+  expect(textos(DIST)).not.toMatch(CLASES);
+  expect(demo).toMatch(CLASES);
 });
