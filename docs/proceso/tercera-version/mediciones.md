@@ -200,3 +200,20 @@ Límite de A2 sin cambiar: p95 ≤ 33 ms en el Pixel 7 emulado con la CPU ×4. A
 - **JavaScript de `dist/`** (`npm run build` y `gzip -9 -c` de cada `.js`): un solo archivo, **93.029 bytes** con gzip -9 tras L4 (93.016 justo antes; v2: 79.889 B; presupuesto R8: 150 KB). Tras J eran 91.614 B; K y L suman 1,4 KB. Sin mapas de bits ni audio en `dist/`.
 - **Guardado** (C1, el progreso de la prueba «365 días de experto, el inventario lleno y 50 compras» de `src/logica/progreso.test.ts`, escrito con `escribirProgreso`): **52.607 bytes** (v2 con 365 días: 47.125 B; límite 100 KB). La migración v2→v3 la cubren las pruebas de «guardado v3 con migración aditiva» del mismo archivo.
 - **Coste por paso con especiales** (`npm run medir`, semilla `2026-11-09`, 150 piezas con dorada, pegajosa y cemento de la semilla): 0,097 ms por paso tras la pieza 10 y 0,014 ms tras la 150 (cociente 0,14; límite 2). Partida de 40 piezas (`2026-11-06`): mediana de 400 ms en 5 vueltas.
+
+## L4. `npm run e2e` completo (2026-11-10)
+
+`npm run e2e` en este equipo con 2 hilos (R17 en local; en CI no se ha medido aún). Seis ejecuciones completas seguidas durante L4:
+
+| Vuelta | Código | Resultado | Duración | Móvil ×4, p95 | Escritorio, p95 |
+|---|---|---|---|---|---|
+| 1 | tras el arreglo del p95 | 237 pasan, 84 se saltan | 28 min 29 s | 31 ms | 18 ms |
+| 2 | igual | 1 falla: botón de cerrar de la ventana del nivel medido a 43,6 px a mitad de su animación de entrada | 25,1 min | no corrió | no corrió |
+| 3 | prueba de 44 px que espera las animaciones | 1 falla: la partida completa del reto tardó 67 s de reloj (límite 60) | 26 min 13 s | no corrió | no corrió |
+| 4 | partida medida en pasos | 2 fallan por el tope de 60 s: botones de 44 px y recorrido con Tab (36 a 46 s en las demás vueltas) | 25 min 40 s | no corrió | no corrió |
+| 5 | 120 s para las cuatro pruebas más largas | 237 pasan, 84 se saltan | 25 min 49 s | 31 ms | 18 ms |
+| 6 | igual | 237 pasan, 84 se saltan | 26 min 54 s | 31 ms | 18 ms |
+
+- Las dos pruebas que fallaron por carga tras F+G (las especiales en escritorio y la descarga de la imagen en el móvil) pasaron en las seis vueltas (y `npm test`, `npm run check` y `npm run build` delante de las vueltas 5 y 6); la de la dorada mira el aviso dentro de la página, fotograma a fotograma.
+- Los fallos de las vueltas 2 a 4 eran de tiempo con el equipo cargado, no del juego: se arreglan en las pruebas (esperar a las animaciones, medir la partida en pasos de juego y dar 120 s a las cuatro pruebas que juegan partidas enteras y pasaban de 45 s).
+- La duración sube de 18,9 min (tras D, 207 pruebas) a unos 26 min con 237 pruebas. R17 pide ≤ 20 min **en CI**: queda por medir allí; si pasa, la propuesta de impacto es dejar las pruebas de solo DOM en un único proyecto.
