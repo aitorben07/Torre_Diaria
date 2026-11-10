@@ -111,9 +111,19 @@ export function ratioPixeles(dispositivo: number, tactil: boolean = false): numb
   return Math.min(dispositivo > 0 ? dispositivo : 1, tactil ? RATIO_MAXIMO_TACTIL : RATIO_MAXIMO);
 }
 
-/** ¿Se juega con el dedo? (puntero principal grueso: móvil o tableta). */
+/** Consulta del puntero, creada una vez: `ratioDePantalla` se llama varias veces por fotograma. */
+let punteroGrueso: MediaQueryList | null | undefined;
+
+/**
+ * ¿Se juega con el dedo? (puntero principal grueso: móvil o tableta). La
+ * consulta se crea la primera vez y se reutiliza (L4: crear una en cada
+ * fotograma salía en el perfil del móvil con CPU ×4); `matches` sigue al
+ * puntero si cambia.
+ */
 export function esTactil(): boolean {
-  return typeof window !== "undefined" && window.matchMedia?.("(pointer: coarse)").matches === true;
+  if (typeof window === "undefined") return false;
+  if (punteroGrueso === undefined) punteroGrueso = window.matchMedia?.("(pointer: coarse)") ?? null;
+  return punteroGrueso?.matches === true;
 }
 
 /** Píxeles reales por píxel CSS del lienzo en esta pantalla. */
