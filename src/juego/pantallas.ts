@@ -50,6 +50,7 @@ export const ui = {
   objetoReloj: () => elemento<HTMLButtonElement>("objeto-reloj"),
   objetoCemento: () => elemento<HTMLButtonElement>("objeto-cemento"),
   seguir: () => elemento("seguir"),
+  seguirTitulo: () => elemento("seguir-titulo"),
   seguirTexto: () => elemento("seguir-texto"),
   seguirCorazon: () => elemento<HTMLButtonElement>("seguir-corazon"),
   seguirMonedas: () => elemento<HTMLButtonElement>("seguir-monedas"),

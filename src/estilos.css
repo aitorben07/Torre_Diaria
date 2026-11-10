@@ -575,6 +575,11 @@ button:focus-visible {
   outline-offset: 3px;
 }
 
+/* El título de «¿Seguir?» recibe el foco al abrirse (no un botón de pago): sin marco. */
+#seguir-titulo:focus {
+  outline: none;
+}
+
 #mensaje:empty {
   display: none;
 }

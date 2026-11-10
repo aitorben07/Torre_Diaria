@@ -1,4 +1,4 @@
-import { expect, test, type Page, type TestInfo } from "@playwright/test";
+import { expect, test, type Locator, type Page, type TestInfo } from "@playwright/test";
 import type { Progreso } from "../src/logica/progreso.ts";
 import type { Ayuda, OpcionesPartida } from "../src/logica/simulacion.ts";
 
@@ -197,6 +197,19 @@ export async function tocar(page: Page, tactil: boolean): Promise<void> {
 
 export const juego = (page: Page) => page.locator("#juego");
 
+/**
+ * Pulsa un botón de «¿Seguir?» (I3). Durante sus primeros 700 ms no acepta
+ * nada (impacto, 2.5): se pulsa otra vez hasta que la partida deja «seguir»
+ * o, con `hecho`, hasta que se ve (el vídeo, que se abre encima).
+ */
+export async function pulsarEnSeguir(page: Page, boton: Locator, hecho?: Locator): Promise<void> {
+  const listo = async () => (hecho ? hecho.isVisible() : (await juego(page).getAttribute("data-estado")) !== "seguir");
+  await expect(async () => {
+    if (!(await listo())) await boton.click({ timeout: 2000 });
+    await expect.poll(listo, { timeout: 1000 }).toBe(true);
+  }).toPass({ intervals: [100] });
+}
+
 /** La partida libre está en marcha (tras «Jugar», «Otra vez» o el enlace de un amigo). */
 export async function esperarLibre(page: Page): Promise<void> {
   await expect(juego(page)).toHaveAttribute("data-estado", "jugando");
@@ -320,7 +333,7 @@ export async function jugarHastaElFin(
     const estado = await contenedor.getAttribute("data-estado");
     if (estado === "seguir") {
       if (sinSeguir) throw new Error("Se ha ofrecido «¿Seguir?»");
-      await page.locator("#seguir-no").click();
+      await pulsarEnSeguir(page, page.locator("#seguir-no"));
       await expect(contenedor).toHaveAttribute("data-estado", "fin");
       return;
     }

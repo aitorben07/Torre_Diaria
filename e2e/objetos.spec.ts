@@ -5,7 +5,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { RELOJ_MULT } from "../src/logica/ritmo.ts";
 import { jugar } from "../src/logica/simulacion.ts";
-import { conTactil, datosFin, DIA, empezarHoy, esperarFinListo, esperarLibre, juego, jugarHastaElFin, jugarLibre, leerProgreso, preparar, sembrarProgreso, soltarEnExtremo } from "./ayudas.ts";
+import { conTactil, datosFin, DIA, empezarHoy, esperarFinListo, esperarLibre, juego, jugarHastaElFin, jugarLibre, leerProgreso, preparar, pulsarEnSeguir, sembrarProgreso, soltarEnExtremo } from "./ayudas.ts";
 
 const TODOS = ["reloj", "cemento", "corazon"];
 
@@ -150,9 +150,9 @@ test("con un corazón y un reloj: «Usar corazón» sigue con 1 vida, al volver 
   await expect(page.locator("#seguir")).toBeVisible();
   await expect(page.locator("#seguir-monedas")).toBeHidden();
   await expect(page.locator("#seguir-video")).toBeHidden();
-  const usar = page.getByRole("button", { name: "Usar corazón (tienes 1)" });
-  await expect(usar).toBeFocused();
-  await usar.click();
+  // El foco, en el título: no en un botón de pago.
+  await expect(page.locator("#seguir-titulo")).toBeFocused();
+  await pulsarEnSeguir(page, page.getByRole("button", { name: "Usar corazón (tienes 1)" }));
   await expect(juego(page)).toHaveAttribute("data-estado", "jugando");
   await expect(juego(page)).toHaveAttribute("data-vidas", "1");
   expect((await leerProgreso(page))?.objetos.corazon).toBe(0);
@@ -168,6 +168,38 @@ test("con un corazón y un reloj: «Usar corazón» sigue con 1 vida, al volver 
   expect(vigilancia.errores).toEqual([]);
 });
 
+test("un toque justo al aparecer «¿Seguir?», Espacio e Intro no gastan ni el corazón ni las monedas (I3, impacto 2.5)", async ({ page }) => {
+  test.setTimeout(120_000);
+  await preparar(page);
+  await sembrarProgreso(page, conObjetos({ corazon: 1 }, { monedas: 600 }));
+  await page.goto("/");
+  await jugarLibre(page);
+  // El toque, dentro de la página y en el mismo cambio de `data-estado`: llega
+  // a los 0 ms aunque el equipo vaya cargado. Se pulsan todos los botones.
+  await page.evaluate(() => {
+    const el = document.getElementById("juego")!;
+    const vigia = new MutationObserver(() => {
+      if (el.dataset.estado !== "seguir") return;
+      vigia.disconnect();
+      for (const id of ["seguir-corazon", "seguir-monedas", "seguir-no"]) document.getElementById(id)!.click();
+    });
+    vigia.observe(el, { attributes: true, attributeFilter: ["data-estado"] });
+  });
+  expect(await perderHasta(page)).toBe("seguir");
+  // El foco está en el título: Espacio e Intro no pulsan ningún botón de pago, lleguen cuando lleguen.
+  await expect(page.locator("#seguir-titulo")).toBeFocused();
+  await page.keyboard.press("Enter");
+  await page.keyboard.press("Space");
+  await expect(juego(page)).toHaveAttribute("data-estado", "seguir");
+  const p = await leerProgreso(page);
+  expect(p?.objetos.corazon).toBe(1);
+  expect(p?.monedas).toBe(600);
+  // Pasada la espera, el mismo botón sí sigue.
+  await pulsarEnSeguir(page, page.locator("#seguir-corazon"));
+  await expect(juego(page)).toHaveAttribute("data-estado", "jugando");
+  expect((await leerProgreso(page))?.objetos.corazon).toBe(0);
+});
+
 test("con monedas, «250 monedas» sigue y las resta; «No, ver resultado» lleva al fin sin gastar nada (I3)", async ({ page }, testInfo) => {
   test.setTimeout(120_000);
   test.skip(conTactil(testInfo), "Basta con escritorio (R17)");
@@ -177,7 +209,7 @@ test("con monedas, «250 monedas» sigue y las resta; «No, ver resultado» llev
   await jugarLibre(page);
   expect(await perderHasta(page)).toBe("seguir");
   await expect(page.locator("#seguir-corazon")).toBeVisible();
-  await page.getByRole("button", { name: "No, ver resultado" }).click();
+  await pulsarEnSeguir(page, page.getByRole("button", { name: "No, ver resultado" }));
   await expect(juego(page)).toHaveAttribute("data-estado", "fin");
   let p = await leerProgreso(page);
   expect(p?.objetos.corazon).toBe(1);
@@ -189,7 +221,7 @@ test("con monedas, «250 monedas» sigue y las resta; «No, ver resultado» llev
   await page.reload();
   await jugarLibre(page);
   expect(await perderHasta(page)).toBe("seguir");
-  await page.getByRole("button", { name: "250 monedas" }).click();
+  await pulsarEnSeguir(page, page.getByRole("button", { name: "250 monedas" }));
   await expect(juego(page)).toHaveAttribute("data-estado", "jugando");
   p = await leerProgreso(page);
   expect(p?.monedas).toBe(monedas - 250);

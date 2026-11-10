@@ -690,14 +690,15 @@ function mostrarSeguir(): void {
   actualizarHud();
   ui.avisoToque().hidden = true;
   cambiarEstado("seguir");
-  const primero = [ui.seguirCorazon(), ui.seguirMonedas(), ui.seguirVideo(), ui.seguirNo()].find((b) => !b.hidden);
-  primero?.focus();
+  // El foco va al título, no a un botón de pago: el Espacio o el Intro que el
+  // jugador ya traía no gasta nada (y los botones esperan `ESPERA_FIN_MS`).
+  ui.seguirTitulo().focus();
 }
 
 /** Paga y sigue (I3): la partida pone 1 vida y cuelga la siguiente pieza; el «seguir» va a `data-ayudas` (R3). */
 function seguirCon(pago: PagoSeguir): void {
   const actual = partida;
-  if (!actual || flujo.pantalla !== "seguir") return;
+  if (!actual || flujo.pantalla !== "seguir" || !finListo()) return;
   if (pago !== "video" && pagarSeguir(guardado.releer(), pago) === guardado.actual) return;
   const paso = actual.pasos;
   if (!actual.seguir()) return;
@@ -710,7 +711,7 @@ function seguirCon(pago: PagoSeguir): void {
 
 /** «No, ver resultado»: la partida acaba sin gastar nada. */
 function noSeguir(): void {
-  if (partida && flujo.pantalla === "seguir") terminar(partida);
+  if (partida && flujo.pantalla === "seguir" && finListo()) terminar(partida);
 }
 
 /**
@@ -1236,6 +1237,7 @@ ui.objetoCemento().addEventListener("click", () => usarObjeto("cemento"));
 ui.seguirCorazon().addEventListener("click", () => seguirCon("corazon"));
 ui.seguirMonedas().addEventListener("click", () => seguirCon("monedas"));
 ui.seguirVideo().addEventListener("click", () => {
+  if (flujo.pantalla !== "seguir" || !finListo()) return;
   void anuncios.recompensado("seguir").then((resultado) => {
     if (resultado === "visto") seguirCon("video");
   });
@@ -1252,7 +1254,7 @@ ui.botonReto().addEventListener("click", () => {
 ui.botonRepetirReto().addEventListener("click", () => {
   if (reto) actuar({ tipo: "repetirDia", dia: reto.dia });
 });
-/** Los botones del fin ignoran los toques de los primeros 700 ms, como el principal (impacto, 2.5). */
+/** Los botones del fin y de «¿Seguir?» ignoran los toques de los primeros 700 ms, como el principal (impacto, 2.5). */
 function finListo(): boolean {
   return aceptaEntrada(flujo, performance.now());
 }

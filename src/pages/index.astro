@@ -172,7 +172,7 @@ const pilotes = MUELLE.pilotes.map((x) => `M${x} ${MUELLE.tablero.y + MUELLE.tab
 
         {/* «¿Seguir?» (I3, impacto R-4): solo en la libre, al perder la última vida y con con qué pagar. Sin cuenta atrás. */}
         <section id="seguir" class="panel columna seguir" aria-labelledby="seguir-titulo" hidden>
-          <h2 id="seguir-titulo">¿Seguir?</h2>
+          <h2 id="seguir-titulo" tabindex="-1">¿Seguir?</h2>
           <p id="seguir-texto" class="suave"></p>
           <div class="acciones">
             <button id="seguir-corazon" type="button" class="principal" hidden></button>

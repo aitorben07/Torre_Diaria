@@ -7,7 +7,10 @@
 // puede pausar en todos los modos (E1).
 import type { Libre, Reto } from "../logica/reto.ts";
 
-/** En la pantalla de fin se ignoran toques y teclas durante este tiempo (impacto, 2.5). */
+/**
+ * En la pantalla de fin y en «¿Seguir?» se ignoran toques y teclas durante
+ * este tiempo (impacto, 2.5): la pulsación que traía el jugador no cuenta.
+ */
 export const ESPERA_FIN_MS = 700;
 
 /**
@@ -27,7 +30,7 @@ export type Flujo = {
   dia: number;
   /** Número del nivel en el modo `nivel`; 0 en los demás. */
   nivel: number;
-  /** Momento (en ms, del reloj que use la página) en que se mostró el fin. */
+  /** Momento (en ms, del reloj que use la página) en que se mostró el fin o «¿Seguir?». */
   finDesde: number;
   /** Con un panel abierto, la pantalla a la que se vuelve al cerrarlo. */
   debajo: Exclude<Pantalla, Panel> | null;
@@ -123,9 +126,9 @@ export function sinSalida(modo: Modo): boolean {
   return modo === "oficial" || modo === "repeticion";
 }
 
-/** ¿Acepta la pantalla toques y botones? En el fin, solo pasados `ESPERA_FIN_MS`. */
+/** ¿Acepta la pantalla toques y botones? En el fin y en «¿Seguir?», solo pasados `ESPERA_FIN_MS`. */
 export function aceptaEntrada(flujo: Flujo, ahora: number): boolean {
-  return flujo.pantalla !== "fin" || ahora - flujo.finDesde >= ESPERA_FIN_MS;
+  return (flujo.pantalla !== "fin" && flujo.pantalla !== "seguir") || ahora - flujo.finDesde >= ESPERA_FIN_MS;
 }
 
 /** Siguiente estado y orden tras una acción. Las acciones ignoradas devuelven el mismo estado y `nada`. */
@@ -148,10 +151,10 @@ export function transicion(flujo: Flujo, accion: Accion, { ahora, hoy, jugado, n
   switch (accion.tipo) {
     case "ofrecerSeguir":
       if (flujo.pantalla !== "jugando" || flujo.modo !== "libre") return { flujo, orden: NADA };
-      return { flujo: { ...flujo, pantalla: "seguir" }, orden: { tipo: "seguir" } };
+      return { flujo: { ...flujo, pantalla: "seguir", finDesde: ahora }, orden: { tipo: "seguir" } };
     case "seguirTrasPerder":
       if (flujo.pantalla !== "seguir") return { flujo, orden: NADA };
-      return { flujo: { ...flujo, pantalla: "jugando" }, orden: { tipo: "volver", pantalla: "jugando" } };
+      return { flujo: { ...flujo, pantalla: "jugando", finDesde: -Infinity }, orden: { tipo: "volver", pantalla: "jugando" } };
     case "libre":
       if (accion.codigo) return { flujo: empezar("libre", hoy), orden: { tipo: "jugar", modo: "libre", dia: hoy, codigo: accion.codigo } };
       return { flujo: empezar("libre", hoy), orden: { tipo: "jugar", modo: "libre", dia: hoy } };

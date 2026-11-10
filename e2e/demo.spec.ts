@@ -7,7 +7,7 @@
 // dura 3 s de verdad: con `page.clock.setFixedTime` los temporizadores siguen
 // en marcha y solo la hora queda fijada, así que se mueve a mano.
 import { expect, test, type Page } from "@playwright/test";
-import { abrirTienda, FECHA, juego, jugarLibre, leerProgreso, preparar, sembrarProgreso, soltarEnExtremo } from "./ayudas.ts";
+import { abrirTienda, FECHA, juego, jugarLibre, leerProgreso, preparar, pulsarEnSeguir, sembrarProgreso, soltarEnExtremo } from "./ayudas.ts";
 
 const conObjetos = (monedas: number) => ({
   version: 3,
@@ -132,7 +132,7 @@ test("en la libre, al perder la última vida «¿Seguir?» ofrece «Ver vídeo»
   await expect(juego(page)).toHaveAttribute("data-estado", "seguir");
   await expect(page.locator("#seguir-video")).toBeVisible();
   expect(await page.locator("#seguir").innerText()).not.toMatch(/€/);
-  await page.locator("#seguir-video").click();
+  await pulsarEnSeguir(page, page.locator("#seguir-video"), page.getByRole("dialog", { name: "Vídeo de prueba" }));
   await verVideoEntero(page);
   await expect(juego(page)).toHaveAttribute("data-estado", "jugando");
 });

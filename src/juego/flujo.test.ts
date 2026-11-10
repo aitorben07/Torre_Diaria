@@ -231,9 +231,17 @@ describe("«¿Seguir?» (I3, impacto R-4)", () => {
     const libre = empezar("libre", HOY);
     const { flujo: seguir, orden } = transicion(libre, { tipo: "ofrecerSeguir" }, contexto(0));
     expect(orden).toEqual({ tipo: "seguir" });
-    expect(seguir).toEqual({ ...libre, pantalla: "seguir" });
-    expect(transicion(seguir, { tipo: "seguirTrasPerder" }, contexto(0))).toEqual({ flujo: libre, orden: { tipo: "volver", pantalla: "jugando" } });
+    expect(seguir).toEqual({ ...libre, pantalla: "seguir", finDesde: 0 });
+    expect(transicion(seguir, { tipo: "seguirTrasPerder" }, contexto(ESPERA_FIN_MS))).toEqual({ flujo: libre, orden: { tipo: "volver", pantalla: "jugando" } });
     expect(transicion(seguir, { tipo: "terminar" }, contexto(5))).toEqual({ flujo: { ...libre, pantalla: "fin", finDesde: 5 }, orden: { tipo: "nada" } });
+  });
+
+  it("como el fin, «¿Seguir?» no acepta nada durante `ESPERA_FIN_MS`: la pulsación que traía el jugador no paga", () => {
+    const seguir = transicion(empezar("libre", HOY), { tipo: "ofrecerSeguir" }, contexto(1000)).flujo;
+    expect(aceptaEntrada(seguir, 1000)).toBe(false);
+    expect(aceptaEntrada(seguir, 1000 + ESPERA_FIN_MS - 1)).toBe(false);
+    expect(transicion(seguir, { tipo: "seguirTrasPerder" }, contexto(1000 + ESPERA_FIN_MS - 1))).toEqual({ flujo: seguir, orden: { tipo: "nada" } });
+    expect(aceptaEntrada(seguir, 1000 + ESPERA_FIN_MS)).toBe(true);
   });
 
   it("en «¿Seguir?» no se pausa, no se abre ningún panel ni se va al inicio", () => {
