@@ -153,3 +153,50 @@ Monedas medianas por partida: novato 42, medio 155, experto 350,5. Reloj: 120.
 - **Las reglas 3 dan muchas más monedas que la v2** (medio 1.113 al día frente a 751; experto 2.428 frente a 1.404): las partidas son más largas en piezas (cadencia más rápida, pegajosa y cemento sujetan la torre) y las doradas dan +10. Sin las doradas (como medía la v2) ya pasaba: medio día 11 y experto día 5.
 - No se puede arreglar con lo que L3 deja tocar (`PRECIOS_OBJETOS` y `MONEDAS_VIDEO`): los dos requisitos sin objetos ni vídeos fallan por los precios de los temas y las monedas por pieza. **No se ha cambiado:** subir los precios de los temas o bajar las monedas por partida toca la economía de un juego ya publicado, y lo decide la revisión final. Opción recomendada para entonces: multiplicar los precios de los temas por 1,5 (Madera 450, Caramelo 1.470, Neón 2.520, Mármol 3.780, Oro 6.300; se mediría de nuevo), que no quita nada a quien ya compró.
 - `PRECIOS_OBJETOS` (120, 180, 250) y `MONEDAS_VIDEO` (60) se quedan: el reloj cabe en una partida del medio, los objetos ya retrasan el catálogo del medio dos días y el vídeo, uno.
+
+## L4. Fotogramas del móvil emulado: perfil y arreglo (2026-11-10)
+
+Límite de A2 sin cambiar: p95 ≤ 33 ms en el Pixel 7 emulado con la CPU ×4. Antes de L4 daba **32 a 34 ms** con la música (35-36 ms al final de `npm run e2e`).
+
+**Cómo se ha perfilado.** Una copia temporal de `e2e/rendimiento.spec.ts` (no se ha subido) con la misma partida de 20 s, la música real y la CPU ×4, y tres modos: traza de Chrome DevTools (`browser.startTracing` de Playwright con las categorías `devtools.timeline`, `disabled-by-default-devtools.timeline(.frame)`, `v8` y `blink`), perfil de CPU de V8 (CDP `Profiler.start`, muestreo cada 0,2 ms) y sin nada, para la cifra. Cada variante del código se compiló y se midió aparte, con `--project=rendimiento-movil --no-deps --workers=1` y nada más corriendo. Las cifras de CPU son tiempo de hilo (`tdur`) por fotograma, sin la espera que añade la CPU ×4.
+
+**Lo que dice el perfil (código de antes de L4):**
+
+| Hilo principal, por fotograma | CPU |
+|---|---|
+| Pintar el lienzo por software (`CanvasRenderingContext2D::FinalizeFrame`, dentro de `Commit`) | 4,5 a 5,0 ms |
+| JavaScript del juego (física, dibujo, HUD, música) | 1,7 ms |
+| Pasar el lienzo al compositor (`ProduceCanvasResource`) | 0,7 ms |
+| Total de tareas | 8,1 ms |
+
+- **No es la recolección de basura** (15 a 19 recolecciones menores en 20 s, 30 ms en total), **ni los gradientes o `filter`** (no hay ninguno por fotograma), **ni repintar el fondo** (con el fondo congelado, el pintado sigue en 4,65 ms), **ni la música** (`programar` < 0,1 ms de media, como en D4).
+- En headless el lienzo no va por GPU (`CrGpuMain` casi parado): cada operación del lienzo se rasteriza en el hilo principal, al que frena la CPU ×4. El coste está **repartido** entre las piezas de la torre (unos 1,5 ms; dos `drawImage` girados por pieza), el agua con sus ondas (0,8 ms), los efectos (0,6 ms con su JavaScript), los textos impresos (`strokeText`) y la copia del fondo (0,5 ms).
+- **Un desperdicio concreto:** `ratioDePantalla()` creaba un `MediaQueryList` con `matchMedia("(pointer: coarse)")` en cada llamada, varias veces por fotograma (sacudida, textos y corazones): 222 ms de cada 20 s en el perfil de V8.
+- **Nota sobre la medida (no se ha cambiado):** `page.clock.setFixedTime`, que pone `preparar()` en todas las pruebas, instala el reloj falso de Playwright, que **sustituye `requestAnimationFrame` por temporizadores** en una rejilla de 16 ms (en la página, `String(requestAnimationFrame)` es `(...args) => {`), aunque el comentario de `preparar()` dice que no falsea los temporizadores. Ese reloj suma unos 0,4 ms de JavaScript por fotograma. Sin él, con el `requestAnimationFrame` real, el mismo código daba mediana 16,7 ms y p95 33,4 ms (los intervalos van por saltos de 16,7 ms). Se anota para la revisión; la prueba sigue midiendo como antes.
+
+**Variantes medidas** (p95 sin traza; «lentos» es la parte de fotogramas de más de 20 ms; CPU con traza):
+
+| Variante | p95 | Lentos | Pintado / total CPU |
+|---|---|---|---|
+| Antes de L4 | 32, 34, 34 ms | 30 a 33 % | 4,5-5,0 / 8,1 ms |
+| Sin piezas de la torre (prueba) | 28, 26 ms | 15 a 18 % | 3,1 / 6,3 ms |
+| Sin dibujar nada salvo un color (prueba) | 22, 22 ms | 9 % | — |
+| Fondo opaco (`alpha: false`) | — | — | 4,7 / 8,2 ms: igual |
+| Piezas como `ImageBitmap` | — | — | 4,5 / 8,0 ms: igual |
+| Fondo en su propio `<canvas>` debajo, sin copiarlo | 33, 32, 32, 32 ms | 31 a 39 % | 3,9 / 8,0 ms: lo que ahorra el pintado lo gasta el compositor (1,3 ms) |
+| Sin suavizado de imagen en las piezas | 34, 30 ms | 32 a 35 % | — |
+| `matchMedia` una sola vez | 34, 33, 31 ms | 32 a 43 % | — |
+| `RATIO_MAXIMO_TACTIL` 1,25 | 29, 33, 32 ms | 24 a 29 % | 4,2 / 7,5 ms |
+| **`matchMedia` una vez + 1,25 (lo aplicado)** | **29, 31, 29, 29 ms** | **16 a 25 %** | — |
+
+**Arreglo aplicado:**
+1. `esTactil()` crea la consulta una vez y la reutiliza (opción 1 del coordinador: lo único que el perfil señala como evitable). Por sí solo no basta: queda dentro del ruido.
+2. `RATIO_MAXIMO_TACTIL` de 1,5 a **1,25** (opción 2): con el coste repartido en el pintado, bajar los píxeles es lo que más se nota sin quitar nada de lo que se dibuja. En el Pixel 7 (412 px CSS de ancho) el lienzo pasa de 618 a 515 píxeles reales de ancho. En escritorio no cambia (sigue en 2).
+- No se han reducido partículas (opción 3): sin ningún efecto el pintado solo baja 0,3 ms.
+- Antes y después, mismo comando y mismo equipo: p95 **32 a 34 ms → 29 a 31 ms**; mediana 18-19 → 17 ms; fotogramas de más de 20 ms, 30-33 % → 16-25 %.
+
+## L4. Peso, guardado y coste por paso (2026-11-10)
+
+- **JavaScript de `dist/`** (`npm run build` y `gzip -9 -c` de cada `.js`): un solo archivo, **93.016 bytes** con gzip -9 (v2: 79.889 B; presupuesto R8: 150 KB). Tras J eran 91.614 B; K y L suman 1,4 KB.
+- **Guardado** (C1, el progreso de la prueba «365 días de experto, el inventario lleno y 50 compras» de `src/logica/progreso.test.ts`, escrito con `escribirProgreso`): **52.607 bytes** (v2 con 365 días: 47.125 B; límite 100 KB). La migración v2→v3 la cubren las pruebas de «guardado v3 con migración aditiva» del mismo archivo.
+- **Coste por paso con especiales** (`npm run medir`, semilla `2026-11-09`, 150 piezas con dorada, pegajosa y cemento de la semilla): 0,097 ms por paso tras la pieza 10 y 0,014 ms tras la 150 (cociente 0,14; límite 2). Partida de 40 piezas (`2026-11-06`): mediana de 400 ms en 5 vueltas.

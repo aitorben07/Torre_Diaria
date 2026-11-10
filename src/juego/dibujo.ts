@@ -32,10 +32,13 @@ export const MARGEN_BAJO_TARJETA = 0.6;
 const LIBRE_MINIMO = 2;
 export const RATIO_MAXIMO = 2;
 /**
- * En pantallas táctiles, como mucho 1,5 (impacto, A2): con CPU ×4 el p95 de
- * fotograma daba 35 ms con 2 (objetivo ≤ 33 ms). Medido con `e2e/arte.spec.ts`.
+ * En pantallas táctiles, como mucho 1,25. Con 2, el p95 de fotograma del móvil
+ * con CPU ×4 daba 35 ms (objetivo ≤ 33 ms, impacto A2) y se bajó a 1,5; con la
+ * música de la v3, 1,5 volvió a dar de 32 a 34 ms. El perfil (L4) muestra que
+ * el coste está repartido en el pintado del lienzo por software, no en un
+ * efecto concreto; con 1,25 da de 29 a 31 ms (`mediciones.md`, L4).
  */
-export const RATIO_MAXIMO_TACTIL = 1.5;
+export const RATIO_MAXIMO_TACTIL = 1.25;
 
 /** Superficie del mar, en metros bajo la cara del muelle. */
 export const NIVEL_AGUA = -0.75;

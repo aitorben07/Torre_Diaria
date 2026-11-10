@@ -127,10 +127,10 @@ describe("el dibujo no toca la partida (A2)", () => {
 });
 
 describe("densidad de píxeles del lienzo (A2, impacto)", () => {
-  it("como mucho 2 con ratón y 1,5 en pantallas táctiles", () => {
+  it("como mucho 2 con ratón y 1,25 en pantallas táctiles (L4)", () => {
     expect(ratioPixeles(1)).toBe(1);
     expect(ratioPixeles(3)).toBe(2);
-    expect(ratioPixeles(2.625, true)).toBe(1.5);
+    expect(ratioPixeles(2.625, true)).toBe(1.25);
     expect(ratioPixeles(1, true)).toBe(1);
     expect(ratioPixeles(0)).toBe(1);
   });
