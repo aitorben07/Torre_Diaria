@@ -35,16 +35,16 @@ describe("tabla de niveles (E1)", () => {
     expect(NIVELES.filter((n) => n.jefe).map((n) => n.numero)).toEqual([10]);
   });
 
-  it("los objetivos parten del ejemplo del Anexo 1, 6, más largos desde el 4 (E2)", () => {
+  it("los objetivos parten del ejemplo del Anexo 1, 6, más largos desde el 4 (E2; 4, 7 y 8 alargados en L2)", () => {
     expect(NIVELES.map((n) => textoObjetivo(n))).toEqual([
       "Coloca 5 piezas",
       "Llega a 3 m",
       "Haz 4 perfectos",
-      "Coloca 12 piezas",
+      "Coloca 14 piezas",
       "Haz un combo de 4",
       "Llega a 8 m con 2 vidas",
-      "Coloca 12 piezas con 1 vida",
-      "Consigue 600 puntos",
+      "Coloca 16 piezas con 1 vida",
+      "Consigue 750 puntos",
       "Llega a 10 m en 18 piezas",
       "Llega a 14 m con 2 vidas",
     ]);
@@ -125,18 +125,21 @@ describe("objetivos de la partida (E1)", () => {
     // física, las piezas o las reglas, falla a propósito (como las doradas de
     // B). Con REGLAS = 3 (tercera-version, B1: AMPLITUD 2,6 y HUECO_COLGADA
     // 1,8; el nivel sigue a 0,9 m/s) cambian los toques, los pasos y la
-    // altura; antes: toques 224 a 1234, 1302 pasos y 4,109107 m.
+    // altura; antes: toques 224 a 1234, 1302 pasos y 4,109107 m. En L2 el
+    // nivel pasa a 1,1 m/s: los mismos tres perfectos y dos buenos llegan
+    // antes; con 0,9 m/s eran los toques 173 a 996, 1116 pasos y 3,678103 m.
     const nivel = nivelPorNumero(1)!;
-    const r = jugar(nivel.semilla, [173, 377, 580, 767, 996], opcionesDeNivel(nivel));
+    expect(nivel.velocidad).toBe(1.1);
+    const r = jugar(nivel.semilla, [142, 316, 491, 653, 852], opcionesDeNivel(nivel));
     expect({ puntos: r.puntos, piezas: r.piezas, perfectos: r.perfectos, comboMax: r.comboMax, pasos: r.pasos, victoria: r.victoria }).toEqual({
       puntos: 120,
       piezas: 5,
       perfectos: 3,
       comboMax: 3,
-      pasos: 1116,
+      pasos: 972,
       victoria: true,
     });
-    expect(r.altura).toBeCloseTo(3.678103, 6);
+    expect(r.altura).toBeCloseTo(3.535045, 6);
   });
 });
 

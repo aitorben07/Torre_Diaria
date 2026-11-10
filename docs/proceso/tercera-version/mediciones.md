@@ -97,3 +97,28 @@ La subida viene sobre todo del ritmo: con la cadencia nueva caen 8 a 10 piezas e
 - **`UMBRALES[3]`** con la regla de la v2 (S26), redondeando a 50 hacia abajo: bronce = mediana del novato (485) → **450**; plata = mediana del medio (2.640) → **2.600**; oro = percentil 25 del experto (6.785, el 8.º de 30 ordenados) → **6.750**. `UMBRALES[2]` (550, 2.400, 4.000) no cambia (R16).
 - Medallas con los umbrales nuevos: novato con bronce o más el **60 %** de los días, medio con plata o más el **57 %**, experto con oro el **77 %** (objetivo: 50 % o más cada uno).
 - Tiempo de la medición: novato 9,8 s, medio 31,6 s y experto 71,1 s; 1 min 57 s en total.
+
+## L2. Niveles con las reglas 3 (2026-11-10)
+
+`npm run medir:niveles` (10 intentos por nivel y perfil, en Node, 72 s).
+
+- **Antes de tocar nada** (tabla de la v2 con las reglas 3): todos los requisitos de ganar y de estrellas se cumplían, pero la mediana de duración del medio al ganar bajó a **24,2 s** (requisito: 30 a 120). Los niveles 1 a 3 a 0,9 m/s ya duraban 14 a 17 s, y el 4 y el 7, 27 y 24 s. Cuatro niveles proponían otros `p2` y `p3`.
+- **Cambios:** niveles 1 a 3 de 0,9 a **1,1 m/s** (primera pieza en el centro a 2,4 s; antes 2,9 y en la libre 2,0); nivel 4, **14 piezas a 1,5 m/s** (antes 12 a 1,7; con 16 a 1,7 el novato ganaba 3 de 10 y con 13 a 1,7 la mediana quedaba en 30,2 s); nivel 7, **16 piezas** con 1 vida (antes 12); nivel 8, **750 puntos** (antes 600). Los `p2` y `p3` de los niveles 4, 6, 7, 8 y 10 se recalculan con la regla de la v2.
+
+| Nivel | Objetivo | Vel. | Novato gana | Medio gana / 3★ | Experto 3★ | Medio, s al ganar | `p2` / `p3` |
+|---|---|---|---|---|---|---|---|
+| 1 | Coloca 5 piezas | 1,1 | 10 | 10 / 10 | 10 | 14,5 | 150 / 200 |
+| 2 | Llega a 3 m | 1,1 | 10 | 10 / 10 | 10 | 11,7 | 50 / 100 |
+| 3 | Haz 4 perfectos | 1,1 | 10 | 10 / 10 | 10 | 11,8 | 50 / 100 |
+| 4 | Coloca 14 piezas | 1,5 | 9 | 10 / 4 | 10 | 33,2 | 800 / 900 |
+| 5 | Haz un combo de 4 | 1,0 | 9 | 10 / 10 | 10 | 12,6 | 50 / 100 |
+| 6 | Llega a 8 m con 2 vidas | 1,7 | 1 | 10 / 9 | 10 | 46,3 | 800 / 850 |
+| 7 | Coloca 16 piezas con 1 vida | 1,8 | 0 | 9 / 1 | 10 | 38,6 | 750 / 1.000 |
+| 8 | Consigue 750 puntos | 1,6 | 0 | 10 / 2 | 10 | 42,3 | 750 / 800 |
+| 9 | Llega a 10 m en 18 piezas | 1,7 | 0 | 8 / 3 | 10 | 39,6 | 850 / 900 |
+| 10 | Llega a 14 m con 2 vidas (jefe) | 1,6 | 0 | 9 / 9 | 10 | 87,3 | 1.200 / 1.250 |
+
+- Requisitos: novato gana los niveles 1 a 5 en 9 de 10 o más (≥ 6); medio gana cada nivel en 8 de 10 o más (≥ 6); experto con 3 estrellas en 10 de 10 en todos (≥ 3); **mediana del medio al ganar 31,7 s** (30 a 120); `umbralesDistintos: 0`, `fallos: []`.
+- El margen de la mediana es pequeño (1,7 s): los niveles cortos (1, 2, 3 y 5, de 12 a 15 s) son casi la mitad de las victorias. Si otra medida la baja de 30, lo siguiente sería alargar el 1 o el 5.
+- Las estrellas ya guardadas no se recalculan: el progreso guarda estrellas y no puntos, y una partida peor no cambia la mejor marca (`niveles.test.ts`, «mejorar de 1 a 3 estrellas…»). Quien sacó 3 estrellas en el 4 con 650 puntos las conserva.
+- La prueba dorada del nivel 1 cambia por la velocidad: toques 142 a 852, 972 pasos y 3,535045 m (antes 173 a 996, 1.116 pasos y 3,678103 m; mismos puntos, piezas y perfectos).
