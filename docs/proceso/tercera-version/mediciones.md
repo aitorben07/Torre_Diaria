@@ -80,3 +80,20 @@ La subida viene sobre todo del ritmo: con la cadencia nueva caen 8 a 10 piezas e
 - JavaScript de `dist/` con `gzip -9`: 88.612 bytes (antes del bloque D, 84,9 KB): la música y sus partituras suman unos 3,7 KB. Presupuesto, 150 KB.
 - Grabación de la música con `OfflineAudioContext` (no está en el repositorio): 77 s con 14 s de inicio, partida con las capas 0, 1 y 2, una caída, efectos y el motivo de fin. RMS de -26 a -25 dBFS y pico de 0,47.
 - `npm run e2e` completo tras el bloque D (2026-11-10): 207 pasan, 60 se saltan y falla solo `rendimiento-movil` (p95 35 ms, límite 33); `rendimiento-escritorio` pasa con p95 20 ms. Dura 18,9 min con 2 hilos.
+
+## L1. Duración y medallas con las reglas 3 (2026-11-10)
+
+`npm run medir:duracion` con todo dentro (reglas 3, especiales, sin objetos: los jugadores simulados no los usan), días 1 a 30.
+
+| Perfil | Primera | Cadencia | 10.ª | Duración | Puntos | Piezas | Especiales por partida |
+|---|---|---|---|---|---|---|---|
+| Novato (±180 ms) | 2,02 s | 2,63 s | 29,10 s | 60,1 s | 485 | 18 | 1,8 |
+| Medio (±90 ms) | 1,98 s | 2,48 s | 24,91 s | 145,1 s | 2.640 | 55 | 6,1 |
+| Experto (±40 ms) | 2,00 s | 2,45 s | 24,88 s | 261,8 s | 7.102,5 | 124,5 | 15,6 |
+
+- Mismas cifras que tras H e I1: no ha cambiado nada de la simulación desde entonces. No se tocan `ritmo.ts` ni `especiales.ts`.
+- Requisitos de B2: primera pieza en el centro a 2,0 s (geométrico: 2,6 / 1,3); ventana del perfecto 123 ms; cadencia del medio 2,48 s (≤ 2,6); duraciones dentro de rango; ninguna al tope de 30 min. **Novato 60,1 s, a 0,1 s del mínimo:** no baja, así que `RESPIRO_CAIDA` sigue igual.
+- Especiales que llegan a colgar, de media por partida: 1,8, 6,1 y 15,6 (el Anexo G estimaba 1, 5 y 12; las partidas son algo más largas que entonces).
+- **`UMBRALES[3]`** con la regla de la v2 (S26), redondeando a 50 hacia abajo: bronce = mediana del novato (485) → **450**; plata = mediana del medio (2.640) → **2.600**; oro = percentil 25 del experto (6.785, el 8.º de 30 ordenados) → **6.750**. `UMBRALES[2]` (550, 2.400, 4.000) no cambia (R16).
+- Medallas con los umbrales nuevos: novato con bronce o más el **60 %** de los días, medio con plata o más el **57 %**, experto con oro el **77 %** (objetivo: 50 % o más cada uno).
+- Tiempo de la medición: novato 9,8 s, medio 31,6 s y experto 71,1 s; 1 min 57 s en total.

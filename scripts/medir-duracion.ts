@@ -6,7 +6,8 @@
 // o más y el experto oro, cada uno en la mitad de los días o más. Y el
 // arranque (B2 de la tercera versión): segundo de la primera suelta, cadencia
 // inicial (mediana de segundos entre las sueltas 1 a 10) y segundo en que se
-// coloca la décima pieza, con la mediana de los días.
+// coloca la décima pieza, con la mediana de los días. Y las piezas especiales
+// que llegan a colgar, de media por partida (L1).
 // Uso: npm run medir:duracion [-- <días> [<perfil>]]
 import { UMBRAL_BRONCE, UMBRAL_ORO, UMBRAL_PLATA } from "../src/logica/diarios.ts";
 import { mediana, medirPerfil, PERFILES } from "./duracion.ts";
@@ -47,6 +48,7 @@ for (const perfil of PERFILES.filter((p) => !SOLO || p.nombre === SOLO)) {
       cadenciaS: resumenDe(medidas.map((m) => m.cadenciaS)),
       decimaS: resumenDe(medidas.map((m) => m.decimaS)),
       sinDecima: medidas.filter((m) => m.decimaS === null).length,
+      especialesMedia: Number((medidas.reduce((suma, m) => suma + m.especiales, 0) / medidas.length).toFixed(1)),
       alTope: medidas.filter((m) => !m.terminada).length,
       medallas: Object.fromEntries(
         (

@@ -148,6 +148,14 @@ describe("medallas y estados (D1)", () => {
     expect(medallaDe({ ...v2, reglas: 3 })).toBe(medallaDePuntos(2400, 3));
   });
 
+  it("L1: las reglas 3 tienen sus umbrales (450, 2.600 y 6.750) y 2.400 puntos dan plata con las 2 y bronce con las 3", () => {
+    expect(UMBRALES[3]).toEqual({ bronce: 450, plata: 2600, oro: 6750 });
+    expect(medallaDePuntos(2400, 2)).toBe("plata");
+    expect(medallaDePuntos(2400, 3)).toBe("bronce");
+    expect(medallaDePuntos(449, 3)).toBeNull();
+    expect(medallaDePuntos(6750, 3)).toBe("oro");
+  });
+
   it("R16: un día de las reglas 2 ya guardado no se vuelve a jugar como oficial ni cambia", () => {
     const v2 = { puntos: 2400, piezas: 49, altura: 23.5, perfectos: 42, colocadas: "0-48", enSuDia: true, reglas: 2 };
     const p: Progreso = { ...progresoVacio(), diarios: { 5: v2 } };

@@ -20,12 +20,15 @@ export type Umbrales = { bronce: number; plata: number; oro: number };
  *   abajo para que cada perfil llegue en la mitad de los días o más
  *   (redondeando al más cercano, la plata quedaba en 2.450 y el medio solo la
  *   sacaba el 40 % de los días). No se tocan.
- * - Reglas 3: provisionalmente los mismos; L1 los recalcula con la misma regla
- *   ya con las piezas especiales.
+ * - Reglas 3 (L1), con la misma regla y ya con las piezas especiales (días 1
+ *   a 30, medidas el 2026-11-10): mediana del novato (485), mediana del medio
+ *   (2.640) y percentil 25 del experto (6.785, el 8.º de 30), redondeados a 50
+ *   hacia abajo. Novato con bronce o más el 60 % de los días, medio con plata
+ *   o más el 57 % y experto con oro el 77 %.
  */
 export const UMBRALES: Readonly<Record<number, Umbrales>> = {
   2: { bronce: 550, plata: 2400, oro: 4000 },
-  3: { bronce: 550, plata: 2400, oro: 4000 },
+  3: { bronce: 450, plata: 2600, oro: 6750 },
 };
 
 /** Umbrales de las reglas actuales (`REGLAS`), los de las partidas nuevas. */

@@ -79,17 +79,17 @@ test("la tarjeta del reto dice «Sin jugar» y la racha, y abre Retos; jugado, s
   // El foco vuelve a la tarjeta que abrió el panel.
   await expect(tarjeta).toBeFocused();
 
-  // Con el día de hoy jugado (2.400 puntos con las reglas 3: plata provisional, UMBRALES[3] = v2).
+  // Con el día de hoy jugado (2.650 puntos con las reglas 3: plata, umbral 2.600).
   await page.evaluate((dia) => {
     const p = JSON.parse(localStorage.getItem("torre-diaria:progreso")!);
-    p.diarios = { [dia]: { puntos: 2400, piezas: 49, altura: 23.5, perfectos: 42, colocadas: "0-48", enSuDia: true, reglas: 3 } };
+    p.diarios = { [dia]: { puntos: 2650, piezas: 49, altura: 23.5, perfectos: 42, colocadas: "0-48", enSuDia: true, reglas: 3 } };
     p.racha = { actual: 4, mejor: 4, ultimoDia: dia, congeladores: 0 };
     localStorage.setItem("torre-diaria:progreso", JSON.stringify(p));
   }, DIA);
   await page.reload();
   await esperarInicio(page);
-  await expect(tarjeta).toHaveAccessibleName(`Reto de hoy #${DIA}: Plata, 2.400 puntos. Racha de 4 días`);
-  await expect(page.locator("#tarjeta-reto-texto")).toHaveText("2.400");
+  await expect(tarjeta).toHaveAccessibleName(`Reto de hoy #${DIA}: Plata, 2.650 puntos. Racha de 4 días`);
+  await expect(page.locator("#tarjeta-reto-texto")).toHaveText("2.650");
   await expect(page.locator("#tarjeta-reto-marca")).toHaveClass("medalla plata");
 });
 

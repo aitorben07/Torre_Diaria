@@ -42,6 +42,8 @@ export type Medida = {
   cadenciaS: number | null;
   /** Segundo en que se coloca la décima pieza, o `null` si no llega (B2). */
   decimaS: number | null;
+  /** Piezas especiales que han llegado a colgar (L1 de la tercera versión). */
+  especiales: number;
 };
 
 /** Sueltas que miden la cadencia inicial: de la 1 a la 10. */
@@ -65,6 +67,7 @@ export function jugarConPerfil(semilla: string, perfil: Perfil, opciones: Opcion
   const pasosSueltas: number[] = [];
   let colocadas = 0;
   let pasoDecima: number | null = null;
+  let especiales = 0;
   while (!partida.terminada && partida.pasos < MAX_PASOS) {
     const { colgada, objetivo } = partida.estado();
     if (!colgada) {
@@ -74,6 +77,7 @@ export function jugarConPerfil(semilla: string, perfil: Perfil, opciones: Opcion
       const alObjetivo = pasosHastaObjetivo(objetivo, colgada.velocidad, colgada.x > 0);
       const error = Math.round(((azar() * 2 - 1) * perfil.errorMs) / (PASO * 1000));
       pasoToque = partida.pasos + Math.max(1, alObjetivo + error);
+      if (colgada.especial) especiales++;
     }
     if (colgada && partida.pasos === pasoToque && partida.soltar()) soltadas++;
     partida.paso();
@@ -98,6 +102,7 @@ export function jugarConPerfil(semilla: string, perfil: Perfil, opciones: Opcion
     primeraS: pasosSueltas.length > 0 ? pasosSueltas[0]! / 60 : null,
     cadenciaS: intervalos.length > 0 ? mediana(intervalos) : null,
     decimaS: pasoDecima === null ? null : pasoDecima / 60,
+    especiales,
   };
 }
 
