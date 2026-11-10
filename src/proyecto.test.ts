@@ -37,6 +37,14 @@ describe("textos de src/", () => {
   });
 });
 
+describe("medidas sin objetos (I4)", () => {
+  it("scripts/niveles.ts y scripts/duracion.ts no usan ayudas: los umbrales se miden sin objetos", () => {
+    for (const script of ["niveles.ts", "duracion.ts"]) {
+      expect(readFileSync(new URL(`../scripts/${script}`, import.meta.url), "utf8"), script).not.toMatch(/ayudas|usar\(|seguir\(/);
+    }
+  });
+});
+
 describe("README y CI (H1, H2)", () => {
   const leer = (ruta: string) => readFileSync(new URL(ruta, new URL("../", import.meta.url)), "utf8");
 

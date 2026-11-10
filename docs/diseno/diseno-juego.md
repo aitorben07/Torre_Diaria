@@ -418,6 +418,8 @@ Tras una caída, el filtro general de la música baja a 600 Hz y vuelve en 2 com
 - **Con 0 unidades,** «+» abre la Tienda en la pestaña Objetos como panel encima de la partida en pausa.
 - **«Partida terminada»** para los desbloqueos = libre, oficial y nivel. La repetición de un reto no cuenta.
 - **Determinismo:** las ayudas se aplican en un paso concreto (`{ paso, tipo }`), así que la pantalla y Node dan lo mismo. La pieza que cuelga lleva la distancia recorrida acumulada, para que el reloj no la haga saltar.
+- **Récord y estrellas (I4, Decisión T15):** los objetos cuentan para el récord de la partida libre y para las estrellas de los niveles. El texto y la imagen para compartir no cambian. Los umbrales de estrellas y de medalla se miden sin objetos: `scripts/niveles.ts` y `scripts/duracion.ts` no usan ayudas (lo comprueba `src/proyecto.test.ts`).
+- **«¿Seguir?»:** se ofrece si se puede pagar (un corazón, 250 monedas con el corazón ya desbloqueado o un vídeo, si hay proveedor) y los puntos llegan al 30 % del récord (o el récord es 0). Opciones: «Usar corazón (tienes N)», «250 monedas», «Ver vídeo» y «No, ver resultado», sin cuenta atrás.
 
 ### 10.8. Tienda
 
