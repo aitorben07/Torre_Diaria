@@ -24,6 +24,8 @@ export const ANCHO_VISTA = 9.2;
 export const ALTO_VISTA = 13;
 /** Metros de suelo visibles por debajo de la cara de la plataforma: el muelle queda por encima de la barra de abajo. */
 export const MARGEN_SUELO = 2.1;
+/** Con la barra de objetos, metros entre su borde de arriba y la cara del muelle: el frente del muelle (0,44 m) y algo de aire. */
+export const MARGEN_SOBRE_BARRA = 0.65;
 /** Metros sobre la cima de la torre que deben verse: el hueco, la pieza que cuelga y un margen. */
 export const ESPACIO_SOBRE_CIMA = HUECO_COLGADA + ALTO_MAX + 0.8;
 /** Con la tarjeta de fin, la cima queda a estos metros por debajo de su borde inferior. */
@@ -70,18 +72,27 @@ const ALTURA_CIELO = 110;
 const RAYA_RECORD = 0.22;
 
 /**
+ * Metros de suelo bajo la cara de la plataforma con `barra` metros tapados
+ * abajo por la barra de objetos (0 sin barra): nunca menos que `MARGEN_SUELO`,
+ * y con barra, el muelle entero por encima de ella.
+ */
+export function margenSuelo(barra: number): number {
+  return barra > 0 ? Math.max(MARGEN_SUELO, barra + MARGEN_SOBRE_BARRA) : MARGEN_SUELO;
+}
+
+/**
  * Altura de la cámara en metros: con 0, la cara de la plataforma queda
- * `MARGEN_SUELO` por encima del borde inferior. La cámara sigue a la torre:
+ * `suelo` metros (`MARGEN_SUELO` sin barra) por encima del borde inferior. La cámara sigue a la torre:
  * sube en cuanto la cima y la pieza que cuelga dejan de caber, así que la torre
  * llena la vista en vez de quedarse abajo. Con `reservaArriba` (metros tapados
  * por la tarjeta de fin), si la cima quedaría debajo de la tarjeta, la cámara
  * sube lo justo para dejarla bajo su borde.
  */
-export function objetivoCamara(altura: number, altoVisible: number, reservaArriba: number = 0): number {
-  const enJuego = Math.max(0, altura + MARGEN_SUELO + ESPACIO_SOBRE_CIMA - altoVisible);
+export function objetivoCamara(altura: number, altoVisible: number, reservaArriba: number = 0, suelo: number = MARGEN_SUELO): number {
+  const enJuego = Math.max(0, altura + suelo + ESPACIO_SOBRE_CIMA - altoVisible);
   const libre = altoVisible - reservaArriba;
   if (reservaArriba <= 0 || libre < LIBRE_MINIMO) return enJuego;
-  return Math.max(enJuego, altura + MARGEN_SUELO - (libre - MARGEN_BAJO_TARJETA));
+  return Math.max(enJuego, altura + suelo - (libre - MARGEN_BAJO_TARJETA));
 }
 
 /**
@@ -357,6 +368,10 @@ export class Lienzo {
   private reserva = 0;
   /** Píxeles reales tapados arriba siempre (el HUD sobre el lienzo). */
   private arriba = 0;
+  /** Píxeles reales tapados abajo por la barra de objetos (0 sin ella). */
+  private barra = 0;
+  /** Metros de suelo bajo la cara de la plataforma; va hacia `margenSuelo` poco a poco, como la cámara. */
+  private suelo = MARGEN_SUELO;
   /** Ancho en píxeles reales de la columna de juego (en escritorio, el escenario sigue a los lados). */
   private columna = 1;
   private enFin = false;
@@ -373,7 +388,7 @@ export class Lienzo {
   private readonly imagenes = new WeakMap<Pieza, Map<Variante, ImagenPieza>>();
   /** Fondo ya pintado (cielo, capas, muelle y marcas) y la cámara con que se pintó. */
   private fondo: HTMLCanvasElement | null = null;
-  private fondoCamara = { y: Number.NaN, zoom: Number.NaN };
+  private fondoCamara = { y: Number.NaN, zoom: Number.NaN, suelo: Number.NaN };
   private readonly vistas = new WeakMap<Pieza, VistaPieza>();
   private readonly azar = crearAzarVisual(0x70e5);
   private readonly adornos: Adorno[] = [];
@@ -421,7 +436,7 @@ export class Lienzo {
 
   /** Metros que se ven sobre la plataforma con la cámara de ahora (escena de inicio, E2). */
   get metrosVisibles(): number {
-    return this.canvas.height / (this.escala * this.zoom) - (MARGEN_SUELO - this.camaraY);
+    return this.canvas.height / (this.escala * this.zoom) - (this.suelo - this.camaraY);
   }
 
   usarEfectos(efectos: CapaEfectos): void {
@@ -479,6 +494,8 @@ export class Lienzo {
     this.camaraY = 0;
     this.zoom = 1;
     this.reserva = 0;
+    this.barra = 0;
+    this.suelo = MARGEN_SUELO;
     this.enFin = false;
     this.colgadaAntes = null;
   }
@@ -487,6 +504,11 @@ export class Lienzo {
   reservarArriba(pixelesCss: number): void {
     this.reserva = Math.max(0, pixelesCss) * ratioDePantalla();
     this.enFin = this.reserva > 0;
+  }
+
+  /** Píxeles CSS que tapa abajo la barra de objetos (0 si no se ve): el muelle sube por encima de ella. */
+  reservarAbajo(pixelesCss: number): void {
+    this.barra = Math.max(0, pixelesCss) * ratioDePantalla();
   }
 
   /** `sueltas`: piezas que ya no están en la partida pero aún caen en pantalla (A3). */
@@ -499,18 +521,23 @@ export class Lienzo {
     const tapado = Math.max(0, this.reserva - this.arriba) / this.escala;
     this.zoom += (zoomObjetivo(altura, this.enFin, altoLibre - tapado) - this.zoom) * 0.08;
     const k = this.escala * this.zoom;
-    const objetivo = objetivoCamara(altura, (canvas.height - this.arriba) / k, Math.max(0, this.reserva - this.arriba) / k);
+    // En el fin no hay barra: la tarjeta manda.
+    this.suelo += (margenSuelo(this.enFin ? 0 : this.barra / k) - this.suelo) * 0.08;
+    const objetivo = objetivoCamara(altura, (canvas.height - this.arriba) / k, Math.max(0, this.reserva - this.arriba) / k, this.suelo);
     this.camaraY += (objetivo - this.camaraY) * 0.08;
-    const abajo = this.camaraY - MARGEN_SUELO - 1;
+    const abajo = this.camaraY - this.suelo - 1;
     const arribaVista = abajo + canvas.height / k + 2;
     const anchoVista = canvas.width / k + 2;
     const izquierda = -canvas.width / 2 / k - 1;
 
     // El fondo se repinta solo si la cámara se ha movido medio píxel o ha cambiado el zoom.
-    const movida = Math.abs(this.camaraY - this.fondoCamara.y) * k > 0.5 || Math.abs(this.zoom - this.fondoCamara.zoom) > 0.0005;
+    const movida =
+      Math.abs(this.camaraY - this.fondoCamara.y) * k > 0.5 ||
+      Math.abs(this.suelo - this.fondoCamara.suelo) * k > 0.5 ||
+      Math.abs(this.zoom - this.fondoCamara.zoom) > 0.0005;
     if (movida || Number.isNaN(this.fondoCamara.y)) {
       this.pintarFondo(fondo.getContext("2d")!, k, abajo, arribaVista, izquierda, anchoVista);
-      this.fondoCamara = { y: this.camaraY, zoom: this.zoom };
+      this.fondoCamara = { y: this.camaraY, zoom: this.zoom, suelo: this.suelo };
     }
     const sacudida = this.efectos?.sacudida(ahora) ?? { x: 0, y: 0 };
     ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -520,7 +547,7 @@ export class Lienzo {
     ctx.drawImage(fondo, sacudida.x, sacudida.y);
 
     const cx = canvas.width / 2 + sacudida.x;
-    const sueloY = canvas.height - (MARGEN_SUELO - this.camaraY) * k + sacudida.y;
+    const sueloY = canvas.height - (this.suelo - this.camaraY) * k + sacudida.y;
     ctx.setTransform(k, 0, 0, -k, cx, sueloY);
     this.dibujarAdornos(ctx, ahora, abajo, arribaVista, izquierda, anchoVista);
     if (this.alturaRecord !== null && this.alturaRecord > abajo && this.alturaRecord < arribaVista) {
@@ -542,7 +569,9 @@ export class Lienzo {
 
   /** Cielo, estrellas, nubes, siluetas, muelle y marcas de altura, en el lienzo del fondo. */
   private pintarFondo(c: CanvasRenderingContext2D, k: number, abajo: number, arriba: number, izquierda: number, ancho: number): void {
-    const sueloY = this.canvas.height - (MARGEN_SUELO - this.camaraY) * k;
+    const sueloY = this.canvas.height - (this.suelo - this.camaraY) * k;
+    // Fila de la cara del muelle en píxeles CSS, para las pruebas; solo cambia al repintar el fondo.
+    this.canvas.dataset.muelle = String(Math.round(sueloY / ratioDePantalla()));
     const mundo = () => c.setTransform(k, 0, 0, -k, this.canvas.width / 2, sueloY);
     mundo();
     c.globalAlpha = 1;
@@ -560,7 +589,7 @@ export class Lienzo {
     const { escala, escenario } = this;
     const [fondo, c] = this.lienzoAparte(this.canvas.width, this.canvas.height);
     this.fondo = fondo;
-    this.fondoCamara = { y: Number.NaN, zoom: Number.NaN };
+    this.fondoCamara = { y: Number.NaN, zoom: Number.NaN, suelo: Number.NaN };
     // Degradado del cielo en metros (el mundo se dibuja con y hacia arriba).
     this.cielo = c.createLinearGradient(0, 0, 0, ALTURA_CIELO);
     for (const { metros, color } of escenario.cielo) this.cielo.addColorStop(Math.min(1, metros / ALTURA_CIELO), color);
@@ -957,7 +986,7 @@ export class Lienzo {
   /** Capas de fondo en píxeles reales, cada una con su paralaje. */
   private dibujarCapas(ctx: CanvasRenderingContext2D, k: number, sueloY: number, alturaMedia: number): void {
     const { canvas, zoom } = this;
-    const capaY = (factor: number, metros: number) => canvas.height - (MARGEN_SUELO - this.camaraY * factor) * k - metros * k;
+    const capaY = (factor: number, metros: number) => canvas.height - (this.suelo - this.camaraY * factor) * k - metros * k;
     const repetir = (capa: HTMLCanvasElement, factor: number, alpha: number) => {
       if (alpha <= 0.01) return;
       const alto = capa.height * zoom;

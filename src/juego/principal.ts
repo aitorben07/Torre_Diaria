@@ -1308,12 +1308,26 @@ function ajustarLienzo(): void {
   const hud = ui.hud().getBoundingClientRect();
   lienzo.ajustar(hud.width, hud.bottom - ui.zona().getBoundingClientRect().top);
 }
+/**
+ * Lo que tapa abajo la barra de objetos, para que el muelle quede encima (I3).
+ * Oculta con `hidden`, nada; oculta solo por la pantalla (pausa, «¿Seguir?»,
+ * fin), se queda lo de antes y la cámara no se mueve bajo el panel. El fin ya
+ * no la cuenta (`Lienzo`) y `reiniciarCamara` la olvida.
+ */
+function reservarBarra(): void {
+  const barra = ui.barraObjetos();
+  const caja = barra.getBoundingClientRect();
+  if (barra.hidden) lienzo.reservarAbajo(0);
+  else if (caja.height > 0) lienzo.reservarAbajo(ui.lienzo().getBoundingClientRect().bottom - caja.top);
+}
 const observador = new ResizeObserver(() => {
   ajustarLienzo();
+  reservarBarra();
   if (flujo.pantalla === "fin") reservarTarjeta();
 });
 observador.observe(ui.lienzo());
 observador.observe(ui.hud());
+observador.observe(ui.barraObjetos());
 aplicarEquipado();
 revisarRacha();
 const apertura = abrir(reto, hoy, libreAmigo);

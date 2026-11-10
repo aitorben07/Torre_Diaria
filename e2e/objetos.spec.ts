@@ -211,3 +211,20 @@ test("al desbloquear un objeto, el fin lo avisa con su regalo y la siguiente par
   await expect(page.locator("#objeto-reloj")).toHaveAttribute("data-cuantos", "2");
   await expect(page.locator("#objeto-cemento")).toBeHidden();
 });
+
+test("en 320×568 la barra de objetos no tapa el muelle: su cara y su frente quedan por encima (I3)", async ({ page }, testInfo) => {
+  test.skip(conTactil(testInfo), "Basta con escritorio (R17)");
+  await page.setViewportSize({ width: 320, height: 568 });
+  await preparar(page);
+  await sembrarProgreso(page, conObjetos({ reloj: 2, cemento: 1 }));
+  await page.goto("/");
+  await jugarLibre(page);
+  const barra = page.locator("#barra-objetos");
+  await expect(barra).toBeVisible();
+  const arribaBarra = (await barra.boundingBox())!.y;
+  // Frente del muelle: 0,44 m, unos 15 px con 34,8 px por metro (320 px / 9,2 m).
+  const frente = 0.44 * (320 / 9.2);
+  // `data-muelle`: fila CSS de la cara del muelle; la cámara sube poco a poco. Sin el atributo, NaN: no pasa.
+  const muelle = async () => Number((await page.locator("#lienzo").getAttribute("data-muelle")) ?? Number.NaN);
+  await expect.poll(async () => (await muelle()) + frente).toBeLessThanOrEqual(arribaBarra);
+});

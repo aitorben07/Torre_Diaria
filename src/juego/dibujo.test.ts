@@ -5,7 +5,9 @@ import {
   enVista,
   ESPACIO_SOBRE_CIMA,
   MARGEN_BAJO_TARJETA,
+  MARGEN_SOBRE_BARRA,
   MARGEN_SUELO,
+  margenSuelo,
   objetivoCamara,
   ratioPixeles,
   ZOOM_ALEJAMIENTO,
@@ -52,6 +54,27 @@ describe("objetivoCamara", () => {
 
   it("si la tarjeta tapa casi toda la vista, encuadra como durante la partida", () => {
     expect(objetivoCamara(20, ALTO_MOVIL, ALTO_MOVIL - 1)).toBe(objetivoCamara(20, ALTO_MOVIL));
+  });
+});
+
+describe("margenSuelo (barra de objetos)", () => {
+  it("sin barra, o con una barra baja, deja el suelo de siempre", () => {
+    expect(margenSuelo(0)).toBe(MARGEN_SUELO);
+    expect(margenSuelo(1)).toBe(MARGEN_SUELO);
+  });
+
+  it("con una barra alta (320×568: unos 2,1 m), la cara del muelle queda por encima de ella con su frente", () => {
+    expect(margenSuelo(2.1)).toBeCloseTo(2.1 + MARGEN_SOBRE_BARRA, 9);
+    expect(MARGEN_SOBRE_BARRA).toBeGreaterThan(0.44);
+  });
+
+  it("con más suelo, la cima y la pieza que cuelga siguen cabiendo: la cámara sube antes", () => {
+    const suelo = margenSuelo(2.1);
+    for (const altura of [0, 5, 14, 30]) {
+      const camara = objetivoCamara(altura, ALTO_MOVIL, 0, suelo);
+      expect(altura - camara + suelo + ESPACIO_SOBRE_CIMA).toBeLessThanOrEqual(ALTO_MOVIL + 1e-9);
+    }
+    expect(objetivoCamara(14, ALTO_MOVIL, 0, suelo)).toBeGreaterThan(objetivoCamara(14, ALTO_MOVIL));
   });
 });
 
