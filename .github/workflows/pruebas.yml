@@ -3,6 +3,12 @@
 # cada pull request y al subir a main, no en cada rama (evita ejecuciones
 # dobles). Solo si el repositorio es público: en uno privado gastaría la cuota
 # de minutos de GitHub Actions. Las pruebas de fotogramas se saltan con CI.
+# Las e2e tardan unos 26 min en un equipo (R17): se reparten en 3 trabajos a
+# la vez con `--shard`; cada uno compila lo suyo (lo hace el `webServer` de
+# Playwright), así no dependen de un artefacto compartido. Van con
+# `npm run e2e:ci`, sin los proyectos `rendimiento-*`: en CI se saltan, y como
+# dependen de los demás, con ellos Playwright no reparte esos proyectos y cada
+# trabajo los correría enteros.
 name: Pruebas
 
 on:
@@ -18,10 +24,30 @@ permissions:
   contents: read
 
 jobs:
-  pruebas:
+  comprobaciones:
     if: ${{ !github.event.repository.private }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: npm test
+      - run: npm run build
+
+  e2e:
+    if: ${{ !github.event.repository.private }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      # Un trozo que falla no cancela los demás: se ven todos los fallos de una vez.
+      fail-fast: false
+      matrix:
+        trozo: [1, 2, 3]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -41,7 +67,4 @@ jobs:
       - name: Dependencias del sistema de Chromium
         if: steps.cache-playwright.outputs.cache-hit == 'true'
         run: npx playwright install-deps chromium
-      - run: npm run check
-      - run: npm test
-      - run: npm run build
-      - run: npm run e2e
+      - run: npm run e2e:ci -- --shard=${{ matrix.trozo }}/3

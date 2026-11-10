@@ -85,7 +85,7 @@ CAPTURAS=1 npx playwright test e2e/capturas.spec.ts --project=escritorio   # cap
 
 ### CI
 
-`.github/workflows/pruebas.yml` ejecuta `npm ci`, `npm run check`, `npm test`, `npm run build` y `npm run e2e` (solo Chromium) en cada pull request y al subir a `main`, con caché de npm y de Chromium, `concurrency` que cancela la ejecución anterior de la misma rama y un tope de 30 minutos. Solo corre si el repositorio es público (`if: ${{ !github.event.repository.private }}`): en GitHub Actions los repositorios públicos no gastan cuota, pero uno privado sí. Si el repositorio pasa a privado, el trabajo no se ejecuta.
+`.github/workflows/pruebas.yml` ejecuta `npm ci`, `npm run check`, `npm test` y `npm run build` en un trabajo, y las e2e (solo Chromium, `npm run e2e:ci`: las de `npm run e2e` sin los proyectos `rendimiento-*`, que en CI se saltan) repartidas en 3 trabajos a la vez con `--shard=N/3` (cada uno compila lo suyo), en cada pull request y al subir a `main`, con caché de npm y de Chromium, `concurrency` que cancela la ejecución anterior de la misma rama y un tope de 30 minutos por trabajo. Solo corre si el repositorio es público (`if: ${{ !github.event.repository.private }}`): en GitHub Actions los repositorios públicos no gastan cuota, pero uno privado sí. Si el repositorio pasa a privado, los trabajos no se ejecutan.
 
 ### Desplegar en Cloudflare Pages (a mano)
 

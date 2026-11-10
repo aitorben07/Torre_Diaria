@@ -11,6 +11,7 @@
     "check": "astro check",
     "test": "vitest run",
     "e2e": "playwright test --project=escritorio --project=movil --project=demo --project=rendimiento-escritorio --project=rendimiento-movil",
+    "e2e:ci": "playwright test --project=escritorio --project=movil --project=demo",
     "e2e:motores": "playwright test --project=firefox --project=webkit",
     "medir": "node scripts/medir-jugar.ts",
     "medir:duracion": "node scripts/medir-duracion.ts",

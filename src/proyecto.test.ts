@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 const paquete = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as {
   dependencies: Record<string, string>;
   devDependencies: Record<string, string>;
+  scripts: Record<string, string>;
 };
 
 describe("package.json", () => {
@@ -57,13 +58,27 @@ describe("README y CI (H1, H2)", () => {
     for (const titulo of readme.match(/^### .+$/gm)!.filter((t) => /bloque/i.test(t))) expect(titulo).toMatch(/\d{4}-\d{2}-\d{2}/);
   });
 
-  it("el CI corre en pull_request y al subir a main, con concurrency, 20 minutos y solo en repositorio público", () => {
-    const ci = leer(".github/workflows/pruebas.yml");
+  it("el CI corre en pull_request y al subir a main, con concurrency, 30 minutos por trabajo y solo en repositorio público", () => {
+    const ci = leer(".github/workflows/pruebas.yml").replaceAll("\r\n", "\n");
     expect(ci).toMatch(/push:\n\s+branches: \[main\]/);
     expect(ci).toMatch(/\n\s+pull_request:/);
     expect(ci).toMatch(/concurrency:[\s\S]*cancel-in-progress: true/);
-    expect(ci).toContain("timeout-minutes: 30");
-    expect(ci).toContain("if: ${{ !github.event.repository.private }}");
-    for (const paso of ["npm ci", "npm run check", "npm test", "npm run build", "npm run e2e"]) expect(ci).toContain(`run: ${paso}`);
+    // Cada trabajo, con su guarda de repositorio público y su tope de 30 minutos.
+    const trabajos = ci.split("\njobs:\n")[1]!.split(/\n(?= {2}[\w-]+:\n)/);
+    expect(trabajos.length).toBeGreaterThanOrEqual(2);
+    for (const trabajo of trabajos) {
+      expect(trabajo).toContain("if: ${{ !github.event.repository.private }}");
+      expect(trabajo).toContain("timeout-minutes: 30");
+    }
+    for (const paso of ["npm ci", "npm run check", "npm test", "npm run build"]) expect(ci).toContain(`run: ${paso}`);
+  });
+
+  it("las e2e del CI se reparten en 3 trabajos a la vez con --shard (R17)", () => {
+    const ci = leer(".github/workflows/pruebas.yml").replaceAll("\r\n", "\n");
+    expect(ci.match(/trozo: \[([\d, ]+)\]/)?.[1]?.split(/,\s*/).map(Number)).toEqual([1, 2, 3]);
+    expect(ci).toContain("run: npm run e2e:ci -- --shard=${{ matrix.trozo }}/3");
+    // Sin los proyectos de rendimiento, que dependen de los demás: con ellos, cada trozo correría esos enteros.
+    expect(paquete.scripts["e2e:ci"]).toBe("playwright test --project=escritorio --project=movil --project=demo");
+    expect(ci).toContain("fail-fast: false");
   });
 });
