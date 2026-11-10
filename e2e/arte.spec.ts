@@ -260,6 +260,9 @@ test("en 1280×800 la columna de juego mide al menos 400 px y el escenario ocupa
 });
 
 test("todos los botones visibles miden al menos 44×44 px en el inicio, jugando, en la pausa, en el fin, en el reto de un amigo, en Retos, en Niveles y su ventana, en Tienda y en Ajustes (A5, E3, F1, R15)", async ({ page }, testInfo) => {
+  // Juega una partida entera y abre diez pantallas: en escritorio tarda unos
+  // 40 s y, con el equipo cargado, pasaba de los 60 s de `playwright.config.ts`.
+  test.setTimeout(120_000);
   await preparar(page);
   await page.goto("/");
   const comprobar = async (pantalla: string) => {
@@ -312,6 +315,9 @@ test("todos los botones visibles miden al menos 44×44 px en el inicio, jugando,
 
 test("con el teclado, Tab llega a todos los botones visibles y el foco se ve, también en Niveles y su ventana (A5, F1, R15)", async ({ page }, testInfo) => {
   test.skip(conTactil(testInfo), "Teclado: solo en escritorio");
+  // Juega una partida entera y recorre ocho pantallas con Tab: tarda unos 45 s
+  // y, con el equipo cargado, pasaba de los 60 s de `playwright.config.ts`.
+  test.setTimeout(120_000);
   await preparar(page);
   await page.goto("/");
   // Con una ventana modal abierta, Tab solo recorre la ventana; los candados no se enfocan.
